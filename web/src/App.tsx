@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { Acceso } from "@/Acceso";
 import { Legales } from "@/Legales";
+import { Bienvenida } from "@/alumna/Bienvenida";
 import { Chequeo } from "@/alumna/Chequeo";
 import { Cuenta } from "@/alumna/Cuenta";
 import { Evolucion } from "@/alumna/Evolucion";
@@ -110,8 +111,19 @@ export function App() {
         <Route path="/cuenta" element={<Cuenta />} />
       </Route>
 
-      {/* El chequeo va fuera del marco de pestañas: es un flujo a pantalla completa y
-          cualquier cosa que distraiga de terminarlo sobra. */}
+      {/* La bienvenida y el chequeo van fuera del marco de pestañas: son flujos a pantalla
+          completa y cualquier cosa que distraiga de terminarlos sobra. */}
+      <Route
+        path="/bienvenida"
+        element={
+          <Exige rol="alumna">
+            <div className="mx-auto w-full max-w-5xl px-6 py-10">
+              <Bienvenida />
+            </div>
+          </Exige>
+        }
+      />
+
       <Route
         path="/chequeo"
         element={

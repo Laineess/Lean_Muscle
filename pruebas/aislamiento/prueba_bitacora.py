@@ -66,6 +66,7 @@ EXENTOS: dict[str, str] = {
     # «¿quién más vio mi expediente?», y ella no es «alguien más».
     "inicio": "la alumna lee sus propios datos",
     "plan": "la alumna lee su propio plan",
+    "mi_cuestionario": "la alumna lee lo que ella misma contestó",
     # Solo devuelve agregados y estados; no expone contenido clínico ni fotografías.
     "panel": "solo agregados de la cartera",
     "alumnas": "solo agregados de la cartera",

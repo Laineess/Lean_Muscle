@@ -777,6 +777,71 @@ class Trabajo(Base):
     terminado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
 
 
+class PreguntaCuestionario(BaseMultiInquilino):
+    """Una pregunta que la coach agrega al cuestionario inicial.
+
+    El nucleo clinico —lesiones, condiciones, medicacion, restricciones— no vive aqui: son
+    columnas de `historial_clinico` porque el plan y los avisos las consultan por nombre.
+    Estas son las suyas, y por eso admiten cualquier texto y cualquier tipo.
+    """
+
+    __tablename__ = "pregunta_cuestionario"
+    __table_args__ = (
+        CheckConstraint(
+            "tipo in ('texto','texto_largo','numero','opcion','si_no')", name="tipo_pregunta_valido"
+        ),
+        Index("ix_pregunta_coach_orden", "coach_id", "orden"),
+        ARGS_DE_TABLA,
+    )
+
+    texto: Mapped[str] = mapped_column(String(300), nullable=False)
+    ayuda: Mapped[str | None] = mapped_column(String(300))
+    tipo: Mapped[str] = mapped_column(String(20), default="texto", nullable=False)
+    #: Solo para `opcion`: las alternativas, en orden.
+    opciones: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    obligatoria: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    orden: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    #: Apagar en vez de borrar: las respuestas ya dadas siguen teniendo su pregunta.
+    activa: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
+class RespuestaCuestionario(BaseMultiInquilino):
+    """Lo que contesto la alumna. Una fila por pregunta."""
+
+    __tablename__ = "respuesta_cuestionario"
+    __table_args__ = (
+        UniqueConstraint("alumna_id", "pregunta_id", name="uq_respuesta_alumna_pregunta"),
+        ARGS_DE_TABLA,
+    )
+
+    alumna_id: Mapped[int] = mapped_column(ForeignKey("alumna.id"), nullable=False)
+    pregunta_id: Mapped[int] = mapped_column(ForeignKey("pregunta_cuestionario.id"), nullable=False)
+    valor: Mapped[str] = mapped_column(Text, default="", nullable=False)
+
+
+class PresentacionCoach(BaseMultiInquilino):
+    """Lo primero que ve una alumna nueva: quien la va a acompanar.
+
+    Va antes del cuestionario a proposito. Se le piden lesiones, medicacion y peso a alguien
+    que todavia no sabe con quien esta hablando; presentarse primero es lo que convierte ese
+    formulario en una conversacion.
+    """
+
+    __tablename__ = "presentacion_coach"
+    __table_args__ = (UniqueConstraint("coach_id", name="uq_presentacion_coach"), ARGS_DE_TABLA)
+
+    #: Foto de la coach. Es la suya, no el logo: la alumna quiere ver una cara.
+    foto_key: Mapped[str | None] = mapped_column(String(255))
+    titulo: Mapped[str] = mapped_column(String(160), default="", nullable=False)
+    #: Texto libre, en parrafos. Lo escribe ella entero.
+    texto: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    #: Ficha de datos cortos: [{"rotulo": "Certificaciones", "valor": "..."}]. Va como JSON
+    #: porque ella nombra sus propios campos: fijarlos aqui seria decidir por ella.
+    ficha: Mapped[list[dict[str, str]]] = mapped_column(JSON, default=list, nullable=False)
+    #: Apagada no se muestra y la alumna pasa directo al cuestionario.
+    activa: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
 # ---------------------------------------------------------------------------
 # 10. La plataforma cobrando a sus coaches
 # ---------------------------------------------------------------------------

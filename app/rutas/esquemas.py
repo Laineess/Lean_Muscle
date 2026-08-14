@@ -103,6 +103,9 @@ class PerfilAlumna(Esquema):
     lugar_ref: str | None
     hora_ref: str | None
     zona_horaria: str
+    #: Falso hasta que contesta el cuestionario inicial. Es lo que decide si al entrar ve
+    #: primero la presentación de su coach.
+    cuestionario_completo: bool = True
 
 
 class CitaDeAlumna(Esquema):
@@ -761,6 +764,100 @@ class EdicionDeMarca(Esquema):
     nombre: str
     marca: str
     color_acento: str
+
+
+class DatoDeFicha(Esquema):
+    """Un renglón de la ficha. La coach nombra el rótulo: no hay campos impuestos."""
+
+    rotulo: str
+    valor: str
+
+
+class PresentacionPublica(Esquema):
+    """Lo que la alumna ve antes del cuestionario."""
+
+    titulo: str
+    texto: str
+    ficha: list[DatoDeFicha]
+    activa: bool
+    tiene_foto: bool
+    #: Nombre comercial y color, para que la pantalla se pinte con su marca.
+    marca: str
+    color_acento: str
+
+
+class EdicionDePresentacion(Esquema):
+    titulo: str
+    texto: str
+    ficha: list[DatoDeFicha]
+    activa: bool = True
+
+
+# ---------------------------------------------------------------------------
+# Cuestionario inicial
+# ---------------------------------------------------------------------------
+
+
+class PreguntaPublica(Esquema):
+    ulid: str
+    texto: str
+    ayuda: str | None
+    #: `texto`, `texto_largo`, `numero`, `opcion` o `si_no`.
+    tipo: str
+    opciones: list[str]
+    obligatoria: bool
+    orden: int
+    activa: bool
+
+
+class PreguntaNueva(Esquema):
+    texto: str
+    ayuda: str | None = None
+    tipo: str = "texto"
+    opciones: list[str] = []
+    obligatoria: bool = False
+    orden: int = 0
+    activa: bool = True
+
+
+class NucleoClinico(Esquema):
+    """La parte que no se puede quitar: la exige la ley y la consulta el plan."""
+
+    lesiones: str | None = None
+    condiciones: str | None = None
+    medicacion: str | None = None
+    restricciones: str | None = None
+
+
+class RespuestaDePregunta(Esquema):
+    pregunta_ulid: str
+    valor: str
+
+
+class CuestionarioParaAlumna(Esquema):
+    """El cuestionario tal como lo ve la alumna, con lo que ya hubiera contestado."""
+
+    completo: bool
+    nucleo: NucleoClinico
+    preguntas: list[PreguntaPublica]
+    respuestas: list[RespuestaDePregunta]
+    #: Los que todavía tiene que aceptar. Vacío si ya los aceptó todos.
+    consentimientos_pendientes: list[str]
+
+
+class EnvioDeCuestionario(Esquema):
+    nucleo: NucleoClinico
+    respuestas: list[RespuestaDePregunta] = []
+    #: Tipos de consentimiento que acepta en este envío.
+    consentimientos: list[str] = []
+
+
+class RespuestaDeAlumna(Esquema):
+    """Una respuesta vista por la coach, con su pregunta al lado."""
+
+    pregunta: str
+    tipo: str
+    valor: str
 
 
 # ---------------------------------------------------------------------------

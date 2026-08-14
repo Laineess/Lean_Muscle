@@ -163,6 +163,8 @@ export interface InicioAlumnaApi {
     lugarRef: string | null;
     horaRef: string | null;
     zonaHoraria: string;
+    /** Falso hasta que contesta el cuestionario inicial. */
+    cuestionarioCompleto: boolean;
   };
   ciclo: {
     numero: number;
@@ -220,6 +222,73 @@ export interface ExpedienteDeConstructorApi {
   parametros: ParametrosDeCicloApi;
   nutricion: PlanApi | null;
   entrenamiento: PlanApi | null;
+}
+
+/* ------------------------------------------- Presentación y cuestionario --- */
+
+export interface DatoDeFichaApi {
+  rotulo: string;
+  valor: string;
+}
+
+export interface PresentacionApi {
+  titulo: string;
+  texto: string;
+  ficha: DatoDeFichaApi[];
+  activa: boolean;
+  tieneFoto: boolean;
+  marca: string;
+  colorAcento: string;
+}
+
+export type TipoDePregunta = "texto" | "texto_largo" | "numero" | "opcion" | "si_no";
+
+export interface PreguntaApi {
+  ulid: string;
+  texto: string;
+  ayuda: string | null;
+  tipo: TipoDePregunta;
+  opciones: string[];
+  obligatoria: boolean;
+  orden: number;
+  activa: boolean;
+}
+
+export interface PreguntaNuevaApi {
+  texto: string;
+  ayuda?: string | null;
+  tipo: TipoDePregunta;
+  opciones: string[];
+  obligatoria: boolean;
+  orden: number;
+  activa: boolean;
+}
+
+export interface NucleoClinicoApi {
+  lesiones: string | null;
+  condiciones: string | null;
+  medicacion: string | null;
+  restricciones: string | null;
+}
+
+export interface CuestionarioApi {
+  completo: boolean;
+  nucleo: NucleoClinicoApi;
+  preguntas: PreguntaApi[];
+  respuestas: { preguntaUlid: string; valor: string }[];
+  consentimientosPendientes: string[];
+}
+
+export interface EnvioDeCuestionarioApi {
+  nucleo: NucleoClinicoApi;
+  respuestas: { preguntaUlid: string; valor: string }[];
+  consentimientos: string[];
+}
+
+export interface RespuestaDeAlumnaApi {
+  pregunta: string;
+  tipo: string;
+  valor: string;
 }
 
 export interface PlanApi {
@@ -777,6 +846,13 @@ export const api = {
 
   alumna: {
     inicio: (senal?: AbortSignal) => pedir<InicioAlumnaApi>("/mi/inicio", senal ? { senal } : {}),
+
+    presentacion: (senal?: AbortSignal) =>
+      pedir<PresentacionApi>("/mi/presentacion", senal ? { senal } : {}),
+    cuestionario: (senal?: AbortSignal) =>
+      pedir<CuestionarioApi>("/mi/cuestionario", senal ? { senal } : {}),
+    enviarCuestionario: (envio: EnvioDeCuestionarioApi) =>
+      pedir<void>("/mi/cuestionario", { metodo: "POST", cuerpo: envio }),
     plan: (senal?: AbortSignal) => pedir<PlanesDeAlumnaApi>("/mi/plan", senal ? { senal } : {}),
 
     /** Abre el chequeo del ciclo, o devuelve el que ya estaba abierto. Es idempotente. */
@@ -948,6 +1024,31 @@ export const api = {
         `/coach/ejercicios?q=${encodeURIComponent(q)}`,
         senal ? { senal } : {},
       ),
+    presentacion: (senal?: AbortSignal) =>
+      pedir<PresentacionApi>("/coach/presentacion", senal ? { senal } : {}),
+    guardarPresentacion: (p: {
+      titulo: string;
+      texto: string;
+      ficha: DatoDeFichaApi[];
+      activa: boolean;
+    }) => pedir<PresentacionApi>("/coach/presentacion", { metodo: "PUT", cuerpo: p }),
+    subirFotoDePresentacion: (archivo: File) =>
+      subir<PresentacionApi>("/coach/presentacion/foto", archivo, "PUT"),
+
+    preguntas: (senal?: AbortSignal) =>
+      pedir<PreguntaApi[]>("/coach/preguntas", senal ? { senal } : {}),
+    crearPregunta: (p: PreguntaNuevaApi) =>
+      pedir<PreguntaApi>("/coach/preguntas", { metodo: "POST", cuerpo: p }),
+    editarPregunta: (ulid: string, p: PreguntaNuevaApi) =>
+      pedir<PreguntaApi>(`/coach/preguntas/${ulid}`, { metodo: "PUT", cuerpo: p }),
+    quitarPregunta: (ulid: string) =>
+      pedir<void>(`/coach/preguntas/${ulid}`, { metodo: "DELETE" }),
+    respuestasDeAlumna: (alumnaUlid: string, senal?: AbortSignal) =>
+      pedir<RespuestaDeAlumnaApi[]>(
+        `/coach/alumnas/${alumnaUlid}/cuestionario`,
+        senal ? { senal } : {},
+      ),
+
     expedienteDePlan: (alumnaUlid: string, senal?: AbortSignal) =>
       pedir<ExpedienteDeConstructorApi>(
         `/coach/planes/${alumnaUlid}`,
@@ -999,6 +1100,11 @@ export function urlDeComprobante(cobroUlid: string): string {
 /** El logo de la marca del inquilino en curso. `v` fuerza recarga tras subir uno nuevo. */
 export function urlDeLogo(version = 0): string {
   return `${BASE}/logo${version ? `?v=${version}` : ""}`;
+}
+
+/** Foto de la coach para su presentación. La versión evita servir la anterior en caché. */
+export function urlDeFotoDeCoach(version = 0): string {
+  return `${BASE}/presentacion/foto${version ? `?v=${version}` : ""}`;
 }
 
 /** Descarga un PDF.

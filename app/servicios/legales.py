@@ -12,6 +12,7 @@ decirlo en lugar de aparentar que está terminado.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass
 from functools import lru_cache
@@ -86,3 +87,27 @@ def leer(clave: str, *, coach: str | None = None, titular: str | None = None) ->
         contenido=texto,
         marcadores=tuple(sorted(set(MARCADOR.findall(texto)))),
     )
+
+
+#: De qué documento sale cada consentimiento. `datos_salud` y `protocolo_foto` no tienen
+#: archivo propio: son secciones del aviso de privacidad, y es su texto el que se acepta.
+DOCUMENTO_DE_CONSENTIMIENTO = {
+    "terminos": "terminos",
+    "privacidad": "privacidad",
+    "datos_salud": "privacidad",
+    "protocolo_foto": "privacidad",
+}
+
+
+def version_y_hash(consentimiento: str) -> tuple[str, str]:
+    """Versión y huella del texto exacto que se aceptó.
+
+    Se calcula sobre el documento sin sustituir el nombre de la coach: si no, dos alumnas de
+    coaches distintas tendrían huellas distintas del mismo texto legal.
+    """
+    clave = DOCUMENTO_DE_CONSENTIMIENTO.get(consentimiento)
+    if clave is None:
+        raise KeyError(consentimiento)
+    documento = leer(clave)
+    huella = hashlib.sha256(documento.contenido.encode("utf-8")).hexdigest()
+    return documento.version[:20], huella

@@ -90,6 +90,7 @@ def inicio(
             lugar_ref=alumna.lugar_ref,
             hora_ref=alumna.hora_ref,
             zona_horaria=alumna.zona_horaria,
+            cuestionario_completo=alumna.cuestionario_completo,
         ),
         ciclo=CicloPublico(
             numero=ciclo.numero,

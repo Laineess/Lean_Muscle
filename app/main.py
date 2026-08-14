@@ -24,10 +24,12 @@ from app.rutas import (
     api_coach,
     api_cobros,
     api_comprobantes,
+    api_cuestionario,
     api_documentos,
     api_finanzas,
     api_legales,
     api_medios,
+    api_presentacion,
     auth,
 )
 from app.rutas.plataforma import api as api_plataforma
@@ -101,6 +103,8 @@ app.include_router(api_documentos.ruteador)
 app.include_router(api_legales.ruteador)
 app.include_router(api_medios.ruteador)
 app.include_router(api_plataforma.ruteador)
+app.include_router(api_presentacion.ruteador)
+app.include_router(api_cuestionario.ruteador)
 
 
 @app.get("/salud", tags=["sistema"])

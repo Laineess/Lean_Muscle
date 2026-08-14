@@ -44,6 +44,7 @@ import {
   type ExpedienteDeConstructorApi,
   type HistorialApi,
   type PlanApi,
+  type RespuestaDeAlumnaApi,
 } from "@/lib/api";
 import {
   ACTIVIDAD,
@@ -676,9 +677,38 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
 
           <Regla />
 
+          <RespuestasDelCuestionario alumnaUlid={exp.alumnaUlid} />
+
+          <Regla />
+
           <CalendarioDeCobros alumnaUlid={exp.alumnaUlid} precioSugerido={null} />
         </aside>
       </div>
     </div>
+  );
+}
+
+/** Lo que contestó al entrar. Vive junto al plan porque es donde se decide qué comer y qué
+ *  entrenar: quien duerme cinco horas no lleva el mismo volumen que quien duerme ocho. */
+function RespuestasDelCuestionario({ alumnaUlid }: { alumnaUlid: string }) {
+  const carga = usarApi<RespuestaDeAlumnaApi[]>(
+    (senal) => api.coach.respuestasDeAlumna(alumnaUlid, senal),
+    [alumnaUlid],
+  );
+  const filas = carga.datos ?? [];
+  if (carga.cargando || filas.length === 0) return null;
+
+  return (
+    <section className="flex flex-col gap-3">
+      <Etiqueta>Su cuestionario</Etiqueta>
+      <dl className="flex flex-col gap-3">
+        {filas.map((r) => (
+          <div key={r.pregunta} className="flex flex-col gap-0.5">
+            <dt className="text-micro text-tinta-suave">{r.pregunta}</dt>
+            <dd className="text-menor">{r.valor || "—"}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }

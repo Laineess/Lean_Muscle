@@ -7,7 +7,7 @@
 
 import { ArrowRight, Loader2, LogOut, MessageSquare, ShieldCheck, Upload, User } from "lucide-react";
 import { useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 
 import { cerrarSesion } from "@/lib/sesion";
 
@@ -37,6 +37,7 @@ const RESPALDO: InicioAlumnaApi = {
     lugarRef: alumna.lugarRef,
     horaRef: alumna.horaRef,
     zonaHoraria: alumna.zonaHoraria,
+    cuestionarioCompleto: true,
   },
   ciclo: {
     numero: ciclo.numero,
@@ -60,6 +61,10 @@ export function Inicio() {
   );
 
   if (cargando) return <Cargando que="tu inicio" />;
+
+  // Antes que nada: quién es su coach y qué necesita saber de ella. Sin esto el plan se
+  // arma a ciegas, y pedirlo después es pedirlo cuando ya nadie lo contesta.
+  if (!datos.perfil.cuestionarioCompleto) return <Navigate to="/bienvenida" replace />;
 
   const historico = datos.chequeos;
   const ultimo = historico.at(-1)!;

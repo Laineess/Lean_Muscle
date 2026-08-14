@@ -40,6 +40,8 @@ from app.datos.modelos import (
     ParametrosCiclo,
     Pesaje,
     Plan,
+    PreguntaCuestionario,
+    PresentacionCoach,
     SuscripcionCoach,
     Tarifa,
     Usuario,
@@ -537,6 +539,21 @@ MENSAJES = [
 # ---------------------------------------------------------------------------
 
 
+#: Preguntas de ejemplo. Son suyas: sirven para que la pantalla no se vea vacia y para
+#: ensenar los cuatro tipos disponibles.
+PREGUNTAS_DEMO: tuple[tuple[str, str, tuple[str, ...], bool], ...] = (
+    ("Cuantas horas duermes entre semana?", "numero", (), True),
+    ("Has llevado alguna dieta antes?", "si_no", (), False),
+    (
+        "Como describirias tu nivel de entrenamiento?",
+        "opcion",
+        ("Nunca he entrenado", "Principiante", "Intermedia", "Avanzada"),
+        True,
+    ),
+    ("Que te gustaria lograr en los proximos seis meses?", "texto_largo", (), False),
+)
+
+
 def sembrar_coach(
     sesion: Any,
     *,
@@ -572,6 +589,42 @@ def sembrar_coach(
             estado="activo",
         )
     )
+
+    sesion.add(
+        PresentacionCoach(
+            coach_id=coach.id,
+            titulo=f"Hola, soy {nombre.split(' ')[0]}",
+            texto=(
+                "Llevo doce anos acompanando a mujeres que ya intentaron de todo y estan "
+                "cansadas de empezar de cero cada enero.\n\n"
+                "Mi metodo no tiene nada de magico: medimos lo que se puede medir, ajustamos "
+                "cada mes con esos numeros y no cambiamos el plan por corazonadas. Vas a "
+                "comer comida de verdad y vas a entrenar fuerte.\n\n"
+                "Lo que sigue son unas preguntas sobre tu salud. Contestalas con calma: de "
+                "ahi sale tu primer plan."
+            ),
+            ficha=[
+                {"rotulo": "Certificaciones", "valor": "ISAK nivel 1, NSCA-CPT, ISSN"},
+                {"rotulo": "Anos de experiencia", "valor": "12"},
+                {"rotulo": "Enfoque", "valor": "Recomposicion corporal en mujeres adultas"},
+                {"rotulo": "Donde", "valor": "En linea, con seguimiento mensual"},
+            ],
+            activa=True,
+        )
+    )
+
+    for orden, (texto_pregunta, tipo, opciones, obligatoria) in enumerate(PREGUNTAS_DEMO, start=1):
+        sesion.add(
+            PreguntaCuestionario(
+                coach_id=coach.id,
+                texto=texto_pregunta,
+                tipo=tipo,
+                opciones=list(opciones),
+                obligatoria=obligatoria,
+                orden=orden,
+                activa=True,
+            )
+        )
 
     # Tres planes con precios distintos: es lo que hace visible que el cobro depende del
     # plan y no de un precio unico por coach.
