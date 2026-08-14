@@ -24,6 +24,7 @@ from app.rutas import (
     api_coach,
     api_documentos,
     api_finanzas,
+    api_legales,
     api_medios,
     auth,
 )
@@ -93,6 +94,7 @@ app.include_router(api_coach.ruteador)
 app.include_router(api_biblioteca.ruteador)
 app.include_router(api_finanzas.ruteador)
 app.include_router(api_documentos.ruteador)
+app.include_router(api_legales.ruteador)
 app.include_router(api_medios.ruteador)
 app.include_router(api_plataforma.ruteador)
 

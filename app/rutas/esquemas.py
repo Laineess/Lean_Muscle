@@ -100,6 +100,17 @@ class PerfilAlumna(Esquema):
     zona_horaria: str
 
 
+class CitaDeAlumna(Esquema):
+    """Una cita vista por la alumna. Sin las notas de la coach, que son suyas."""
+
+    ulid: str
+    titulo: str
+    modalidad: str
+    estado: str
+    inicia_en: datetime
+    termina_en: datetime
+
+
 class InicioAlumna(Esquema):
     """Todo lo que pinta la pantalla de inicio, en una sola llamada.
 
@@ -113,6 +124,8 @@ class InicioAlumna(Esquema):
     ultimo_feedback: str | None
     avisos_sin_leer: int
     coach: str
+    #: Lo que viene: sirve para el cuadro de próximas fechas del inicio.
+    proximas_citas: list[CitaDeAlumna]
 
 
 class PlanPublico(Esquema):
@@ -728,3 +741,23 @@ class ExpedienteDeValidacion(Esquema):
     anteriores: list[ChequeoDeValidacion]
     lesiones: str | None
     restricciones: str | None
+
+
+# ---------------------------------------------------------------------------
+# Documentos legales
+# ---------------------------------------------------------------------------
+
+
+class DocumentoLegal(Esquema):
+    """El texto tal cual está en `docs/`, en Markdown.
+
+    `marcadores` lleva los huecos sin rellenar. Un aviso de privacidad con huecos no cumple
+    la LFPDPPP, así que la pantalla lo dice en vez de aparentar que está terminado.
+    """
+
+    clave: str
+    titulo: str
+    version: str
+    actualizado: str
+    contenido: str
+    marcadores: list[str]

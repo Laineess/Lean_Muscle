@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -26,6 +26,7 @@ from app.datos.modelos import (
     Alumna,
     Chequeo,
     Ciclo,
+    Cita,
     Coach,
     CobroCoach,
     Consentimiento,
@@ -650,6 +651,29 @@ def sembrar_coach(
         )
         sesion.add(ciclo)
         sesion.flush()
+
+        # Un par de consultas por delante para las tres primeras: sin ellas, el cuadro de
+        # proximas fechas de la alumna sale vacio y la agenda de la coach no ensena nada.
+        if i < 3:
+            for dias, titulo, modalidad in (
+                (2 + i, "Consulta de seguimiento", "video"),
+                (16 + i, "Revision de medio ciclo", "presencial"),
+            ):
+                arranque = datetime.combine(
+                    date.today() + timedelta(days=dias), time(hour=9 + i)
+                ).replace(tzinfo=UTC)
+                sesion.add(
+                    Cita(
+                        coach_id=coach.id,
+                        alumna_id=alumna.id,
+                        titulo=titulo,
+                        tipo="consulta",
+                        modalidad=modalidad,
+                        estado="confirmada" if dias < 7 else "agendada",
+                        inicia_en=arranque,
+                        termina_en=arranque + timedelta(minutes=45),
+                    )
+                )
 
         sesion.add(
             Pago(

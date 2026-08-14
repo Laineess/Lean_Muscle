@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { Acceso } from "@/Acceso";
+import { Legales } from "@/Legales";
 import { Chequeo } from "@/alumna/Chequeo";
 import { Cuenta } from "@/alumna/Cuenta";
 import { Evolucion } from "@/alumna/Evolucion";
@@ -91,6 +92,9 @@ export function App() {
     <Routes>
       <Route path="/" element={<Entrada />} />
       <Route path="/acceso" element={<Acceso />} />
+
+      {/* Fuera del guardia: el aviso de privacidad tiene que poder leerse sin haber entrado. */}
+      <Route path="/legal/:documento" element={<Legales />} />
 
       <Route
         element={

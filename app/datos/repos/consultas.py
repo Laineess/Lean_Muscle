@@ -176,6 +176,22 @@ def citas_del_dia(s: Session, dia: date) -> list[Cita]:
     return citas_entre(s, inicio, fin)
 
 
+def proximas_citas_de(s: Session, alumna_id: int, desde: datetime, limite: int = 3) -> list[Cita]:
+    """Las citas que le vienen a una alumna. Las canceladas no cuentan como próximas."""
+    return list(
+        s.scalars(
+            select(Cita)
+            .where(
+                Cita.alumna_id == alumna_id,
+                Cita.inicia_en >= desde,
+                Cita.estado != "cancelada",
+            )
+            .order_by(Cita.inicia_en)
+            .limit(limite)
+        ).all()
+    )
+
+
 def cita_por_ulid(s: Session, ulid: str) -> Cita | None:
     return s.scalars(select(Cita).where(Cita.ulid == ulid)).first()
 

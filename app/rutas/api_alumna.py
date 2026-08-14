@@ -21,6 +21,7 @@ from app.dominio.ciclo import EstadoCiclo, EstadoPago, exigir_acceso_al_plan
 from app.rutas.esquemas import (
     ChequeoPublico,
     CicloPublico,
+    CitaDeAlumna,
     InicioAlumna,
     PerfilAlumna,
     PlanesDeAlumna,
@@ -103,6 +104,17 @@ def inicio(
         ultimo_feedback=ultimo_feedback,
         avisos_sin_leer=q.avisos_sin_leer(s, actor.usuario_id),
         coach=nombre_de_coach(s, actor),
+        proximas_citas=[
+            CitaDeAlumna(
+                ulid=c.ulid,
+                titulo=c.titulo,
+                modalidad=c.modalidad,
+                estado=c.estado,
+                inicia_en=c.inicia_en,
+                termina_en=c.termina_en,
+            )
+            for c in q.proximas_citas_de(s, alumna.id, ahora_utc())
+        ],
     )
 
 

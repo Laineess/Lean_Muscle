@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { Dialogo } from "@/componentes/Dialogo";
 import { Notificaciones } from "@/componentes/Notificaciones";
@@ -26,10 +27,10 @@ import { alumna, historialClinico } from "@/lib/datos";
 import { fecha } from "@/lib/formato";
 
 const CONSENTIMIENTOS = [
-  ["Términos y Condiciones", "2.0", false],
-  ["Aviso de Privacidad", "2.0", false],
-  ["Datos de salud", "2.0", true],
-  ["Protocolo fotográfico", "2.0", true],
+  ["Términos y Condiciones", "2.0", false, "/legal/terminos"],
+  ["Aviso de Privacidad", "2.0", false, "/legal/privacidad"],
+  ["Datos de salud", "2.0", true, "/legal/privacidad"],
+  ["Protocolo fotográfico", "2.0", true, "/legal/privacidad"],
 ] as const;
 
 const DERECHOS = [
@@ -138,11 +139,13 @@ export function Cuenta() {
         <div className="flex flex-col gap-2">
           <Etiqueta>Lo que aceptaste</Etiqueta>
           <ul className="flex flex-col divide-y divide-linea border-y border-linea">
-            {CONSENTIMIENTOS.map(([titulo, version, sensible]) => (
+            {CONSENTIMIENTOS.map(([titulo, version, sensible, ruta]) => (
               <li key={titulo} className="flex flex-wrap items-center gap-3 py-3">
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-menor font-medium">{titulo}</span>
+                    <Link to={ruta} className="text-menor font-medium underline underline-offset-2">
+                      {titulo}
+                    </Link>
                     {sensible ? <Chip tono="espera">Sensible</Chip> : null}
                   </div>
                   <Apoyo>Versión {version} · aceptado el 2 de mayo de 2026</Apoyo>

@@ -11,7 +11,7 @@
  */
 
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { Apoyo, Aviso, Boton, Campo, Casilla, Entrada, Etiqueta, Portada, Regla } from "@/componentes/primitivas";
 import { ErrorApi, api, type ActorPublico } from "@/lib/api";
@@ -171,10 +171,14 @@ export function Acceso() {
       ) : null}
 
       <p className="text-micro text-tinta-suave">
-        Al entrar aceptas los Términos y el{" "}
-        <a href="/privacidad" className="underline underline-offset-2">
+        Al entrar aceptas los{" "}
+        <Link to="/legal/terminos" className="underline underline-offset-2">
+          Términos y Condiciones
+        </Link>{" "}
+        y el{" "}
+        <Link to="/legal/privacidad" className="underline underline-offset-2">
           Aviso de Privacidad
-        </a>
+        </Link>
         .
       </p>
     </main>

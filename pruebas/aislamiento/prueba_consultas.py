@@ -467,3 +467,12 @@ def test_el_consentimiento_de_otra_alumna_no_cuenta(
     with sesion_con_alcance(a.coach_id) as s:
         assert q.consentimiento_vigente(s, a.alumna_id, "protocolo_foto") is not None
         assert q.consentimiento_vigente(s, b.alumna_id, "protocolo_foto") is None
+
+
+def test_las_proximas_citas_de_una_alumna_ajena_no_se_alcanzan(
+    inquilinos: tuple[Inquilino, Inquilino],
+) -> None:
+    a, b = inquilinos
+    with sesion_con_alcance(a.coach_id) as s:
+        assert q.proximas_citas_de(s, a.alumna_id, MOMENTO - timedelta(days=1)) != []
+        assert q.proximas_citas_de(s, b.alumna_id, MOMENTO - timedelta(days=1)) == []

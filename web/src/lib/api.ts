@@ -175,6 +175,7 @@ export interface InicioAlumnaApi {
   ultimoFeedback: string | null;
   avisosSinLeer: number;
   coach: string;
+  proximasCitas: CitaDeAlumnaApi[];
 }
 
 export interface AlimentoApi {
@@ -588,6 +589,26 @@ export interface MovimientoDeAuditoriaApi {
   entidad: string;
 }
 
+export interface DocumentoLegalApi {
+  clave: string;
+  titulo: string;
+  version: string;
+  actualizado: string;
+  /** Markdown tal cual está en `docs/`. */
+  contenido: string;
+  /** Huecos sin rellenar. Vacío = el documento está completo. */
+  marcadores: string[];
+}
+
+export interface CitaDeAlumnaApi {
+  ulid: string;
+  titulo: string;
+  modalidad: "presencial" | "video" | "telefono";
+  estado: string;
+  iniciaEn: string;
+  terminaEn: string;
+}
+
 export interface MarcaApi {
   nombre: string;
   marca: string;
@@ -701,6 +722,15 @@ export const api = {
     auditoria: (limite = 100, senal?: AbortSignal) =>
       pedir<MovimientoDeAuditoriaApi[]>(
         `/plataforma/auditoria?limite=${limite}`,
+        senal ? { senal } : {},
+      ),
+  },
+
+  /** Sin sesión: el aviso de privacidad se lee antes de entregar ningún dato. */
+  legales: {
+    documento: (clave: string, coach: string | null, senal?: AbortSignal) =>
+      pedir<DocumentoLegalApi>(
+        `/legales/${clave}${coach ? `?coach=${encodeURIComponent(coach)}` : ""}`,
         senal ? { senal } : {},
       ),
   },

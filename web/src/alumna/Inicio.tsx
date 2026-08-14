@@ -13,7 +13,13 @@ import { cerrarSesion } from "@/lib/sesion";
 
 import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
 import { Apoyo, Aviso, Boton, Chip, Dato, Etiqueta, Portada, Regla, Tarjeta, Titulo } from "@/componentes/primitivas";
-import { ErrorApi, api, type ComprobanteApi, type InicioAlumnaApi } from "@/lib/api";
+import {
+  ErrorApi,
+  api,
+  type CitaDeAlumnaApi,
+  type ComprobanteApi,
+  type InicioAlumnaApi,
+} from "@/lib/api";
 import { chequeos, ciclo, mensajes, notificaciones, planEntrenamiento, planNutricion, alumna } from "@/lib/datos";
 import { delta, diaSemana, fecha, num } from "@/lib/formato";
 import { usarApiConRespaldo } from "@/lib/usarApi";
@@ -43,6 +49,7 @@ const RESPALDO: InicioAlumnaApi = {
   ultimoFeedback: [...chequeos].reverse().find((c) => c.feedback)?.feedback ?? null,
   avisosSinLeer: notificaciones.filter((n) => !n.leida).length,
   coach: "Mariana Cervantes",
+  proximasCitas: [],
 };
 
 export function Inicio() {
@@ -88,6 +95,8 @@ export function Inicio() {
           {notificaciones.find((n) => !n.leida)?.texto ?? "Revisa tus avisos."}
         </Aviso>
       ) : null}
+
+      <ProximasFechas ciclo={datos.ciclo} citas={datos.proximasCitas} />
 
       {datos.ciclo ? (
         <SubirComprobante precio={datos.ciclo.precio} estado={datos.ciclo.estadoPago} />
@@ -207,6 +216,107 @@ export function Inicio() {
         </Boton>
       </nav>
     </div>
+  );
+}
+
+/* ---------------------------------------------------- Próximas fechas --- */
+
+const ROTULO_MODALIDAD: Record<string, string> = {
+  video: "Videollamada",
+  presencial: "Presencial",
+  telefono: "Llamada",
+};
+
+/** Días que faltan, contando por día calendario y no por horas.
+ *
+ *  Una cita de mañana a las 9 está a 14 horas, pero decir «en 0 días» sería absurdo: lo que
+ *  la alumna piensa es «mañana».
+ */
+function diasHasta(iso: string): number {
+  const objetivo = new Date(iso);
+  const hoy = new Date();
+  objetivo.setHours(0, 0, 0, 0);
+  hoy.setHours(0, 0, 0, 0);
+  return Math.round((objetivo.getTime() - hoy.getTime()) / 86_400_000);
+}
+
+function cuando(dias: number): string {
+  if (dias <= 0) return "hoy";
+  if (dias === 1) return "mañana";
+  return `en ${dias} días`;
+}
+
+/** Lo que viene: el pago del ciclo y las consultas agendadas.
+ *
+ *  Van juntos porque son las dos únicas fechas que la alumna tiene que recordar, y estaban
+ *  repartidas entre dos pantallas distintas.
+ */
+function ProximasFechas({
+  ciclo,
+  citas,
+}: {
+  ciclo: InicioAlumnaApi["ciclo"];
+  citas: CitaDeAlumnaApi[];
+}) {
+  if (!ciclo && citas.length === 0) return null;
+
+  const diasParaPago = ciclo ? diasHasta(ciclo.terminaEn) : null;
+  const vencido = diasParaPago !== null && diasParaPago < 0;
+  const urgePago = diasParaPago !== null && diasParaPago >= 0 && diasParaPago <= 5;
+
+  return (
+    <section className="flex flex-col gap-4">
+      <Etiqueta>Próximas fechas</Etiqueta>
+
+      <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+        {ciclo ? (
+          <li className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3">
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-menor font-medium">
+                {ciclo.estadoPago === "validado" ? "Renovación de tu ciclo" : "Pago de tu ciclo"}
+              </span>
+              <span className="text-micro text-tinta-suave">
+                Ciclo {ciclo.numero} · ${num(ciclo.precio)}
+              </span>
+            </span>
+            <span className="flex items-baseline gap-3">
+              <span className="cifra text-menor">{fecha(ciclo.terminaEn)}</span>
+              <Chip tono={vencido ? "error" : urgePago ? "espera" : "neutro"}>
+                {vencido ? "vencido" : cuando(diasParaPago ?? 0)}
+              </Chip>
+            </span>
+          </li>
+        ) : null}
+
+        {citas.map((c) => {
+          const dias = diasHasta(c.iniciaEn);
+          return (
+            <li
+              key={c.ulid}
+              className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3"
+            >
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-menor font-medium">{c.titulo}</span>
+                <span className="text-micro text-tinta-suave">
+                  {ROTULO_MODALIDAD[c.modalidad] ?? c.modalidad}
+                  {c.estado === "confirmada" ? " · confirmada" : ""}
+                </span>
+              </span>
+              <span className="flex items-baseline gap-3">
+                <span className="cifra text-menor">
+                  {fecha(c.iniciaEn)} · {c.iniciaEn.slice(11, 16)}
+                </span>
+                <Chip tono={dias <= 1 ? "espera" : "neutro"}>{cuando(dias)}</Chip>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+
+      {citas.length === 0 ? (
+        <Apoyo>No tienes consultas agendadas. Tu coach te avisa cuando agende una.</Apoyo>
+      ) : null}
+    </section>
   );
 }
 
