@@ -127,15 +127,20 @@ resultante.
 ## Verificar
 
 ```powershell
-.\.venv\Scripts\python -m pytest pruebas -q        # 522 pruebas
+.\.venv\Scripts\python -m pytest pruebas -q        # 537 pruebas
 .\.venv\Scripts\python -m ruff check app pruebas
 .\.venv\Scripts\python -m mypy app
 
 cd web
+npm run lint                   # estilo y errores que el compilador no ve
 npm run build                  # tipos estrictos y compilación
 node pruebas/clases.mjs        # que ningún color se pierda contra un tamaño
 node pruebas/calculadora.mjs   # que el motor de la interfaz coincida con la hoja
 ```
+
+Las pruebas corren contra `leanmuscle_pruebas`, no contra la base de trabajo: las de
+aislamiento hacen DROP de todas las tablas. `.\desarrollo.ps1` crea las dos. Si la de
+pruebas no existe, las 32 que necesitan MySQL se saltan y el aviso lo dice.
 
 Sin MySQL se saltan las de aislamiento e integración. **Correrlas borra y recrea la base
 local**, así que después hay que volver a sembrar:

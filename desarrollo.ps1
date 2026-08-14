@@ -89,14 +89,21 @@ if ($ClaveMysql) { $argsMysql += "-p$ClaveMysql" }
 
 # Se crean base y usuario en una sola pasada. El GRANT va solo sobre esa base: la cuenta de
 # la aplicación no tiene por qué poder tocar `mysql.user` ni ninguna otra base del servidor.
+#
+# La segunda base es para `pytest`: las pruebas de aislamiento hacen DROP de todas las tablas
+# y contra la base de trabajo la dejaban vacía.
+$bdPruebas = "${bdNombre}_pruebas"
 $sql = @"
 CREATE DATABASE IF NOT EXISTS ``$bdNombre`` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE DATABASE IF NOT EXISTS ``$bdPruebas`` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 CREATE USER IF NOT EXISTS '$bdUsuario'@'localhost' IDENTIFIED BY '$bdClave';
 CREATE USER IF NOT EXISTS '$bdUsuario'@'127.0.0.1' IDENTIFIED BY '$bdClave';
 ALTER USER '$bdUsuario'@'localhost' IDENTIFIED BY '$bdClave';
 ALTER USER '$bdUsuario'@'127.0.0.1' IDENTIFIED BY '$bdClave';
 GRANT ALL PRIVILEGES ON ``$bdNombre``.* TO '$bdUsuario'@'localhost';
 GRANT ALL PRIVILEGES ON ``$bdNombre``.* TO '$bdUsuario'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON ``$bdPruebas``.* TO '$bdUsuario'@'localhost';
+GRANT ALL PRIVILEGES ON ``$bdPruebas``.* TO '$bdUsuario'@'127.0.0.1';
 FLUSH PRIVILEGES;
 "@
 
@@ -110,7 +117,7 @@ Si tu root tiene contraseña, pásala:
 "@
     exit 1
 }
-Write-Host "   base '$bdNombre' y usuario '$bdUsuario' listos"
+Write-Host "   bases '$bdNombre' y '$bdPruebas', usuario '$bdUsuario' listos"
 
 # Comprobación real: que la aplicación conecte con SUS credenciales, no con las de root.
 & .\.venv\Scripts\python.exe -c "from app.datos.alcance import motor; motor().connect()"
