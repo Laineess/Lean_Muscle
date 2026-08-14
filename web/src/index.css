@@ -1,0 +1,199 @@
+@import "tailwindcss";
+
+/* ===========================================================================
+   MyProgressPlan — sistema de diseño
+
+   Negro y gris son la estructura y no se tocan. El dorado es el ACENTO, y es una
+   variable: cada Coach define el suyo desde sus ajustes y reemplaza al dorado sin
+   que haya que rehacer una sola pantalla. El dorado de MyProgressPlan es el valor
+   por defecto.
+
+   Regla de contraste que manda sobre el gusto: el dorado sobre fondo claro da 2.4:1
+   y el mínimo legible es 4.5:1. Por eso hay DOS tokens de acento:
+     --acento        para marcar   → filetes, bordes, estados activos, iconos
+     --acento-texto  para leer     → versión oscurecida, la única que lleva texto
+   En modo oscuro el dorado luce sobre negro y ambos tokens se acercan.
+
+   Estilo: editorial y calmado. Espacio en blanco, tipografía grande, casi sin cajas.
+   =========================================================================== */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* ---- Estructura: negro y gris ---- */
+  --fondo: #ffffff;
+  --fondo-sutil: #f6f6f5;
+  --fondo-elevado: #ffffff;
+  --tinta: #0c0c0c;
+  --tinta-media: #52525b;
+  --tinta-suave: #8a8a8f;
+  --linea: #e4e4e7;
+  --linea-fuerte: #0c0c0c;
+
+  /* ---- Acento: dorado por defecto, reemplazable por la Coach ---- */
+  --acento: #c9a227;
+  --acento-texto: #8a6d14;  /* 4.6:1 sobre blanco */
+  --acento-sutil: #faf6e8;
+
+  /* ---- Semánticos ---- */
+  --peligro: #b42318;
+  --peligro-sutil: #fef3f2;
+  --exito: #1a7f4b;
+  --exito-sutil: #edf7f1;
+
+  --radio: 0.375rem;
+}
+
+/* El modo oscuro sigue al sistema del teléfono. La alumna hace su chequeo recién
+   despierta, muchas veces a oscuras: una pantalla blanca a esa hora molesta. */
+@media (prefers-color-scheme: dark) {
+  :root:not(.claro) {
+    --fondo: #0c0c0c;
+    --fondo-sutil: #18181b;
+    --fondo-elevado: #141416;
+    --tinta: #fafafa;
+    --tinta-media: #a1a1aa;
+    --tinta-suave: #71717a;
+    --linea: #27272a;
+    --linea-fuerte: #fafafa;
+
+    --acento: #d9b441;
+    --acento-texto: #e5c766;  /* 8.9:1 sobre #0c0c0c */
+    --acento-sutil: #1c1810;
+
+    --peligro: #f97066;
+    --peligro-sutil: #24120f;
+    --exito: #4ade80;
+    --exito-sutil: #0f1f16;
+  }
+}
+
+/* Clase .oscuro para forzarlo desde código (pruebas, capturas de pantalla). */
+.oscuro {
+  --fondo: #0c0c0c;
+  --fondo-sutil: #18181b;
+  --fondo-elevado: #141416;
+  --tinta: #fafafa;
+  --tinta-media: #a1a1aa;
+  --tinta-suave: #71717a;
+  --linea: #27272a;
+  --linea-fuerte: #fafafa;
+  --acento: #d9b441;
+  --acento-texto: #e5c766;
+  --acento-sutil: #1c1810;
+  --peligro: #f97066;
+  --peligro-sutil: #24120f;
+  --exito: #4ade80;
+  --exito-sutil: #0f1f16;
+}
+
+@theme inline {
+  --color-fondo: var(--fondo);
+  --color-fondo-sutil: var(--fondo-sutil);
+  --color-fondo-elevado: var(--fondo-elevado);
+  --color-tinta: var(--tinta);
+  --color-tinta-media: var(--tinta-media);
+  --color-tinta-suave: var(--tinta-suave);
+  --color-linea: var(--linea);
+  --color-linea-fuerte: var(--linea-fuerte);
+  --color-acento: var(--acento);
+  --color-acento-texto: var(--acento-texto);
+  --color-acento-sutil: var(--acento-sutil);
+  --color-peligro: var(--peligro);
+  --color-peligro-sutil: var(--peligro-sutil);
+  --color-exito: var(--exito);
+  --color-exito-sutil: var(--exito-sutil);
+
+  --radius-marco: var(--radio);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Escala editorial: pocos tamaños, saltos amplios. */
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1rem;
+  --text-menor: 0.8125rem;
+  --text-menor--line-height: 1.125rem;
+  --text-cuerpo: 0.9375rem;
+  --text-cuerpo--line-height: 1.6;
+  --text-guia: 1.0625rem;
+  --text-guia--line-height: 1.5;
+  --text-titulo: 1.5rem;
+  --text-titulo--line-height: 1.2;
+  --text-portada: 2.25rem;
+  --text-portada--line-height: 1.1;
+  --text-cifra: 3rem;
+  --text-cifra--line-height: 1;
+}
+
+@layer base {
+  * {
+    border-color: var(--linea);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--fondo);
+    color: var(--tinta);
+    font-family: var(--font-sans);
+    font-size: var(--text-cuerpo);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* Espacio para la barra de pestañas y el área segura del teléfono. */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--acento-texto);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Las cifras se comparan mes contra mes: sin ancho tabular, los dígitos bailan. */
+  .cifra,
+  [data-numero] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  ::selection {
+    background-color: var(--acento);
+    color: #0c0c0c;
+  }
+}
+
+@layer utilities {
+  /* Filete de acento: el uso principal del dorado. Marca sin tener que leerse. */
+  .filete {
+    border-left-width: 2px;
+    border-left-style: solid;
+    border-left-color: var(--acento);
+    padding-left: 1rem;
+  }
+
+  /* Contenedor editorial: la medida de línea manda sobre el ancho de la pantalla. */
+  .medida {
+    max-width: 68ch;
+  }
+
+  .sin-barra::-webkit-scrollbar {
+    display: none;
+  }
+  .sin-barra {
+    scrollbar-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

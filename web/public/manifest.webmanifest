@@ -1,0 +1,15 @@
+{
+  "name": "MyProgressPlan",
+  "short_name": "MyProgress",
+  "description": "Tu chequeo mensual, tu plan y tu evolución.",
+  "start_url": "/inicio",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0e0e0e",
+  "theme_color": "#0e0e0e",
+  "lang": "es-MX",
+  "icons": [
+    { "src": "/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

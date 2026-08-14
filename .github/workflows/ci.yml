@@ -1,0 +1,98 @@
+name: CI
+
+# La prueba de fuga entre coaches es la única que no puede correr sin MySQL, y es
+# justamente la que no puede fallar: una fuga entre inquilinos es una infracción
+# sancionable directamente a la coach. Por eso aquí sí hay MySQL, y por eso el paso de
+# aislamiento bloquea la fusión.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci
+          MYSQL_DATABASE: leanmuscle
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      LM_ENTORNO: pruebas
+      LM_BD_URL: mysql+pymysql://root:ci@127.0.0.1:3306/leanmuscle?charset=utf8mb4
+      LM_SECRETO_SESION: solo-para-ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Estilo
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Tipos
+        run: mypy app
+
+      # Las reglas de negocio no tocan la base: corren primero porque son las más rápidas
+      # y las que más rompen.
+      - name: Pruebas de dominio
+        run: pytest pruebas/unidad -q
+
+      - name: Migraciones desde cero
+        run: alembic upgrade head
+
+      - name: Pruebas de integración
+        run: pytest pruebas/integracion -q
+
+      # Si este paso falla, no se despliega. Sin discusión.
+      - name: Prueba de fuga entre coaches
+        run: pytest pruebas/aislamiento -q
+
+      - name: Recorridos completos
+        run: pytest pruebas/recorridos -q
+        continue-on-error: false
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tipos y compilación
+        run: npm run build

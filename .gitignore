@@ -1,0 +1,36 @@
+# --- Python ---
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Secretos ---
+# `.env` incluido: lleva la contraseña de la base, el secreto de sesión, la contraseña de
+# aplicación del correo y la llave privada VAPID.
+.env
+config.env
+*.env
+!config.env.example
+
+# --- Datos de las alumnas ---
+# Fotografías de chequeo y comprobantes de pago. Nunca, bajo ninguna circunstancia.
+/datos/
+
+# --- Frontend ---
+node_modules/
+web/dist/
+*.tsbuildinfo
+
+# --- Material de la clienta ---
+# Su hoja de cálculo real, con su método completo. No hace falta en el repositorio: está
+# traducida celda por celda en `app/dominio/calculadora.py`, con pruebas que la verifican.
+Calculadora del Fitness.xlsm
+*.xlsm
+
+# --- Sistema ---
+.DS_Store
+Thumbs.db

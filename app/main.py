@@ -1,0 +1,102 @@
+"""Arranque de FastAPI.
+
+Un solo proceso sirve los dos frentes: la app de la alumna y el panel de la coach. La
+modularidad se logra por carpetas y limites de dominio, no por procesos separados — con un
+equipo y un presupuesto cerrado, partir en servicios solo agrega despliegues y latencia.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable
+from pathlib import Path
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+
+from app.compartido.errores import ErrorDeDominio, SinAlcanceDeInquilino
+from app.config import ajustes
+from app.rutas import (
+    api_alumna,
+    api_biblioteca,
+    api_chequeo,
+    api_coach,
+    api_documentos,
+    api_finanzas,
+    api_medios,
+    auth,
+)
+from app.rutas.traduccion import respuesta_para
+
+RAIZ = Path(__file__).resolve().parent
+
+app = FastAPI(
+    title="LeanMuscle",
+    version="0.1.0",
+    description="Plataforma de coaching físico y nutricional",
+    # En producción la documentación interactiva no se publica: describe la superficie
+    # completa de una API que maneja datos de salud.
+    docs_url=None if ajustes().es_produccion else "/docs",
+    redoc_url=None,
+)
+
+
+@app.exception_handler(ErrorDeDominio)
+async def traducir_error_de_dominio(_: Request, exc: ErrorDeDominio) -> JSONResponse:
+    """Único puente entre las reglas de negocio y HTTP.
+
+    El dominio nunca construye una respuesta; devuelve un código y aquí se traduce.
+    """
+    estado, mensaje = respuesta_para(exc.codigo)
+    return JSONResponse(
+        status_code=estado,
+        content={"codigo": exc.codigo.value, "mensaje": mensaje, "detalle": exc.detalle},
+    )
+
+
+@app.exception_handler(SinAlcanceDeInquilino)
+async def traducir_sin_alcance(_: Request, exc: SinAlcanceDeInquilino) -> JSONResponse:
+    """Una consulta sin inquilino es un error del programador, no de la usuaria.
+
+    Se responde 500 sin detalle y se registra completo: preferimos caer ruidoso antes que
+    devolver la fila de otra coach.
+    """
+    estado, mensaje = respuesta_para(exc.codigo)
+    return JSONResponse(status_code=estado, content={"mensaje": mensaje})
+
+
+@app.middleware("http")
+async def cabeceras_de_seguridad(
+    request: Request, siguiente: Callable[[Request], Awaitable[object]]
+) -> object:
+    respuesta = await siguiente(request)
+    cabeceras = respuesta.headers  # type: ignore[attr-defined]
+    cabeceras["X-Content-Type-Options"] = "nosniff"
+    cabeceras["X-Frame-Options"] = "DENY"
+    cabeceras["Referrer-Policy"] = "same-origin"
+    if ajustes().es_produccion:
+        cabeceras["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return respuesta
+
+
+app.include_router(auth.ruteador)
+app.include_router(api_alumna.ruteador)
+app.include_router(api_chequeo.ruteador)
+app.include_router(api_coach.ruteador)
+app.include_router(api_biblioteca.ruteador)
+app.include_router(api_finanzas.ruteador)
+app.include_router(api_documentos.ruteador)
+app.include_router(api_medios.ruteador)
+
+
+@app.get("/salud", tags=["sistema"])
+async def salud() -> dict[str, str]:
+    """Sonda para el monitoreo. No toca la base a propósito: si la base cae, esta ruta
+    debe seguir respondiendo para distinguir 'proceso muerto' de 'base caída'."""
+    return {"estado": "ok", "entorno": ajustes().entorno}
+
+
+ESTATICOS = RAIZ / "estaticos"
+if ESTATICOS.exists():
+    # En el VPS los estáticos los sirve nginx; este montaje es para desarrollo local.
+    app.mount("/estaticos", StaticFiles(directory=ESTATICOS), name="estaticos")

@@ -1,0 +1,9 @@
+# El dominio son reglas de negocio puras: no toca la base de datos ni el transporte.
+# Esta config extiende la raiz y agrega las prohibiciones de import que sostienen esa frontera.
+extend = "../../pyproject.toml"
+
+[lint.flake8-tidy-imports.banned-api]
+"app.datos".msg = "app/dominio no importa app/datos. Las reglas de negocio se prueban sin base."
+"app.datos.sin_alcance".msg = "sin_alcance solo se usa en migraciones, trabajos y panel de plataforma."
+"sqlalchemy".msg = "app/dominio no conoce el ORM. Recibe y devuelve tipos propios."
+"fastapi".msg = "app/dominio no conoce HTTP. La capa de rutas traduce los errores tipados."

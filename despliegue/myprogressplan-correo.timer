@@ -1,0 +1,14 @@
+[Unit]
+Description=Envío de los avisos encolados de MyProgressPlan
+
+[Timer]
+# Cada cinco minutos. Es el compromiso entre que un aviso importante —una clave temporal—
+# no espere mucho, y no golpear al proveedor de correo con lotes constantes.
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+# Que dos lotes se solapen duplicaría intentos sobre las mismas filas.
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

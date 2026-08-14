@@ -1,0 +1,187 @@
+/** Ajustes de la coach: marca, método, avisos y seguridad.
+ *
+ *  El color de acento es el único token que cambia con la marca. Negro y gris son la
+ *  estructura y no se tocan, así que cambiarlo no descuadra ninguna pantalla.
+ */
+
+import { useState } from "react";
+
+import { Notificaciones } from "@/componentes/Notificaciones";
+import { BotonSalir, CambiarContrasena } from "@/componentes/Seguridad";
+import {
+  Apoyo,
+  Aviso,
+  Boton,
+  Campo,
+  Casilla,
+  Entrada,
+  Etiqueta,
+  Portada,
+  Regla,
+  Selector,
+  Titulo,
+} from "@/componentes/primitivas";
+import { coach } from "@/lib/datos";
+import { iniciales } from "@/lib/formato";
+import { actorGuardado } from "@/lib/sesion";
+import { cn } from "@/lib/utils";
+
+const AVISOS = [
+  ["Recordatorio de chequeo", "Día 1 de cada mes a todas tus alumnas activas"],
+  ["Alerta de inactividad", "Cuando una alumna lleva 3 días naturales sin entrar"],
+  ["Renovaciones próximas", "Aviso 3 días antes de que termine cada ciclo"],
+  ["Purga de fotos", "Aviso a la alumna 15 días antes, con enlace de descarga"],
+  ["Recordatorio de consulta", "Un día antes de cada cita agendada"],
+] as const;
+
+export function Ajustes() {
+  const actor = actorGuardado();
+  const [acento, setAcento] = useState(actor?.colorAcento ?? coach.colorAcento);
+  const [guardado, setGuardado] = useState(false);
+
+  /** Se aplica en vivo: cambiar un color a ciegas y descubrir el resultado al guardar es
+   *  peor experiencia que verlo mientras se elige. */
+  function probar(color: string) {
+    setAcento(color);
+    document.documentElement.style.setProperty("--acento", color);
+    setGuardado(false);
+  }
+
+  return (
+    <div className="flex flex-col gap-10">
+      <header className="flex flex-col gap-3">
+        <Etiqueta>
+          Plan {coach.plan} · hasta {coach.limiteAlumnas} alumnas
+        </Etiqueta>
+        <Portada>Ajustes</Portada>
+      </header>
+
+      {/* ---- Marca ---- */}
+      <section className="flex flex-col gap-5">
+        <div className="flex flex-col gap-1">
+          <Titulo>Tu marca</Titulo>
+          <Apoyo>Tus alumnas ven tu logo y tu color dentro de la plataforma.</Apoyo>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="grid size-14 place-items-center rounded-marco border border-linea-fuerte text-menor font-bold">
+            {iniciales(actor?.marca ?? coach.marca)}
+          </span>
+          <Boton tono="contorno" medida="chica">
+            Cambiar logo
+          </Boton>
+        </div>
+
+        <Campo
+          id="aj-acento"
+          etiqueta="Color de acento"
+          ayuda="Se usa en filetes, bordes y estados activos. Nunca en texto largo: el contraste no alcanza."
+        >
+          <div className="flex items-center gap-3">
+            <input
+              id="aj-acento"
+              type="color"
+              value={acento}
+              onChange={(e) => probar(e.target.value)}
+              className="h-11 w-14 cursor-pointer rounded-marco border border-linea bg-fondo p-1"
+            />
+            <Entrada
+              value={acento}
+              onChange={(e) => probar(e.target.value)}
+              className="max-w-32 font-mono"
+              aria-label="Color en hexadecimal"
+            />
+            <span className={cn("h-11 flex-1 rounded-marco border border-linea")}>
+              <span className="block h-full border-l-2 border-l-acento pl-3 text-menor leading-[2.75rem] text-tinta-media">
+                Así se ve un filete con tu color
+              </span>
+            </span>
+          </div>
+        </Campo>
+
+        <div>
+          <Boton onClick={() => setGuardado(true)}>Guardar marca</Boton>
+          {guardado ? <Apoyo className="mt-2">Marca actualizada.</Apoyo> : null}
+        </div>
+      </section>
+
+      <Regla />
+
+      {/* ---- Método ---- */}
+      <section className="flex flex-col gap-5">
+        <Titulo>Tu método</Titulo>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Campo id="aj-precio" etiqueta="Precio del ciclo" sufijo="MXN">
+            <Entrada
+              id="aj-precio"
+              type="number"
+              defaultValue={coach.precioCiclo}
+              className="rounded-r-none"
+            />
+          </Campo>
+          <Campo id="aj-dia" etiqueta="Día de chequeo">
+            <Selector id="aj-dia" defaultValue="1">
+              <option value="1">Día 1 de cada mes</option>
+              <option value="15">Día 15 de cada mes</option>
+              <option value="0">A los 30 días del alta</option>
+            </Selector>
+          </Campo>
+          <Campo
+            id="aj-zona"
+            etiqueta="Tu zona horaria"
+            ayuda="La de cada alumna se guarda aparte: su día calendario se evalúa con la suya."
+          >
+            <Selector id="aj-zona" defaultValue="America/Mexico_City">
+              <option value="America/Mexico_City">Ciudad de México (GMT−6)</option>
+              <option value="America/Tijuana">Tijuana (GMT−8)</option>
+              <option value="America/Cancun">Cancún (GMT−5)</option>
+            </Selector>
+          </Campo>
+        </div>
+        <div>
+          <Boton tono="contorno">Guardar</Boton>
+        </div>
+      </section>
+
+      <Regla />
+
+      {/* ---- Avisos ---- */}
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <Titulo>Avisos automáticos</Titulo>
+          <Apoyo>
+            Salen por notificación dentro de la plataforma. El correo se reserva para lo que no
+            puede perderse: acceso, dinero y privacidad.
+          </Apoyo>
+        </div>
+        <div className="flex flex-col gap-2">
+          {AVISOS.map(([titulo, detalle]) => (
+            <Casilla key={titulo} id={`av-${titulo}`} titulo={titulo} defaultChecked>
+              {detalle}
+            </Casilla>
+          ))}
+        </div>
+      </section>
+
+      <Regla />
+
+      <Notificaciones para="coach" />
+
+      <Regla />
+
+      <CambiarContrasena />
+
+      <Regla />
+
+      <section className="flex flex-col gap-4">
+        <Titulo>Sesión</Titulo>
+        <Aviso tono="info">
+          Cerrar sesión revoca el token en el servidor, no solo en este navegador.
+        </Aviso>
+        <div>
+          <BotonSalir />
+        </div>
+      </section>
+    </div>
+  );
+}

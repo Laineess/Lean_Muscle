@@ -1,0 +1,189 @@
+"""Descarga de documentos en PDF: plan de nutrición, rutina y recibo.
+
+La alumna descarga los suyos; la coach, los de sus alumnas. En ambos casos el `coach_id`
+sale de la sesión, así que un ULID ajeno simplemente no existe.
+
+Cada descarga de un documento con datos de salud deja fila en `acceso_sensible`: es
+obligación del Anexo Legal §6, y una descarga es precisamente el momento en que el dato sale
+de la plataforma.
+"""
+
+from __future__ import annotations
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
+from sqlalchemy.orm import Session
+
+from app.compartido.errores import Codigo, ErrorDeDominio
+from app.datos.modelos import Alumna, Coach
+from app.datos.repos import consultas as q
+from app.rutas.sesion import Actor, actor_actual, datos
+from app.servicios import bitacora, pdf
+
+ruteador = APIRouter(prefix="/api/documentos", tags=["documentos"])
+
+
+def _respuesta(documento: pdf.Documento) -> Response:
+    return Response(
+        content=documento.contenido,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{documento.nombre}"'},
+    )
+
+
+def _alumna_visible(s: Session, actor: Actor, ulid: str | None) -> Alumna:
+    """La alumna descarga lo suyo; la coach, lo de cualquiera de su cartera."""
+    if actor.es_alumna:
+        propia = q.alumna_de_usuario(s, actor.usuario_id)
+        if propia is None:
+            raise ErrorDeDominio(Codigo.SIN_PERMISO)
+        # Una alumna que pide el ULID de otra no obtiene 403 sino sus propios datos, porque
+        # el parámetro sencillamente se ignora para su rol.
+        return propia
+
+    if not ulid:
+        raise HTTPException(422, "Falta la alumna")
+    alumna = q.alumna_por_ulid(s, ulid)
+    if alumna is None:
+        raise HTTPException(404, "No existe esa alumna")
+    return alumna
+
+
+@ruteador.get("/plan-nutricion", response_class=Response)
+def plan_nutricion(
+    actor: Annotated[Actor, Depends(actor_actual)],
+    s: Annotated[Session, Depends(datos)],
+    alumna_ulid: str | None = None,
+) -> Response:
+    alumna = _alumna_visible(s, actor, alumna_ulid)
+    ciclo = q.ciclo_vigente(s, alumna.id)
+    if ciclo is None:
+        raise HTTPException(404, "Todavía no hay ciclo")
+
+    planes = q.planes_del_ciclo(s, alumna.id, ciclo.id)
+    plan = planes.get("nutricion")
+    if plan is None:
+        raise HTTPException(404, "Todavía no hay plan de nutrición publicado")
+
+    historial = q.historial_vigente(s, alumna.id)
+    coach = s.get(Coach, actor.coach_id)
+    contenido = plan.contenido or {}
+
+    # Una descarga es justo el momento en que el dato sale de la plataforma.
+    bitacora.registrar_acceso(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        alumna_id=alumna.id,
+        recurso=bitacora.Recurso.PDF_NUTRICION,
+    )
+
+    return _respuesta(
+        pdf.plan_de_nutricion(
+            alumna=alumna.nombre,
+            coach=coach.nombre if coach else "",
+            ciclo=ciclo.numero,
+            kcal=plan.kcal_objetivo or 0,
+            proteina_g=plan.proteina_g or 0,
+            carbohidrato_g=plan.carbohidrato_g or 0,
+            grasa_g=plan.grasa_g or 0,
+            tiempos=contenido.get("tiempos", []),
+            notas=contenido.get("notas"),
+            restricciones=historial.restricciones if historial else None,
+        )
+    )
+
+
+@ruteador.get("/rutina", response_class=Response)
+def rutina(
+    actor: Annotated[Actor, Depends(actor_actual)],
+    s: Annotated[Session, Depends(datos)],
+    alumna_ulid: str | None = None,
+) -> Response:
+    alumna = _alumna_visible(s, actor, alumna_ulid)
+    ciclo = q.ciclo_vigente(s, alumna.id)
+    if ciclo is None:
+        raise HTTPException(404, "Todavía no hay ciclo")
+
+    plan = q.planes_del_ciclo(s, alumna.id, ciclo.id).get("entrenamiento")
+    if plan is None:
+        raise HTTPException(404, "Todavía no hay rutina publicada")
+
+    historial = q.historial_vigente(s, alumna.id)
+    coach = s.get(Coach, actor.coach_id)
+    contenido = plan.contenido or {}
+
+    bitacora.registrar_acceso(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        alumna_id=alumna.id,
+        recurso=bitacora.Recurso.PDF_RUTINA,
+    )
+
+    return _respuesta(
+        pdf.rutina(
+            alumna=alumna.nombre,
+            coach=coach.nombre if coach else "",
+            ciclo=ciclo.numero,
+            plantilla=contenido.get("plantilla"),
+            dias=contenido.get("dias", []),
+            notas=contenido.get("notas"),
+            lesiones=historial.lesiones if historial else None,
+        )
+    )
+
+
+@ruteador.get("/recibo/{pago_ulid}", response_class=Response)
+def recibo(
+    pago_ulid: str,
+    actor: Annotated[Actor, Depends(actor_actual)],
+    s: Annotated[Session, Depends(datos)],
+) -> Response:
+    from sqlalchemy import select
+
+    from app.datos.modelos import Ciclo, Pago
+
+    pago = s.scalars(select(Pago).where(Pago.ulid == pago_ulid)).first()
+    if pago is None:
+        raise HTTPException(404, "No existe ese pago")
+
+    # Solo se emite recibo de lo cobrado: uno de un pago sin validar diría que se recibió
+    # dinero que todavía no se confirmó.
+    if pago.estado != "validado":
+        raise HTTPException(409, "Ese pago todavía no ha sido validado")
+
+    alumna = s.get(Alumna, pago.alumna_id)
+    ciclo = s.get(Ciclo, pago.ciclo_id)
+    coach = s.get(Coach, actor.coach_id)
+    if alumna is None or ciclo is None:  # pragma: no cover - defensivo
+        raise HTTPException(404, "Datos incompletos")
+
+    if actor.es_alumna:
+        propia = q.alumna_de_usuario(s, actor.usuario_id)
+        if propia is None or propia.id != alumna.id:
+            raise ErrorDeDominio(Codigo.SIN_PERMISO)
+
+    bitacora.registrar_acceso(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        alumna_id=alumna.id,
+        recurso=bitacora.Recurso.EXPEDIENTE,
+    )
+
+    return _respuesta(
+        pdf.recibo(
+            folio=pago.ulid[-8:].upper(),
+            alumna=alumna.nombre,
+            coach=coach.nombre if coach else "",
+            ciclo=ciclo.numero,
+            monto=pago.monto,
+            metodo=pago.metodo or "Transferencia",
+            pagado_el=(pago.validado_en or pago.creado_en).date(),
+            vigencia_inicia=ciclo.inicia_en,
+            vigencia_termina=ciclo.termina_en,
+        )
+    )

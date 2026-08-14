@@ -1,0 +1,9 @@
+-r requirements.in
+
+pytest
+pytest-asyncio
+httpx
+mypy
+ruff
+pip-tools
+types-pymysql

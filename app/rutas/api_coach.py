@@ -1,0 +1,738 @@
+"""API del panel de coach.
+
+Todas las lecturas van sobre la sesión con alcance: el `coach_id` sale del token y nunca
+del cliente. Un `ulid` de otra coach simplemente no existe para esta sesión, así que
+devuelve 404 sin revelar que existe en otro inquilino.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+
+from app.compartido.errores import Codigo, ErrorDeDominio
+from app.compartido.fechas import ahora_utc
+from app.config import ajustes
+from app.datos.modelos import Cita, Coach, Usuario
+from app.datos.repos import consultas as q
+from app.dominio.agenda import EstadoCita, Franja, agendar, transicionar
+from app.dominio.avisos import Aviso
+from app.rutas.esquemas import (
+    AltaDeAlumna,
+    AlumnaDadaDeAlta,
+    CancelacionCita,
+    CitaNueva,
+    CitaPublica,
+    ClaveTemporalEmitida,
+    ClaveTemporalPedida,
+    EdicionDeAlumna,
+    EstimacionGrasa,
+    FilaCartera,
+    FotoPublica,
+    HistorialPublico,
+    RechazoChequeo,
+    ResumenPanel,
+    ValidacionChequeo,
+)
+from app.rutas.sesion import Actor, datos, solo_coach
+from app.servicios import avisos as cola
+from app.servicios import bitacora, cuentas
+from app.servicios.seguridad import VIGENCIA_CLAVE_TEMPORAL
+
+ruteador = APIRouter(prefix="/api/coach", tags=["coach"])
+
+DIAS_INACTIVIDAD = 3
+
+
+def _encolar_correo(
+    s: Session,
+    coach_id: int,
+    aviso: Aviso,
+    *,
+    para: str,
+    llave: str,
+    contexto: dict[str, object],
+    destinatario_id: int | None = None,
+) -> None:
+    """Encola el aviso en todos sus canales. El envío lo hace el trabajador."""
+    cola.encolar(
+        s,
+        aviso,
+        coach_id=coach_id,
+        llave=llave,
+        para=para,
+        contexto=contexto,
+        destinatario_id=destinatario_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Cartera y panel
+# ---------------------------------------------------------------------------
+
+
+def _filas_de_cartera(s: Session) -> list[FilaCartera]:
+    alumnas = q.cartera(s)
+    ids = [a.id for a in alumnas]
+
+    ciclos = q.ciclos_vigentes(s, ids)
+    pagos = q.pago_del_ciclo(s, [c.id for c in ciclos.values()])
+    ultimos = q.ultimo_chequeo_por_alumna(s, ids)
+    accesos = q.ultimo_acceso_de(s, [a.usuario_id for a in alumnas])
+
+    pesos_por_chequeo = q.peso_de_chequeo(s, [c.id for c in ultimos.values()])
+    hoy = ahora_utc().date()
+
+    filas: list[FilaCartera] = []
+    for a in alumnas:
+        ciclo = ciclos.get(a.id)
+        pago = pagos.get(ciclo.id) if ciclo else None
+        chequeo = ultimos.get(a.id)
+        acceso = accesos.get(a.usuario_id)
+        acceso_dia = acceso.date() if acceso else None
+
+        # Prioridad de la alerta: primero lo que bloquea el método, luego lo que cuesta
+        # dinero, al final lo que solo requiere un empujón.
+        alerta: str | None = None
+        if chequeo is not None and chequeo.alerta_outlier:
+            alerta = "outlier"
+        elif pago is not None and pago.estado != "validado":
+            alerta = "pago"
+        elif acceso_dia is None or (hoy - acceso_dia).days >= DIAS_INACTIVIDAD:
+            alerta = "inactividad"
+
+        filas.append(
+            FilaCartera(
+                ulid=a.ulid,
+                nombre=a.nombre,
+                ciclo=ciclo.numero if ciclo else 0,
+                estado=a.estado,
+                chequeo_estado=chequeo.estado if chequeo else None,
+                chequeo_fecha=chequeo.fecha if chequeo else None,
+                peso_kg=pesos_por_chequeo.get(chequeo.id) if chequeo else None,
+                peso_previo=None,
+                objetivo=a.objetivo,
+                pago=pago.estado if pago else "pendiente",
+                ultimo_acceso=acceso_dia,
+                alerta=alerta,
+            )
+        )
+    return filas
+
+
+@ruteador.get("/panel", response_model=ResumenPanel)
+def panel(
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> ResumenPanel:
+    coach = s.get(Coach, actor.coach_id)
+    if coach is None:  # pragma: no cover - solo si el inquilino se borró bajo los pies
+        raise ErrorDeDominio(Codigo.SIN_PERMISO)
+
+    filas = _filas_de_cartera(s)
+
+    return ResumenPanel(
+        coach=coach.nombre,
+        marca=coach.nombre,
+        plan=coach.plan,
+        limite_alumnas=coach.limite_alumnas,
+        precio_ciclo=coach.precio_ciclo,
+        por_validar=[f for f in filas if f.chequeo_estado == "pendiente_evaluacion"],
+        con_alerta=[f for f in filas if f.alerta is not None],
+        activas=sum(1 for f in filas if f.estado == "activa"),
+        por_cobrar=sum(1 for f in filas if f.pago != "validado"),
+    )
+
+
+@ruteador.get("/alumnas", response_model=list[FilaCartera])
+def alumnas(
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> list[FilaCartera]:
+    return _filas_de_cartera(s)
+
+
+@ruteador.post("/alumnas", response_model=AlumnaDadaDeAlta, status_code=201)
+def dar_de_alta_alumna(
+    cuerpo: AltaDeAlumna,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> AlumnaDadaDeAlta:
+    """Alta de una alumna con su ciclo inicial y su invitación.
+
+    La clave temporal se devuelve **una sola vez**, para que la coach pueda dictarla si el
+    correo no llega. No se puede consultar después: solo se guarda su hash.
+    """
+    alta = cuentas.dar_de_alta(
+        s,
+        coach_id=actor.coach_id,
+        nombre=cuerpo.nombre,
+        correo=cuerpo.correo,
+        whatsapp=cuerpo.whatsapp,
+        fecha_nacimiento=cuerpo.fecha_nacimiento,
+        estatura_cm=cuerpo.estatura_cm,
+        objetivo=cuerpo.objetivo,
+        nivel_experiencia=cuerpo.nivel_experiencia,
+        precio_ciclo=cuerpo.precio_ciclo,
+    )
+
+    coach = s.get(Coach, actor.coach_id)
+    _encolar_correo(
+        s,
+        actor.coach_id,
+        Aviso.BIENVENIDA,
+        para=alta.correo,
+        llave=f"alumna:{alta.alumna_ulid}:bienvenida",
+        contexto={
+            "nombre": cuerpo.nombre.split(" ")[0],
+            "coach": coach.nombre if coach else "tu coach",
+            "clave": alta.clave_temporal,
+        },
+    )
+
+    bitacora.registrar(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        actor_tipo="coach",
+        accion=bitacora.Accion.ALUMNA_DADA_DE_ALTA,
+        entidad="alumna",
+        detalle={"alumna_ulid": alta.alumna_ulid},
+    )
+
+    return AlumnaDadaDeAlta(
+        alumna_ulid=alta.alumna_ulid, correo=alta.correo, clave_temporal=alta.clave_temporal
+    )
+
+
+@ruteador.put("/alumnas/{ulid}", response_model=FilaCartera)
+def editar_alumna(
+    ulid: str,
+    cuerpo: EdicionDeAlumna,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> FilaCartera:
+    """Edita el perfil operativo.
+
+    **No toca el historial clínico ni los consentimientos**: esos los mantiene la alumna. Que
+    la coach pueda editarlos rompería la trazabilidad de quién declaró qué.
+    """
+    alumna = q.alumna_por_ulid(s, ulid)
+    if alumna is None:
+        raise HTTPException(404, "No existe esa alumna")
+
+    if not cuerpo.nombre.strip():
+        raise ErrorDeDominio(Codigo.CONCEPTO_REQUERIDO)
+
+    antes = {
+        "nombre": alumna.nombre,
+        "whatsapp": alumna.whatsapp,
+        "estatura_cm": alumna.estatura_cm,
+        "objetivo": alumna.objetivo,
+        "nivel_experiencia": alumna.nivel_experiencia,
+        "equipo": alumna.equipo,
+        "ocupacion": alumna.ocupacion,
+        "bascula_ref": alumna.bascula_ref,
+        "lugar_ref": alumna.lugar_ref,
+        "hora_ref": alumna.hora_ref,
+        "estado": alumna.estado,
+    }
+
+    alumna.nombre = cuerpo.nombre.strip()
+    alumna.whatsapp = cuerpo.whatsapp
+    alumna.estatura_cm = cuerpo.estatura_cm
+    alumna.objetivo = cuerpo.objetivo
+    alumna.nivel_experiencia = cuerpo.nivel_experiencia
+    alumna.equipo = cuerpo.equipo
+    alumna.ocupacion = cuerpo.ocupacion
+    alumna.bascula_ref = cuerpo.bascula_ref
+    alumna.lugar_ref = cuerpo.lugar_ref
+    alumna.hora_ref = cuerpo.hora_ref
+    if cuerpo.zona_horaria:
+        alumna.zona_horaria = cuerpo.zona_horaria
+    alumna.porcentaje_grasa_objetivo = cuerpo.porcentaje_grasa_objetivo
+    if cuerpo.estado in {"activa", "pausa", "baja"}:
+        alumna.estado = cuerpo.estado
+
+    # Solo los nombres de los campos: copiar los valores duplicaría el dato sensible en un
+    # registro que se conserva cinco años y sobrevive a la cancelación.
+    bitacora.registrar(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        actor_tipo="coach",
+        accion=bitacora.Accion.ALUMNA_EDITADA,
+        entidad="alumna",
+        entidad_id=alumna.id,
+        detalle={
+            "campos": bitacora.campos_cambiados(
+                antes,
+                {
+                    "nombre": alumna.nombre,
+                    "whatsapp": alumna.whatsapp,
+                    "estatura_cm": alumna.estatura_cm,
+                    "objetivo": alumna.objetivo,
+                    "nivel_experiencia": alumna.nivel_experiencia,
+                    "equipo": alumna.equipo,
+                    "ocupacion": alumna.ocupacion,
+                    "bascula_ref": alumna.bascula_ref,
+                    "lugar_ref": alumna.lugar_ref,
+                    "hora_ref": alumna.hora_ref,
+                    "estado": alumna.estado,
+                },
+            )
+        },
+    )
+
+    s.flush()
+    fila = next((f for f in _filas_de_cartera(s) if f.ulid == ulid), None)
+    if fila is None:  # pragma: no cover - defensivo
+        raise HTTPException(404, "No existe esa alumna")
+    return fila
+
+
+@ruteador.delete("/alumnas/{ulid}", status_code=204)
+def dar_de_baja_alumna(
+    ulid: str,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> None:
+    """Marca la baja; **no borra**.
+
+    El borrado real es un derecho de la alumna (Cancelación, ARCO) y se procesa por ese
+    flujo, con su constancia. Que la coach pueda borrar un expediente de un clic destruiría
+    la trazabilidad que la ley exige conservar.
+    """
+    alumna = q.alumna_por_ulid(s, ulid)
+    if alumna is None:
+        raise HTTPException(404, "No existe esa alumna")
+
+    alumna.estado = "baja"
+    usuario = s.get(Usuario, alumna.usuario_id)
+    if usuario is not None:
+        usuario.estado = "inactivo"
+
+    bitacora.registrar(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        actor_tipo="coach",
+        accion=bitacora.Accion.ALUMNA_DADA_DE_BAJA,
+        entidad="alumna",
+        entidad_id=alumna.id,
+    )
+
+
+@ruteador.post("/alumnas/{ulid}/clave-temporal", response_model=ClaveTemporalEmitida)
+def clave_temporal(
+    ulid: str,
+    cuerpo: ClaveTemporalPedida,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> ClaveTemporalEmitida:
+    alumna = q.alumna_por_ulid(s, ulid)
+    if alumna is None:
+        raise HTTPException(404, "No existe esa alumna")
+
+    clave = cuentas.emitir_clave_temporal(s, alumna, actor.usuario_id, cuerpo.motivo_verificacion)
+
+    coach = s.get(Coach, actor.coach_id)
+    usuario = s.get(Usuario, alumna.usuario_id)
+    if usuario is not None:
+        _encolar_correo(
+            s,
+            actor.coach_id,
+            Aviso.CLAVE_TEMPORAL,
+            para=usuario.email,
+            llave=f"alumna:{ulid}:clave:{ahora_utc().isoformat()}",
+            contexto={
+                "nombre": alumna.nombre.split(" ")[0],
+                "coach": coach.nombre if coach else "tu coach",
+                "clave": clave,
+            },
+        )
+
+    bitacora.registrar(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        actor_tipo="coach",
+        accion=bitacora.Accion.CLAVE_TEMPORAL_EMITIDA,
+        entidad="alumna",
+        entidad_id=alumna.id,
+        detalle={"verificacion": cuerpo.motivo_verificacion.strip()[:200]},
+    )
+
+    return ClaveTemporalEmitida(clave=clave, vence_en=ahora_utc() + VIGENCIA_CLAVE_TEMPORAL)
+
+
+@ruteador.get("/alumnas/{ulid}/historial", response_model=HistorialPublico)
+def historial_clinico(
+    ulid: str,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> HistorialPublico:
+    """Historial clínico de una alumna.
+
+    **Cada apertura queda registrada** en `acceso_sensible` con quién y cuándo. Es obligación
+    del Anexo Legal §6 y es lo que permite responder a una alumna que pregunta quién ha visto
+    su expediente.
+    """
+    from sqlalchemy import func
+    from sqlalchemy import select as _select
+
+    from app.datos.modelos import HistorialClinico
+
+    alumna = q.alumna_por_ulid(s, ulid)
+    if alumna is None:
+        raise HTTPException(404, "No existe esa alumna")
+
+    historial = q.historial_vigente(s, alumna.id)
+    if historial is None:
+        raise HTTPException(404, "Todavía no hay historial clínico")
+
+    # Se anota antes de devolver: si la respuesta falla a medio camino, es preferible una
+    # lectura anotada de más que una sin anotar.
+    bitacora.registrar_acceso(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        alumna_id=alumna.id,
+        recurso=bitacora.Recurso.HISTORIAL_CLINICO,
+    )
+
+    versiones = (
+        s.scalar(
+            _select(func.count())
+            .select_from(HistorialClinico)
+            .where(HistorialClinico.alumna_id == alumna.id)
+        )
+        or 1
+    )
+
+    return HistorialPublico(
+        lesiones=historial.lesiones,
+        condiciones=historial.condiciones,
+        medicacion=historial.medicacion,
+        restricciones=historial.restricciones,
+        vigente_desde=historial.vigente_desde,
+        versiones=int(versiones),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Validación de chequeos
+# ---------------------------------------------------------------------------
+
+
+@ruteador.get("/chequeos/{ulid}/fotos", response_model=list[FotoPublica])
+def fotos_de_chequeo(
+    ulid: str,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> list[FotoPublica]:
+    """Metadatos de las tres fotografías de un chequeo.
+
+    **Cada apertura queda registrada.** La imagen en sí se pide por su propia ruta —servida
+    con `X-Accel-Redirect` para que nginx la entregue sin cargarla en memoria de Python— y
+    esa lectura vuelve a anotarse.
+    """
+    from sqlalchemy import select as _select
+
+    from app.datos.modelos import Foto
+
+    chequeo = q.chequeo_por_ulid(s, ulid)
+    if chequeo is None:
+        raise HTTPException(404, "No existe ese chequeo")
+
+    bitacora.registrar_acceso(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        alumna_id=chequeo.alumna_id,
+        recurso=bitacora.Recurso.FOTOS_DE_CHEQUEO,
+    )
+
+    retencion_dias = ajustes().retencion_fotos_meses * 30
+    hoy = ahora_utc().date()
+
+    fotos = s.scalars(_select(Foto).where(Foto.chequeo_id == chequeo.id).order_by(Foto.angulo))
+    return [
+        FotoPublica(
+            angulo=f.angulo,
+            disponible=f.purgada_en is None and f.storage_key is not None,
+            nitidez=f.nitidez,
+            luminancia=f.luminancia,
+            estado_auto=f.estado_auto,
+            es_linea_base=f.es_linea_base,
+            tomada_en=f.tomada_en,
+            purgada_en=f.purgada_en,
+            # La línea base no se purga mientras la alumna siga activa, si lo autorizó.
+            dias_para_purga=(
+                None
+                if f.purgada_en is not None or f.tomada_en is None or f.es_linea_base
+                else max(0, retencion_dias - (hoy - f.tomada_en.date()).days)
+            ),
+        )
+        for f in fotos
+    ]
+
+
+@ruteador.put("/chequeos/{ulid}/grasa", status_code=204)
+def estimar_grasa(
+    ulid: str,
+    cuerpo: EstimacionGrasa,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> None:
+    """El porcentaje de grasa que estima la coach viendo las fotos.
+
+    Vive en el chequeo y no en el perfil: es lo que permite graficar su evolución mes a mes,
+    y es la entrada que manda toda la cadena de la calculadora.
+    """
+    if not (0 < float(cuerpo.porcentaje_grasa) < 1):
+        raise ErrorDeDominio(
+            Codigo.PORCENTAJE_DE_GRASA_INVALIDO, valor=str(cuerpo.porcentaje_grasa)
+        )
+
+    chequeo = q.chequeo_por_ulid(s, ulid)
+    if chequeo is None:
+        raise HTTPException(404, "No existe ese chequeo")
+
+    chequeo.porcentaje_grasa = cuerpo.porcentaje_grasa
+    chequeo.estimado_por = actor.usuario_id
+
+    bitacora.registrar(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        actor_tipo="coach",
+        accion=bitacora.Accion.GRASA_ESTIMADA,
+        entidad="chequeo",
+        entidad_id=chequeo.id,
+    )
+
+
+@ruteador.post("/chequeos/{ulid}/validar", status_code=204)
+def validar(
+    ulid: str,
+    cuerpo: ValidacionChequeo,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> None:
+    from app.dominio.chequeo import EstadoChequeo, Transicion
+    from app.dominio.chequeo import transicionar as transicionar_chequeo
+
+    chequeo = q.chequeo_por_ulid(s, ulid)
+    if chequeo is None:
+        raise HTTPException(404, "No existe ese chequeo")
+
+    # Sin porcentaje de grasa no se puede armar el plan del ciclo siguiente, así que validar
+    # sin él dejaría el expediente a medias.
+    if chequeo.porcentaje_grasa is None:
+        raise ErrorDeDominio(Codigo.SIN_PORCENTAJE_DE_GRASA_DEL_CHEQUEO)
+
+    chequeo.estado = transicionar_chequeo(
+        EstadoChequeo(chequeo.estado),
+        Transicion.VALIDAR,
+        justificacion_outlier=cuerpo.justificacion_outlier,
+        alerta_outlier_abierta=chequeo.alerta_outlier,
+    ).value
+    chequeo.feedback = cuerpo.feedback
+    chequeo.justificacion_outlier = cuerpo.justificacion_outlier
+    chequeo.validado_en = ahora_utc()
+    chequeo.validado_por = actor.usuario_id
+
+    bitacora.registrar(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        actor_tipo="coach",
+        accion=bitacora.Accion.CHEQUEO_VALIDADO,
+        entidad="chequeo",
+        entidad_id=chequeo.id,
+        detalle={"sobrescribio_outlier": chequeo.alerta_outlier},
+    )
+
+
+@ruteador.post("/chequeos/{ulid}/rechazar", status_code=204)
+def rechazar(
+    ulid: str,
+    cuerpo: RechazoChequeo,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> None:
+    from app.dominio.chequeo import EstadoChequeo, Transicion
+    from app.dominio.chequeo import transicionar as transicionar_chequeo
+
+    chequeo = q.chequeo_por_ulid(s, ulid)
+    if chequeo is None:
+        raise HTTPException(404, "No existe ese chequeo")
+
+    chequeo.estado = transicionar_chequeo(
+        EstadoChequeo(chequeo.estado), Transicion.RECHAZAR, motivo=cuerpo.motivo
+    ).value
+    chequeo.motivo_rechazo = cuerpo.motivo
+    chequeo.validado_por = actor.usuario_id
+
+    bitacora.registrar(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        actor_tipo="coach",
+        accion=bitacora.Accion.CHEQUEO_RECHAZADO,
+        entidad="chequeo",
+        entidad_id=chequeo.id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Agenda
+# ---------------------------------------------------------------------------
+
+
+def _cita_publica(s: Session, c: Cita) -> CitaPublica:
+    nombre = None
+    if c.alumna_id is not None:
+        from app.datos.modelos import Alumna
+
+        alumna = s.get(Alumna, c.alumna_id)
+        nombre = alumna.nombre if alumna else None
+
+    return CitaPublica(
+        ulid=c.ulid,
+        titulo=c.titulo,
+        tipo=c.tipo,
+        estado=c.estado,
+        modalidad=c.modalidad,
+        alumna_ulid=None,
+        alumna_nombre=nombre,
+        inicia_en=c.inicia_en,
+        termina_en=c.termina_en,
+        notas=c.notas,
+        motivo_cancelacion=c.motivo_cancelacion,
+    )
+
+
+@ruteador.get("/agenda", response_model=list[CitaPublica])
+def agenda(
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+    desde: Annotated[datetime, Query()],
+    dias: Annotated[int, Query(ge=1, le=62)] = 7,
+) -> list[CitaPublica]:
+    citas = q.citas_entre(s, desde, desde + timedelta(days=dias))
+    return [_cita_publica(s, c) for c in citas]
+
+
+def _franjas_de(s: Session, alrededor: datetime) -> list[Franja]:
+    """La agenda de la semana, para comprobar solape sin traerla completa."""
+    vecinas = q.citas_entre(s, alrededor - timedelta(days=1), alrededor + timedelta(days=2))
+    return [
+        Franja(id=c.id, inicia_en=c.inicia_en, termina_en=c.termina_en, estado=EstadoCita(c.estado))
+        for c in vecinas
+    ]
+
+
+@ruteador.post("/agenda", response_model=CitaPublica, status_code=201)
+def agendar_cita(
+    cuerpo: CitaNueva,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> CitaPublica:
+    alumna_id = None
+    if cuerpo.alumna_ulid:
+        alumna = q.alumna_por_ulid(s, cuerpo.alumna_ulid)
+        if alumna is None:
+            raise HTTPException(404, "No existe esa alumna")
+        alumna_id = alumna.id
+
+    # Dos citas no pueden solaparse aunque una sea consulta y la otra bloque de trabajo: el
+    # tiempo de la coach es uno solo.
+    agendar(
+        Franja(id=None, inicia_en=cuerpo.inicia_en, termina_en=cuerpo.termina_en),
+        _franjas_de(s, cuerpo.inicia_en),
+        ahora=ahora_utc(),
+    )
+
+    cita = Cita(
+        coach_id=actor.coach_id,
+        alumna_id=alumna_id,
+        titulo=cuerpo.titulo,
+        tipo=cuerpo.tipo,
+        modalidad=cuerpo.modalidad,
+        inicia_en=cuerpo.inicia_en,
+        termina_en=cuerpo.termina_en,
+        notas=cuerpo.notas,
+    )
+    s.add(cita)
+    s.flush()
+    return _cita_publica(s, cita)
+
+
+@ruteador.put("/agenda/{ulid}", response_model=CitaPublica)
+def editar_cita(
+    ulid: str,
+    cuerpo: CitaNueva,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> CitaPublica:
+    cita = q.cita_por_ulid(s, ulid)
+    if cita is None:
+        raise HTTPException(404, "No existe esa cita")
+
+    # `id` va en la franja para que la cita no choque consigo misma al moverse.
+    agendar(
+        Franja(id=cita.id, inicia_en=cuerpo.inicia_en, termina_en=cuerpo.termina_en),
+        _franjas_de(s, cuerpo.inicia_en),
+        ahora=ahora_utc(),
+        permitir_pasado=True,
+    )
+
+    if cuerpo.alumna_ulid:
+        alumna = q.alumna_por_ulid(s, cuerpo.alumna_ulid)
+        cita.alumna_id = alumna.id if alumna else None
+    else:
+        cita.alumna_id = None
+
+    cita.titulo = cuerpo.titulo
+    cita.tipo = cuerpo.tipo
+    cita.modalidad = cuerpo.modalidad
+    cita.inicia_en = cuerpo.inicia_en
+    cita.termina_en = cuerpo.termina_en
+    cita.notas = cuerpo.notas
+    return _cita_publica(s, cita)
+
+
+@ruteador.post("/agenda/{ulid}/cancelar", response_model=CitaPublica)
+def cancelar_cita(
+    ulid: str,
+    cuerpo: CancelacionCita,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> CitaPublica:
+    cita = q.cita_por_ulid(s, ulid)
+    if cita is None:
+        raise HTTPException(404, "No existe esa cita")
+
+    cita.estado = transicionar(
+        EstadoCita(cita.estado), EstadoCita.CANCELADA, motivo=cuerpo.motivo
+    ).value
+    cita.motivo_cancelacion = cuerpo.motivo
+    cita.cancelada_en = ahora_utc()
+    return _cita_publica(s, cita)
+
+
+@ruteador.delete("/agenda/{ulid}", status_code=204)
+def eliminar_cita(
+    ulid: str,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> None:
+    cita = q.cita_por_ulid(s, ulid)
+    if cita is None:
+        raise HTTPException(404, "No existe esa cita")
+    s.delete(cita)

@@ -1,0 +1,18 @@
+[Unit]
+Description=Recordatorios diarios de MyProgressPlan (pagos, citas, inactividad, purga)
+
+[Timer]
+# A las 07:00 hora de México. Antes es intrusivo; más tarde y el recordatorio de una cita
+# de las 9 llega cuando la alumna ya salió de casa.
+OnCalendar=*-*-* 07:00:00 America/Mexico_City
+
+# Si el servidor estuvo apagado a esa hora, corre al arrancar. Sin esto, un reinicio de
+# madrugada se lleva por delante los recordatorios de todo el día.
+Persistent=true
+
+# Los avisos son idempotentes por su llave única, así que ejecutarlo dos veces no duplica
+# nada. Aun así, el retraso aleatorio evita que varios servicios peguen al mismo tiempo.
+RandomizedDelaySec=180
+
+[Install]
+WantedBy=timers.target

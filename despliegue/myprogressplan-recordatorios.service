@@ -1,0 +1,22 @@
+[Unit]
+Description=Calcula y encola los recordatorios del día
+After=network-online.target mysql.service
+Requires=mysql.service
+
+[Service]
+Type=oneshot
+User=myprogressplan
+Group=myprogressplan
+WorkingDirectory=/opt/myprogressplan
+EnvironmentFile=/etc/myprogressplan/config.env
+ExecStart=/opt/myprogressplan/.venv/bin/python -m app.trabajos.recordatorios
+
+# Solo decide y encola; no manda correo. Si falla, el envío de lo ya encolado sigue su curso.
+TimeoutStartSec=300
+
+# Endurecimiento: este proceso solo necesita leer el código y hablar con MySQL.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/datos/myprogressplan

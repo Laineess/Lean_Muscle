@@ -1,0 +1,53 @@
+[project]
+name = "leanmuscle"
+version = "0.1.0"
+description = "Plataforma SaaS de coaching fisico y nutricional"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["."]
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",   # pycodestyle / pyflakes
+    "I",             # isort
+    "UP",            # pyupgrade
+    "B",             # bugbear
+    "TID",           # tidy-imports (banned-api: ver app/dominio/.ruff.toml)
+    "RUF",
+]
+ignore = ["E501"]  # el formateador ya controla el ancho
+
+# El proyecto se documenta en español y las fórmulas se escriben con notación real. Estos
+# caracteres se usan a propósito; degradarlos a ASCII haría los comentarios menos legibles
+# justo donde describen el cálculo que gobierna el plan de las alumnas.
+allowed-confusables = ["×", "−", "≤", "≥", "·", "—", "’"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+warn_unused_ignores = true
+warn_return_any = true
+disallow_untyped_defs = true
+no_implicit_reexport = true
+
+[[tool.mypy.overrides]]
+module = ["pytesseract.*", "pywebpush.*", "weasyprint.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["pruebas"]
+# El repositorio nombra en español; hay que decirle a pytest qué archivos son pruebas.
+python_files = ["prueba_*.py"]
+python_classes = ["Test*", "Prueba*"]
+addopts = "-q --strict-markers"
+markers = [
+    "integracion: requiere una base MySQL real",
+    "aislamiento: prueba de fuga entre coaches",
+]
