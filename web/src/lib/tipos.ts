@@ -182,9 +182,10 @@ export interface FilaCartera {
   chequeoFecha: string | null;
   pesoKg: number | null;
   pesoPrevio: number | null;
-  objetivo: Alumna["objetivo"];
-  pago: "pendiente" | "validado";
+  plan: string | null;
+  pago: string;
   ultimoAcceso: string;
+  adeudo: number;
   alerta: "outlier" | "pago" | "inactividad" | null;
 }
 

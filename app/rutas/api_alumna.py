@@ -85,7 +85,7 @@ def inicio(
             nombre=alumna.nombre,
             correo=actor_correo(s, actor),
             estatura_cm=alumna.estatura_cm,
-            objetivo=alumna.objetivo,
+            plan=_nombre_de_plan(s, alumna),
             bascula_ref=alumna.bascula_ref,
             lugar_ref=alumna.lugar_ref,
             hora_ref=alumna.hora_ref,
@@ -147,7 +147,11 @@ def plan(
 
     # Se guarda el motivo, no solo el hecho: «bloqueado» a secas hacía que la pantalla dijera
     # «falta tu comprobante» a quien ya había pagado y solo tenía el ciclo terminado.
-    motivo: str | None = None
+    # El adeudo manda sobre todo lo demás: es la única palanca de cobro del sistema y la
+    # alumna tiene que poder saber que le falta pagar, no que «su ciclo venció».
+    hoy = dia_calendario(ahora_utc(), alumna.zona_horaria)
+    motivo: str | None = "adeudo" if q.adeudos_vencidos(s, alumna.id, hoy) else None
+
     try:
         exigir_acceso_al_plan(
             CicloDominio(
@@ -159,7 +163,8 @@ def plan(
             dia_calendario(ahora_utc(), alumna.zona_horaria),
         )
     except ErrorDeDominio as causa:
-        motivo = "pago" if causa.codigo is Codigo.PAGO_SIN_VALIDAR else "ciclo_vencido"
+        if motivo is None:
+            motivo = "pago" if causa.codigo is Codigo.PAGO_SIN_VALIDAR else "ciclo_vencido"
 
     planes = {} if motivo else q.planes_del_ciclo(s, alumna.id, ciclo.id)
 
@@ -193,6 +198,16 @@ def ahora():  # type: ignore[no-untyped-def]
     from app.compartido.fechas import ahora_utc
 
     return ahora_utc()
+
+
+def _nombre_de_plan(s: Session, alumna: Alumna) -> str | None:
+    """El plan que contrató. Sustituye al antiguo objetivo."""
+    if alumna.tarifa_id is None:
+        return None
+    from app.datos.modelos import Tarifa
+
+    plan = s.get(Tarifa, alumna.tarifa_id)
+    return plan.nombre if plan else None
 
 
 def actor_correo(s: Session, actor: Actor) -> str:

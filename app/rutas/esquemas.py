@@ -93,7 +93,7 @@ class PerfilAlumna(Esquema):
     nombre: str
     correo: str
     estatura_cm: int | None
-    objetivo: str | None
+    plan: str | None
     bascula_ref: str | None
     lugar_ref: str | None
     hora_ref: str | None
@@ -166,10 +166,13 @@ class FilaCartera(Esquema):
     chequeo_fecha: date | None
     peso_kg: Decimal | None
     peso_previo: Decimal | None
-    objetivo: str | None
+    #: Nombre del plan comercial que contrató. Sustituye al antiguo objetivo.
+    plan: str | None
     pago: str
     ultimo_acceso: date | None
     alerta: str | None
+    #: Cuánto debe en cobros vencidos. Cero significa al corriente.
+    adeudo: Decimal
 
 
 class ResumenPanel(Esquema):
@@ -225,9 +228,9 @@ class AltaDeAlumna(Esquema):
     whatsapp: str | None = None
     fecha_nacimiento: date
     estatura_cm: int | None = None
-    objetivo: str | None = None
+    #: ULID del plan comercial. Es lo que determina cuánto se le cobra.
+    tarifa_ulid: str | None = None
     nivel_experiencia: str | None = None
-    precio_ciclo: Decimal | None = None
 
 
 class AlumnaDadaDeAlta(Esquema):
@@ -241,7 +244,7 @@ class EdicionDeAlumna(Esquema):
     nombre: str
     whatsapp: str | None = None
     estatura_cm: int | None = None
-    objetivo: str | None = None
+    tarifa_ulid: str | None = None
     nivel_experiencia: str | None = None
     equipo: str | None = None
     ocupacion: str | None = None
@@ -296,6 +299,8 @@ class MovimientoNuevo(Esquema):
     concepto: str
     alumna_ulid: str | None = None
     nota: str | None = None
+    #: Cobro programado que salda este ingreso. Al registrarlo, ese cobro pasa a pagado.
+    cobro_ulid: str | None = None
 
 
 class TotalPorCategoria(Esquema):
@@ -734,7 +739,7 @@ class ExpedienteDeValidacion(Esquema):
     alumna_ulid: str
     alumna: str
     estatura_cm: int | None
-    objetivo: str | None
+    plan: str | None
     #: El que toca validar. Nulo si no hay ninguno pendiente.
     actual: ChequeoDeValidacion | None
     #: Los anteriores, del más viejo al más nuevo, para el selector de comparación.
@@ -761,3 +766,66 @@ class DocumentoLegal(Esquema):
     actualizado: str
     contenido: str
     marcadores: list[str]
+
+
+# ---------------------------------------------------------------------------
+# Planes comerciales y cobros programados
+# ---------------------------------------------------------------------------
+
+
+class PlanComercial(Esquema):
+    """Lo que la coach vende. `Tarifa` en la base; se llama plan hacia afuera porque `Plan`
+    ya es el de nutrición y entrenamiento."""
+
+    ulid: str
+    codigo: str
+    nombre: str
+    descripcion: str | None
+    precio: Decimal
+    dias: int
+    #: `baja`, `media` o `alta`. Descriptiva: no la usa ningún cálculo.
+    intensidad: str
+    activa: bool
+    #: Cuántas alumnas lo tienen contratado. Desactivar uno con alumnas dentro es un error.
+    alumnas: int
+
+
+class PlanComercialNuevo(Esquema):
+    codigo: str
+    nombre: str
+    descripcion: str | None = None
+    precio: Decimal
+    dias: int = 30
+    intensidad: str = "media"
+    activa: bool = True
+
+
+class CobroDeAlumna(Esquema):
+    ulid: str
+    fecha: date
+    motivo: str
+    concepto: str
+    monto: Decimal
+    estado: str
+    pagado_en: date | None
+    nota: str | None
+    #: `vencido` cuando la fecha pasó y sigue pendiente. Es lo que pausa el plan.
+    vencido: bool
+
+
+class CobroNuevoProgramado(Esquema):
+    fecha: date
+    motivo: str = "mensualidad"
+    concepto: str | None = None
+    monto: Decimal
+    nota: str | None = None
+
+
+class AlumnaConCobros(Esquema):
+    """Lo que devuelve el buscador de finanzas: a quién cobrar y qué le falta."""
+
+    ulid: str
+    nombre: str
+    plan: str | None
+    pendientes: list[CobroDeAlumna]
+    adeudo: Decimal

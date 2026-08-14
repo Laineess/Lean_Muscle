@@ -16,7 +16,7 @@ import { api, type FilaCarteraApi } from "@/lib/api";
 import { cartera as carteraEjemplo, coach } from "@/lib/datos";
 import { delta, fecha, num } from "@/lib/formato";
 import { usarApiConRespaldo } from "@/lib/usarApi";
-import { ROTULO_ESTADO, ROTULO_OBJETIVO, type EstadoChequeo } from "@/lib/tipos";
+import { ROTULO_ESTADO, type EstadoChequeo } from "@/lib/tipos";
 
 const TONO_ESTADO: Record<EstadoChequeo, "neutro" | "espera" | "exito" | "error"> = {
   borrador: "neutro",
@@ -39,7 +39,7 @@ export function Cartera() {
   if (cargando) return <Cargando que="tus alumnas" />;
 
   const visibles = alumnas.filter((a) =>
-    `${a.nombre} ${a.objetivo ? ROTULO_OBJETIVO[a.objetivo as keyof typeof ROTULO_OBJETIVO] : ""}`
+    `${a.nombre} ${a.plan ?? ""}`
       .toLowerCase()
       .includes(filtro.trim().toLowerCase()),
   );
@@ -86,8 +86,8 @@ export function Cartera() {
                   </div>
                   <Apoyo>
                     Ciclo {a.ciclo}
-                    {a.objetivo
-                      ? ` · ${ROTULO_OBJETIVO[a.objetivo as keyof typeof ROTULO_OBJETIVO]}`
+                    {a.plan
+                      ? ` · ${a.plan}`
                       : ""}
                     {a.ultimoAcceso
                       ? ` · último acceso ${fecha(a.ultimoAcceso, { day: "numeric", month: "short" })}`

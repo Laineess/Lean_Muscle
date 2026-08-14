@@ -69,9 +69,8 @@ def dar_de_alta(
     whatsapp: str | None,
     fecha_nacimiento: date,
     estatura_cm: int | None,
-    objetivo: str | None,
+    tarifa_id: int | None,
     nivel_experiencia: str | None,
-    precio_ciclo: Decimal | None = None,
 ) -> AltaHecha:
     """Da de alta una alumna con su ciclo inicial y su clave temporal.
 
@@ -99,6 +98,10 @@ def dar_de_alta(
     coach = s.get(Coach, coach_id)
     if coach is None:  # pragma: no cover - defensivo
         raise ErrorDeDominio(Codigo.SIN_PERMISO)
+
+    from app.datos.modelos import Tarifa
+
+    plan = s.get(Tarifa, tarifa_id) if tarifa_id else None
 
     activas = (
         s.scalar(select(func.count()).select_from(Alumna).where(Alumna.estado == "activa")) or 0
@@ -130,7 +133,7 @@ def dar_de_alta(
         whatsapp=whatsapp,
         fecha_nacimiento=fecha_nacimiento,
         estatura_cm=estatura_cm,
-        objetivo=objetivo,
+        tarifa_id=tarifa_id,
         nivel_experiencia=nivel_experiencia,
         zona_horaria=coach.zona_horaria,
         cuestionario_completo=False,
@@ -148,7 +151,7 @@ def dar_de_alta(
             inicia_en=hoy,
             termina_en=hoy + timedelta(days=30),
             estado="pendiente_pago",
-            precio=precio_ciclo if precio_ciclo is not None else coach.precio_ciclo,
+            precio=plan.precio if plan is not None else coach.precio_ciclo,
         )
     )
 

@@ -31,6 +31,7 @@ from app.datos.modelos import (
     Ciclo,
     Cita,
     Coach,
+    CobroProgramado,
     Consentimiento,
     Foto,
     HistorialClinico,
@@ -40,6 +41,7 @@ from app.datos.modelos import (
     Pago,
     Pesaje,
     Plan,
+    Tarifa,
     Usuario,
 )
 from app.datos.repos import consultas as q
@@ -112,6 +114,17 @@ def _sembrar(s: Session, etiqueta: str) -> Inquilino:
     )
     s.add(chequeo)
     s.flush()
+
+    plan = Tarifa(
+        coach_id=coach.id,
+        codigo=f"PLAN-{etiqueta.upper()}",
+        nombre=f"Plan de {etiqueta}",
+        precio=Decimal("1200.00"),
+        dias=30,
+    )
+    s.add(plan)
+    s.flush()
+    alumna.tarifa_id = plan.id
 
     cita = Cita(
         coach_id=coach.id,
@@ -186,6 +199,13 @@ def _sembrar(s: Session, etiqueta: str) -> Inquilino:
             ),
             Notificacion(
                 coach_id=coach.id, destinatario_id=usuario.id, tipo="recordatorio", payload={}
+            ),
+            CobroProgramado(
+                coach_id=coach.id,
+                alumna_id=alumna.id,
+                fecha=FECHA,
+                motivo="mensualidad",
+                monto=Decimal("1200.00"),
             ),
             cita,
         ]
@@ -476,3 +496,23 @@ def test_las_proximas_citas_de_una_alumna_ajena_no_se_alcanzan(
     with sesion_con_alcance(a.coach_id) as s:
         assert q.proximas_citas_de(s, a.alumna_id, MOMENTO - timedelta(days=1)) != []
         assert q.proximas_citas_de(s, b.alumna_id, MOMENTO - timedelta(days=1)) == []
+
+
+def test_los_cobros_de_otra_alumna_no_se_leen(inquilinos: tuple[Inquilino, Inquilino]) -> None:
+    """El dinero que debe una alumna es de su coach y de nadie mas."""
+    a, b = inquilinos
+    with sesion_con_alcance(a.coach_id) as s:
+        assert q.cobros_de(s, a.alumna_id) != []
+        assert q.cobros_de(s, b.alumna_id) == []
+        assert q.cobros_pendientes_de(s, b.alumna_id) == []
+        assert q.adeudos_vencidos(s, b.alumna_id, FECHA + timedelta(days=90)) == []
+
+
+def test_los_planes_de_otra_coach_no_se_listan(inquilinos: tuple[Inquilino, Inquilino]) -> None:
+    a, b = inquilinos
+    with sesion_con_alcance(a.coach_id) as s:
+        propios = q.tarifas_de_coach(s)
+        assert propios != []
+        assert all(t.coach_id == a.coach_id for t in propios)
+    with sesion_con_alcance(b.coach_id) as s:
+        assert all(t.coach_id == b.coach_id for t in q.tarifas_de_coach(s))

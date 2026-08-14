@@ -32,7 +32,7 @@ const RESPALDO: InicioAlumnaApi = {
     nombre: alumna.nombre,
     correo: alumna.email,
     estaturaCm: alumna.estaturaCm,
-    objetivo: alumna.objetivo,
+    plan: null,
     basculaRef: alumna.basculaRef,
     lugarRef: alumna.lugarRef,
     horaRef: alumna.horaRef,

@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { Planes } from "@/coach/Planes";
 import { Notificaciones } from "@/componentes/Notificaciones";
 import { BotonSalir, CambiarContrasena } from "@/componentes/Seguridad";
 import {
@@ -203,40 +204,25 @@ export function Ajustes() {
 
       <Regla />
 
-      {/* ---- Método ---- */}
-      <section className="flex flex-col gap-5">
-        <Titulo>Tu método</Titulo>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Campo id="aj-precio" etiqueta="Precio del ciclo" sufijo="MXN">
-            <Entrada
-              id="aj-precio"
-              type="number"
-              defaultValue={coach.precioCiclo}
-              className="rounded-r-none"
-            />
-          </Campo>
-          <Campo id="aj-dia" etiqueta="Día de chequeo">
-            <Selector id="aj-dia" defaultValue="1">
-              <option value="1">Día 1 de cada mes</option>
-              <option value="15">Día 15 de cada mes</option>
-              <option value="0">A los 30 días del alta</option>
-            </Selector>
-          </Campo>
-          <Campo
-            id="aj-zona"
-            etiqueta="Tu zona horaria"
-            ayuda="La de cada alumna se guarda aparte: su día calendario se evalúa con la suya."
-          >
-            <Selector id="aj-zona" defaultValue="America/Mexico_City">
-              <option value="America/Mexico_City">Ciudad de México (GMT−6)</option>
-              <option value="America/Tijuana">Tijuana (GMT−8)</option>
-              <option value="America/Cancun">Cancún (GMT−5)</option>
-            </Selector>
-          </Campo>
-        </div>
-        <div>
-          <Boton tono="contorno">Guardar</Boton>
-        </div>
+      {/* ---- Planes ---- */}
+      <Planes />
+
+      <Regla />
+
+      {/* ---- Zona horaria ---- */}
+      <section className="flex max-w-md flex-col gap-4">
+        <Titulo>Tu zona horaria</Titulo>
+        <Campo
+          id="aj-zona"
+          etiqueta="Zona"
+          ayuda="La de cada alumna se guarda aparte: su día calendario se evalúa con la suya."
+        >
+          <Selector id="aj-zona" defaultValue="America/Mexico_City">
+            <option value="America/Mexico_City">Ciudad de México (GMT−6)</option>
+            <option value="America/Tijuana">Tijuana (GMT−8)</option>
+            <option value="America/Cancun">Cancún (GMT−5)</option>
+          </Selector>
+        </Campo>
       </section>
 
       <Regla />

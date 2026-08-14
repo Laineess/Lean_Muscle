@@ -16,9 +16,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc
-from app.datos.modelos import Alumna, Coach, MovimientoFinanciero, Tarifa
+from app.datos.modelos import Alumna, Coach, MovimientoFinanciero
 from app.datos.repos import consultas as q
 from app.dominio import finanzas as f
 from app.rutas.esquemas import (
@@ -26,8 +25,6 @@ from app.rutas.esquemas import (
     MovimientoPublico,
     PanelFinanciero,
     ResumenMes,
-    TarifaNueva,
-    TarifaPublica,
     TotalPorCategoria,
 )
 from app.rutas.sesion import Actor, datos, solo_coach
@@ -166,6 +163,20 @@ def crear_movimiento(
     )
     s.add(movimiento)
     s.flush()
+
+    # Si el ingreso salda un cobro programado, ese cobro queda pagado aquí y no en otra
+    # pantalla: cobrar y marcar como cobrado tienen que ser el mismo gesto o un día no
+    # coinciden.
+    if cuerpo.cobro_ulid:
+        cobro = q.cobro_por_ulid(s, cuerpo.cobro_ulid)
+        if cobro is None:
+            raise HTTPException(404, "No existe ese cobro")
+        if cobro.estado == "pagado":
+            raise HTTPException(409, "Ese cobro ya estaba saldado")
+        cobro.estado = "pagado"
+        cobro.pagado_en = cuerpo.fecha
+        cobro.movimiento_id = movimiento.id
+
     return _publico(s, movimiento)
 
 
@@ -221,93 +232,3 @@ def eliminar_movimiento(
 # ---------------------------------------------------------------------------
 # Tarifas
 # ---------------------------------------------------------------------------
-
-
-@ruteador.get("/tarifas", response_model=list[TarifaPublica])
-def tarifas(
-    actor: Annotated[Actor, Depends(solo_coach)],
-    s: Annotated[Session, Depends(datos)],
-) -> list[TarifaPublica]:
-    filas = s.scalars(select(Tarifa).order_by(Tarifa.precio)).all()
-    return [TarifaPublica.model_validate(t) for t in filas]
-
-
-@ruteador.post("/tarifas", response_model=TarifaPublica, status_code=201)
-def crear_tarifa(
-    cuerpo: TarifaNueva,
-    actor: Annotated[Actor, Depends(solo_coach)],
-    s: Annotated[Session, Depends(datos)],
-) -> TarifaPublica:
-    f.validar_tarifa(
-        f.Tarifa(
-            codigo=cuerpo.codigo,
-            nombre=cuerpo.nombre,
-            precio=cuerpo.precio,
-            dias=cuerpo.dias,
-            activa=cuerpo.activa,
-        )
-    )
-
-    if s.scalars(select(Tarifa).where(Tarifa.codigo == cuerpo.codigo)).first() is not None:
-        raise ErrorDeDominio(Codigo.CATEGORIA_INVALIDA, categoria=cuerpo.codigo, tipo="tarifa")
-
-    tarifa = Tarifa(
-        coach_id=actor.coach_id,
-        codigo=cuerpo.codigo.strip().upper(),
-        nombre=cuerpo.nombre.strip(),
-        descripcion=cuerpo.descripcion,
-        precio=cuerpo.precio,
-        dias=cuerpo.dias,
-        activa=cuerpo.activa,
-    )
-    s.add(tarifa)
-    s.flush()
-    return TarifaPublica.model_validate(tarifa)
-
-
-@ruteador.put("/tarifas/{ulid}", response_model=TarifaPublica)
-def editar_tarifa(
-    ulid: str,
-    cuerpo: TarifaNueva,
-    actor: Annotated[Actor, Depends(solo_coach)],
-    s: Annotated[Session, Depends(datos)],
-) -> TarifaPublica:
-    tarifa = s.scalars(select(Tarifa).where(Tarifa.ulid == ulid)).first()
-    if tarifa is None:
-        raise HTTPException(404, "No existe esa tarifa")
-
-    f.validar_tarifa(
-        f.Tarifa(
-            codigo=cuerpo.codigo,
-            nombre=cuerpo.nombre,
-            precio=cuerpo.precio,
-            dias=cuerpo.dias,
-            activa=cuerpo.activa,
-        )
-    )
-
-    # El precio no se propaga a los ciclos abiertos: cada ciclo guarda el suyo, para que
-    # subir la tarifa no le cambie el cobro a quien ya empezó.
-    tarifa.nombre = cuerpo.nombre.strip()
-    tarifa.descripcion = cuerpo.descripcion
-    tarifa.precio = cuerpo.precio
-    tarifa.dias = cuerpo.dias
-    tarifa.activa = cuerpo.activa
-    return TarifaPublica.model_validate(tarifa)
-
-
-@ruteador.delete("/tarifas/{ulid}", status_code=204)
-def eliminar_tarifa(
-    ulid: str,
-    actor: Annotated[Actor, Depends(solo_coach)],
-    s: Annotated[Session, Depends(datos)],
-) -> None:
-    """Se desactiva en lugar de borrarse.
-
-    Borrar una tarifa dejaría sin referencia a los ciclos históricos que la usaron, y con
-    ella se va la explicación de por qué una alumna pagó lo que pagó.
-    """
-    tarifa = s.scalars(select(Tarifa).where(Tarifa.ulid == ulid)).first()
-    if tarifa is None:
-        raise HTTPException(404, "No existe esa tarifa")
-    tarifa.activa = False

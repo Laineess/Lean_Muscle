@@ -34,6 +34,7 @@ import {
   type DiaDeEntrenamiento,
   type TiempoDeComida,
 } from "@/coach/EditorPlan";
+import { CalendarioDeCobros } from "@/coach/CalendarioDeCobros";
 import { ErrorApi, api, descargarPdf } from "@/lib/api";
 import {
   ACTIVIDAD,
@@ -598,6 +599,10 @@ export function Constructor() {
             <Apoyo>Intolerancia a la lactosa. No come mariscos.</Apoyo>
             <Apoyo>Molestia en rodilla izquierda: nada de valgo en sentadilla ni prensa.</Apoyo>
           </section>
+
+          <Regla />
+
+          <CalendarioDeCobros alumnaUlid={alumnaUlid ?? ""} precioSugerido={null} />
         </aside>
       </div>
     </div>

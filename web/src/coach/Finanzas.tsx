@@ -31,12 +31,14 @@ import {
 import {
   ErrorApi,
   api,
+  type AlumnaConCobrosApi,
+  type CobroApi2,
   type MovimientoApi,
   type MovimientoNuevoApi,
   type PanelFinancieroApi,
 } from "@/lib/api";
-import { fecha, pesos, porcentaje } from "@/lib/formato";
-import { usarApiConRespaldo } from "@/lib/usarApi";
+import { fecha, num, pesos, porcentaje } from "@/lib/formato";
+import { usarApi, usarApiConRespaldo } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
 
 const CATEGORIAS = {
@@ -289,6 +291,114 @@ export function Finanzas() {
   );
 }
 
+/** Buscador de alumna con sus cobros pendientes.
+ *
+ *  Es el punto donde se concilia el dinero: la coach recibe la transferencia, busca a quién
+ *  corresponde y marca qué cobro salda. Ese gesto único es lo que mantiene cuadrado el
+ *  adeudo de la alumna con lo que hay registrado en finanzas.
+ */
+function BuscadorDeCobro({
+  alumna,
+  cobro,
+  onAlumna,
+  onCobro,
+}: {
+  alumna: AlumnaConCobrosApi | null;
+  cobro: CobroApi2 | null;
+  onAlumna: (a: AlumnaConCobrosApi | null) => void;
+  onCobro: (c: CobroApi2) => void;
+}) {
+  const [texto, setTexto] = useState("");
+  const carga = usarApi<AlumnaConCobrosApi[]>(
+    (senal) => api.coach.aQuienCobrar(texto, senal),
+    [texto],
+  );
+
+  if (alumna) {
+    return (
+      <div className="flex flex-col gap-3 rounded-marco border border-linea p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-menor font-medium">{alumna.nombre}</span>
+          <Boton tono="discreto" medida="chica" onClick={() => onAlumna(null)}>
+            Cambiar
+          </Boton>
+        </div>
+        <Etiqueta>Qué le cobras</Etiqueta>
+        <ul className="flex flex-col gap-1">
+          {alumna.pendientes.map((c) => (
+            <li key={c.ulid}>
+              <button
+                type="button"
+                onClick={() => onCobro(c)}
+                className={cn(
+                  "flex w-full items-center justify-between gap-3 rounded-marco border px-3 py-2 text-left text-menor transition-colors",
+                  cobro?.ulid === c.ulid
+                    ? "border-tinta bg-fondo-sutil"
+                    : "border-linea hover:border-tinta",
+                )}
+              >
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate">{c.concepto}</span>
+                  <span className="text-micro text-tinta-suave">
+                    {fecha(c.fecha)}
+                    {c.vencido ? " · vencido" : ""}
+                  </span>
+                </span>
+                <span className="cifra font-semibold">${num(c.monto)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <Apoyo>Al registrarlo, ese cobro queda saldado y deja de contar como adeudo.</Apoyo>
+      </div>
+    );
+  }
+
+  const encontradas = carga.datos ?? [];
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Campo id="mv-alumna" etiqueta="¿De quién es el ingreso?">
+        <Entrada
+          id="mv-alumna"
+          type="search"
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          placeholder="Escribe un nombre…"
+          autoComplete="off"
+        />
+      </Campo>
+
+      {encontradas.length === 0 ? (
+        <Apoyo>
+          {carga.cargando ? "Buscando…" : "Nadie con cobros pendientes. Puedes registrarlo sin alumna."}
+        </Apoyo>
+      ) : (
+        <ul className="flex max-h-48 flex-col gap-1 overflow-y-auto">
+          {encontradas.map((a) => (
+            <li key={a.ulid}>
+              <button
+                type="button"
+                onClick={() => onAlumna(a)}
+                className="flex w-full items-center justify-between gap-3 rounded-marco border border-linea px-3 py-2 text-left text-menor transition-colors hover:border-tinta"
+              >
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate font-medium">{a.nombre}</span>
+                  <span className="text-micro text-tinta-suave">
+                    {a.plan ?? "sin plan"} · {a.pendientes.length} pendiente
+                    {a.pendientes.length === 1 ? "" : "s"}
+                  </span>
+                </span>
+                {a.adeudo > 0 ? <Chip tono="error">debe ${num(a.adeudo)}</Chip> : null}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function FormMovimiento({
   movimiento,
   onCerrar,
@@ -307,6 +417,10 @@ function FormMovimiento({
   const [nota, setNota] = useState(movimiento?.nota ?? "");
   const [error, setError] = useState<string | null>(null);
 
+  // A quién se le cobra y qué cobro salda. Solo tiene sentido en un ingreso.
+  const [alumna, setAlumna] = useState<AlumnaConCobrosApi | null>(null);
+  const [cobro, setCobro] = useState<CobroApi2 | null>(null);
+
   const montoNum = Number.parseFloat(monto);
   const problema = !concepto.trim()
     ? "Escribe un concepto: sin él el movimiento no se entiende dentro de tres meses."
@@ -318,6 +432,23 @@ function FormMovimiento({
   function cambiarTipo(nuevo: "ingreso" | "gasto") {
     setTipo(nuevo);
     setCategoria(CATEGORIAS[nuevo][0]![0]);
+    if (nuevo === "gasto") {
+      setAlumna(null);
+      setCobro(null);
+    }
+  }
+
+  /** Al elegir un cobro pendiente se llenan monto y concepto.
+   *
+   *  Volver a teclear lo que el sistema ya sabe es como se acaba registrando un importe que
+   *  no cuadra con lo que se le dijo a la alumna.
+   */
+  function tomarCobro(c: CobroApi2) {
+    setCobro(c);
+    setMonto(String(c.monto));
+    setConcepto(c.concepto);
+    setCategoria(c.motivo === "cita" ? "consulta" : "ciclo");
+    setF(hoy);
   }
 
   async function guardar() {
@@ -332,8 +463,9 @@ function FormMovimiento({
       monto: montoNum,
       fecha: f,
       concepto: concepto.trim(),
-      alumnaUlid: null,
+      alumnaUlid: alumna?.ulid ?? null,
       nota: nota.trim() || null,
+      cobroUlid: cobro?.ulid ?? null,
     };
     try {
       if (movimiento) await api.coach.editarMovimiento(movimiento.ulid, cuerpo);
@@ -362,6 +494,19 @@ function FormMovimiento({
         </>
       }
     >
+      {/* El buscador va primero: elegir a quién se le cobra llena el resto del formulario. */}
+      {tipo === "ingreso" ? (
+        <BuscadorDeCobro
+          alumna={alumna}
+          cobro={cobro}
+          onAlumna={(a) => {
+            setAlumna(a);
+            setCobro(null);
+          }}
+          onCobro={tomarCobro}
+        />
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo id="m-tipo" etiqueta="Tipo">
           <Selector

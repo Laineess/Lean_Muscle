@@ -15,7 +15,7 @@ import { useNavigate } from "react-router-dom";
 
 import { cartera } from "@/lib/datos";
 import { fecha } from "@/lib/formato";
-import { ROTULO_ESTADO, ROTULO_OBJETIVO } from "@/lib/tipos";
+import { ROTULO_ESTADO } from "@/lib/tipos";
 
 const SECCIONES = [
   { rotulo: "Panel", a: "/coach" },
@@ -94,14 +94,14 @@ export function Buscador({ abierto, onCerrar }: { abierto: boolean; onCerrar: ()
             {cartera.map((a) => (
               <Command.Item
                 key={a.ulid}
-                value={`${a.nombre} ${ROTULO_OBJETIVO[a.objetivo]} ciclo ${a.ciclo}`}
+                value={`${a.nombre} ${(a.plan ?? "sin plan")} ciclo ${a.ciclo}`}
                 onSelect={() => ir(`/coach/alumnas?a=${a.ulid}`)}
                 className="flex cursor-pointer items-center justify-between gap-3 rounded-marco px-3 py-2.5 text-menor data-[selected=true]:bg-fondo-sutil"
               >
                 <span className="flex flex-col">
                   <span className="font-medium">{a.nombre}</span>
                   <span className="text-micro text-tinta-suave">
-                    Ciclo {a.ciclo} · {ROTULO_OBJETIVO[a.objetivo]}
+                    Ciclo {a.ciclo} · {(a.plan ?? "sin plan")}
                     {a.chequeoFecha ? ` · chequeo ${fecha(a.chequeoFecha)}` : ""}
                   </span>
                 </span>

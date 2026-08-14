@@ -22,6 +22,7 @@ from app.datos.modelos import (
     Chequeo,
     Ciclo,
     Cita,
+    CobroProgramado,
     Consentimiento,
     Foto,
     HistorialClinico,
@@ -31,6 +32,7 @@ from app.datos.modelos import (
     Pago,
     Pesaje,
     Plan,
+    Tarifa,
     Usuario,
 )
 
@@ -242,6 +244,62 @@ def consentimiento_vigente(s: Session, alumna_id: int, tipo: str) -> Consentimie
         )
         .order_by(Consentimiento.aceptado_en.desc())
     ).first()
+
+
+def tarifas_de_coach(s: Session, solo_activas: bool = False) -> list[Tarifa]:
+    """Los planes comerciales. Es lo que la coach elige al dar de alta a una alumna."""
+    consulta = select(Tarifa).order_by(Tarifa.nombre)
+    if solo_activas:
+        consulta = consulta.where(Tarifa.activa.is_(True))
+    return list(s.scalars(consulta).all())
+
+
+def tarifa_por_ulid(s: Session, ulid: str) -> Tarifa | None:
+    return s.scalars(select(Tarifa).where(Tarifa.ulid == ulid)).first()
+
+
+def cobros_de(s: Session, alumna_id: int) -> list[CobroProgramado]:
+    """Todos los cobros de una alumna, del más viejo al más nuevo."""
+    return list(
+        s.scalars(
+            select(CobroProgramado)
+            .where(CobroProgramado.alumna_id == alumna_id)
+            .order_by(CobroProgramado.fecha)
+        ).all()
+    )
+
+
+def cobro_por_ulid(s: Session, ulid: str) -> CobroProgramado | None:
+    return s.scalars(select(CobroProgramado).where(CobroProgramado.ulid == ulid)).first()
+
+
+def cobros_pendientes_de(s: Session, alumna_id: int) -> list[CobroProgramado]:
+    """Lo que le falta por pagar. Es lo que se ofrece al registrar un ingreso."""
+    return list(
+        s.scalars(
+            select(CobroProgramado)
+            .where(
+                CobroProgramado.alumna_id == alumna_id,
+                CobroProgramado.estado == "pendiente",
+            )
+            .order_by(CobroProgramado.fecha)
+        ).all()
+    )
+
+
+def adeudos_vencidos(s: Session, alumna_id: int, hoy: date) -> list[CobroProgramado]:
+    """Cobros con fecha pasada y sin pagar. **Son los que pausan el plan.**"""
+    return list(
+        s.scalars(
+            select(CobroProgramado)
+            .where(
+                CobroProgramado.alumna_id == alumna_id,
+                CobroProgramado.estado == "pendiente",
+                CobroProgramado.fecha < hoy,
+            )
+            .order_by(CobroProgramado.fecha)
+        ).all()
+    )
 
 
 def mensajes_de(s: Session, alumna_id: int) -> list[Mensaje]:

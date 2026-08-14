@@ -14,13 +14,15 @@ import { useState } from "react";
 
 import { Dialogo } from "@/componentes/Dialogo";
 import { Apoyo, Aviso, Boton, Campo, Entrada, Etiqueta, Selector } from "@/componentes/primitivas";
-import { ErrorApi, api, type EdicionDeAlumnaApi, type FilaCarteraApi } from "@/lib/api";
-
-const OBJETIVOS = [
-  ["perdida_grasa", "Perder grasa"],
-  ["ganancia_masa", "Ganar masa muscular"],
-  ["recomposicion", "Recomposición"],
-] as const;
+import {
+  ErrorApi,
+  api,
+  type EdicionDeAlumnaApi,
+  type FilaCarteraApi,
+  type PlanComercialApi,
+} from "@/lib/api";
+import { num } from "@/lib/formato";
+import { usarApi } from "@/lib/usarApi";
 
 const NIVELES = ["principiante", "intermedio", "avanzado"] as const;
 
@@ -30,7 +32,7 @@ interface Borrador {
   whatsapp: string;
   fechaNacimiento: string;
   estaturaCm: string;
-  objetivo: string;
+  tarifaUlid: string;
   nivelExperiencia: string;
   ocupacion: string;
   basculaRef: string;
@@ -46,7 +48,7 @@ const VACIO: Borrador = {
   whatsapp: "",
   fechaNacimiento: "",
   estaturaCm: "",
-  objetivo: "recomposicion",
+  tarifaUlid: "",
   nivelExperiencia: "principiante",
   ocupacion: "",
   basculaRef: "",
@@ -66,11 +68,12 @@ export function FormAlumna({
   onCerrar: () => void;
   onGuardada: () => void;
 }) {
+  const planes = usarApi<PlanComercialApi[]>((senal) => api.coach.planes(senal)).datos ?? [];
   const editando = alumna !== null;
 
   const [b, setB] = useState<Borrador>(
     editando
-      ? { ...VACIO, nombre: alumna.nombre, objetivo: alumna.objetivo ?? "recomposicion", estado: alumna.estado }
+      ? { ...VACIO, nombre: alumna.nombre, estado: alumna.estado }
       : VACIO,
   );
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +109,7 @@ export function FormAlumna({
           nombre: b.nombre.trim(),
           whatsapp: texto(b.whatsapp),
           estaturaCm: numero(b.estaturaCm),
-          objetivo: b.objetivo,
+          tarifaUlid: b.tarifaUlid || null,
           nivelExperiencia: b.nivelExperiencia,
           equipo: texto(b.equipo),
           ocupacion: texto(b.ocupacion),
@@ -125,7 +128,7 @@ export function FormAlumna({
           whatsapp: texto(b.whatsapp),
           fechaNacimiento: b.fechaNacimiento,
           estaturaCm: numero(b.estaturaCm),
-          objetivo: b.objetivo,
+          tarifaUlid: b.tarifaUlid || null,
           nivelExperiencia: b.nivelExperiencia,
         });
         setClaveEmitida({ clave: alta.claveTemporal, correo: alta.correo });
@@ -256,13 +259,20 @@ export function FormAlumna({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo id="a-objetivo" etiqueta="Objetivo">
-          <Selector id="a-objetivo" value={b.objetivo} onChange={(e) => cambiar("objetivo", e.target.value)}>
-            {OBJETIVOS.map(([id, rotulo]) => (
-              <option key={id} value={id}>
-                {rotulo}
-              </option>
-            ))}
+        <Campo
+          id="a-plan"
+          etiqueta="Plan"
+          ayuda="De aquí sale cuánto se le cobra. Los planes se crean en tus ajustes."
+        >
+          <Selector id="a-plan" value={b.tarifaUlid} onChange={(e) => cambiar("tarifaUlid", e.target.value)}>
+            <option value="">Sin plan asignado</option>
+            {planes
+              .filter((p) => p.activa)
+              .map((p) => (
+                <option key={p.ulid} value={p.ulid}>
+                  {p.nombre} · ${num(p.precio)} · {p.intensidad}
+                </option>
+              ))}
           </Selector>
         </Campo>
         <Campo id="a-nivel" etiqueta="Nivel de experiencia">

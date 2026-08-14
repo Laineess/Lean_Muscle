@@ -86,7 +86,7 @@ def _filas_de_cartera(s: Session) -> list[FilaCartera]:
     ids = [a.id for a in alumnas]
 
     ciclos = q.ciclos_vigentes(s, ids)
-    pagos = q.pago_del_ciclo(s, [c.id for c in ciclos.values()])
+    planes = {t.id: t.nombre for t in q.tarifas_de_coach(s)}
     ultimos = q.ultimo_chequeo_por_alumna(s, ids)
     accesos = q.ultimo_acceso_de(s, [a.usuario_id for a in alumnas])
 
@@ -96,17 +96,20 @@ def _filas_de_cartera(s: Session) -> list[FilaCartera]:
     filas: list[FilaCartera] = []
     for a in alumnas:
         ciclo = ciclos.get(a.id)
-        pago = pagos.get(ciclo.id) if ciclo else None
         chequeo = ultimos.get(a.id)
         acceso = accesos.get(a.usuario_id)
         acceso_dia = acceso.date() if acceso else None
 
         # Prioridad de la alerta: primero lo que bloquea el método, luego lo que cuesta
         # dinero, al final lo que solo requiere un empujón.
+        # Lo que de verdad se debe: cobros con fecha pasada y sin pagar.
+        vencidos = q.adeudos_vencidos(s, a.id, hoy)
+        adeudo = sum((c.monto for c in vencidos), Decimal(0))
+
         alerta: str | None = None
         if chequeo is not None and chequeo.alerta_outlier:
             alerta = "outlier"
-        elif pago is not None and pago.estado != "validado":
+        elif adeudo > 0:
             alerta = "pago"
         elif acceso_dia is None or (hoy - acceso_dia).days >= DIAS_INACTIVIDAD:
             alerta = "inactividad"
@@ -121,10 +124,11 @@ def _filas_de_cartera(s: Session) -> list[FilaCartera]:
                 chequeo_fecha=chequeo.fecha if chequeo else None,
                 peso_kg=pesos_por_chequeo.get(chequeo.id) if chequeo else None,
                 peso_previo=None,
-                objetivo=a.objetivo,
-                pago=pago.estado if pago else "pendiente",
+                plan=planes.get(a.tarifa_id) if a.tarifa_id else None,
+                pago="con adeudo" if adeudo > 0 else "al corriente",
                 ultimo_acceso=acceso_dia,
                 alerta=alerta,
+                adeudo=adeudo,
             )
         )
     return filas
@@ -150,7 +154,7 @@ def panel(
         por_validar=[f for f in filas if f.chequeo_estado == "pendiente_evaluacion"],
         con_alerta=[f for f in filas if f.alerta is not None],
         activas=sum(1 for f in filas if f.estado == "activa"),
-        por_cobrar=sum(1 for f in filas if f.pago != "validado"),
+        por_cobrar=sum(1 for f in filas if f.adeudo > 0),
     )
 
 
@@ -173,6 +177,7 @@ def dar_de_alta_alumna(
     La clave temporal se devuelve **una sola vez**, para que la coach pueda dictarla si el
     correo no llega. No se puede consultar después: solo se guarda su hash.
     """
+    plan = q.tarifa_por_ulid(s, cuerpo.tarifa_ulid) if cuerpo.tarifa_ulid else None
     alta = cuentas.dar_de_alta(
         s,
         coach_id=actor.coach_id,
@@ -181,9 +186,8 @@ def dar_de_alta_alumna(
         whatsapp=cuerpo.whatsapp,
         fecha_nacimiento=cuerpo.fecha_nacimiento,
         estatura_cm=cuerpo.estatura_cm,
-        objetivo=cuerpo.objetivo,
+        tarifa_id=plan.id if plan else None,
         nivel_experiencia=cuerpo.nivel_experiencia,
-        precio_ciclo=cuerpo.precio_ciclo,
     )
 
     coach = s.get(Coach, actor.coach_id)
@@ -238,7 +242,7 @@ def editar_alumna(
         "nombre": alumna.nombre,
         "whatsapp": alumna.whatsapp,
         "estatura_cm": alumna.estatura_cm,
-        "objetivo": alumna.objetivo,
+        "tarifa_id": alumna.tarifa_id,
         "nivel_experiencia": alumna.nivel_experiencia,
         "equipo": alumna.equipo,
         "ocupacion": alumna.ocupacion,
@@ -251,7 +255,8 @@ def editar_alumna(
     alumna.nombre = cuerpo.nombre.strip()
     alumna.whatsapp = cuerpo.whatsapp
     alumna.estatura_cm = cuerpo.estatura_cm
-    alumna.objetivo = cuerpo.objetivo
+    plan = q.tarifa_por_ulid(s, cuerpo.tarifa_ulid) if cuerpo.tarifa_ulid else None
+    alumna.tarifa_id = plan.id if plan else None
     alumna.nivel_experiencia = cuerpo.nivel_experiencia
     alumna.equipo = cuerpo.equipo
     alumna.ocupacion = cuerpo.ocupacion
@@ -281,7 +286,7 @@ def editar_alumna(
                     "nombre": alumna.nombre,
                     "whatsapp": alumna.whatsapp,
                     "estatura_cm": alumna.estatura_cm,
-                    "objetivo": alumna.objetivo,
+                    "tarifa_id": alumna.tarifa_id,
                     "nivel_experiencia": alumna.nivel_experiencia,
                     "equipo": alumna.equipo,
                     "ocupacion": alumna.ocupacion,
@@ -902,7 +907,7 @@ def expediente_de_validacion(
         alumna_ulid=alumna.ulid,
         alumna=alumna.nombre,
         estatura_cm=alumna.estatura_cm,
-        objetivo=alumna.objetivo,
+        plan=None,
         actual=actual,
         anteriores=anteriores,
         lesiones=historial.lesiones if historial else None,

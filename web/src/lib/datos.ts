@@ -250,13 +250,13 @@ export const mensajes: Mensaje[] = [
 ];
 
 export const cartera: FilaCartera[] = [
-  { ulid: "01JAL0001", nombre: "Andrea Sáenz", ciclo: 4, estado: "activa", chequeoEstado: "pendiente_evaluacion", chequeoFecha: "2026-08-01", pesoKg: 65.2, pesoPrevio: 66.3, objetivo: "recomposicion", pago: "validado", ultimoAcceso: "2026-08-12", alerta: null },
-  { ulid: "01JAL0002", nombre: "Paola Rentería", ciclo: 6, estado: "activa", chequeoEstado: "pendiente_evaluacion", chequeoFecha: "2026-08-02", pesoKg: 58.9, pesoPrevio: 65.8, objetivo: "perdida_grasa", pago: "validado", ultimoAcceso: "2026-08-13", alerta: "outlier" },
-  { ulid: "01JAL0003", nombre: "Renata Ibáñez", ciclo: 2, estado: "activa", chequeoEstado: "borrador", chequeoFecha: "2026-08-13", pesoKg: null, pesoPrevio: 71.2, objetivo: "ganancia_masa", pago: "validado", ultimoAcceso: "2026-08-13", alerta: null },
-  { ulid: "01JAL0004", nombre: "Ximena Ordaz", ciclo: 9, estado: "activa", chequeoEstado: "validado", chequeoFecha: "2026-08-01", pesoKg: 62, pesoPrevio: 62.4, objetivo: "recomposicion", pago: "pendiente", ultimoAcceso: "2026-08-09", alerta: "pago" },
-  { ulid: "01JAL0005", nombre: "Daniela Fuentes", ciclo: 3, estado: "activa", chequeoEstado: "rechazado_calidad", chequeoFecha: "2026-08-03", pesoKg: 74.5, pesoPrevio: 75.1, objetivo: "perdida_grasa", pago: "validado", ultimoAcceso: "2026-08-10", alerta: null },
-  { ulid: "01JAL0006", nombre: "Sofía Bustamante", ciclo: 1, estado: "activa", chequeoEstado: "borrador", chequeoFecha: null, pesoKg: null, pesoPrevio: null, objetivo: "ganancia_masa", pago: "validado", ultimoAcceso: "2026-08-09", alerta: "inactividad" },
-  { ulid: "01JAL0007", nombre: "Lucía Márquez", ciclo: 5, estado: "pausa", chequeoEstado: null, chequeoFecha: null, pesoKg: 69.8, pesoPrevio: 70, objetivo: "recomposicion", pago: "pendiente", ultimoAcceso: "2026-07-28", alerta: "inactividad" },
+  { ulid: "01JAL0001", nombre: "Andrea Sáenz", ciclo: 4, estado: "activa", chequeoEstado: "pendiente_evaluacion", chequeoFecha: "2026-08-01", pesoKg: 65.2, pesoPrevio: 66.3, plan: "Completo", pago: "validado", ultimoAcceso: "2026-08-12", alerta: null, adeudo: 0 },
+  { ulid: "01JAL0002", nombre: "Paola Rentería", ciclo: 6, estado: "activa", chequeoEstado: "pendiente_evaluacion", chequeoFecha: "2026-08-02", pesoKg: 58.9, pesoPrevio: 65.8, plan: "Esencial", pago: "validado", ultimoAcceso: "2026-08-13", alerta: "outlier", adeudo: 0 },
+  { ulid: "01JAL0003", nombre: "Renata Ibáñez", ciclo: 2, estado: "activa", chequeoEstado: "borrador", chequeoFecha: "2026-08-13", pesoKg: null, pesoPrevio: 71.2, plan: "Alto rendimiento", pago: "validado", ultimoAcceso: "2026-08-13", alerta: null, adeudo: 0 },
+  { ulid: "01JAL0004", nombre: "Ximena Ordaz", ciclo: 9, estado: "activa", chequeoEstado: "validado", chequeoFecha: "2026-08-01", pesoKg: 62, pesoPrevio: 62.4, plan: "Completo", pago: "pendiente", ultimoAcceso: "2026-08-09", alerta: "pago", adeudo: 0 },
+  { ulid: "01JAL0005", nombre: "Daniela Fuentes", ciclo: 3, estado: "activa", chequeoEstado: "rechazado_calidad", chequeoFecha: "2026-08-03", pesoKg: 74.5, pesoPrevio: 75.1, plan: "Esencial", pago: "validado", ultimoAcceso: "2026-08-10", alerta: null, adeudo: 0 },
+  { ulid: "01JAL0006", nombre: "Sofía Bustamante", ciclo: 1, estado: "activa", chequeoEstado: "borrador", chequeoFecha: null, pesoKg: null, pesoPrevio: null, plan: "Alto rendimiento", pago: "validado", ultimoAcceso: "2026-08-09", alerta: "inactividad", adeudo: 0 },
+  { ulid: "01JAL0007", nombre: "Lucía Márquez", ciclo: 5, estado: "pausa", chequeoEstado: null, chequeoFecha: null, pesoKg: 69.8, pesoPrevio: 70, plan: "Completo", pago: "pendiente", ultimoAcceso: "2026-07-28", alerta: "inactividad", adeudo: 0 },
 ];
 
 export const notificaciones = [

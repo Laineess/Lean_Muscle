@@ -29,6 +29,7 @@ from app.datos.modelos import (
     Cita,
     Coach,
     CobroCoach,
+    CobroProgramado,
     Consentimiento,
     Ejercicio,
     Foto,
@@ -40,6 +41,7 @@ from app.datos.modelos import (
     Pesaje,
     Plan,
     SuscripcionCoach,
+    Tarifa,
     Usuario,
 )
 from app.datos.sin_alcance import sesion_sin_alcance
@@ -571,6 +573,28 @@ def sembrar_coach(
         )
     )
 
+    # Tres planes con precios distintos: es lo que hace visible que el cobro depende del
+    # plan y no de un precio unico por coach.
+    planes = []
+    for codigo, nombre_plan, precio, intensidad in (
+        ("ESENCIAL", "Esencial", Decimal("900.00"), "baja"),
+        ("COMPLETO", "Completo", Decimal("1200.00"), "media"),
+        ("PREMIUM", "Alto rendimiento", Decimal("1800.00"), "alta"),
+    ):
+        plan_comercial = Tarifa(
+            coach_id=coach.id,
+            codigo=codigo,
+            nombre=nombre_plan,
+            descripcion=f"Plan {nombre_plan.lower()} de acompanamiento mensual.",
+            precio=precio,
+            dias=30,
+            intensidad=intensidad,
+            activa=True,
+        )
+        sesion.add(plan_comercial)
+        planes.append(plan_comercial)
+    sesion.flush()
+
     for i, ficha in enumerate(cartera):
         usuario = Usuario(
             coach_id=coach.id,
@@ -590,7 +614,7 @@ def sembrar_coach(
             fecha_nacimiento=ficha["nac"],
             sexo="F",
             estatura_cm=ficha["estatura"],
-            objetivo=ficha["objetivo"],
+            tarifa_id=planes[i % len(planes)].id,
             nivel_experiencia=ficha["nivel"],
             equipo="gimnasio_completo",
             estres=6,
@@ -651,6 +675,44 @@ def sembrar_coach(
         )
         sesion.add(ciclo)
         sesion.flush()
+
+        # Cobros: el del mes pasado ya pagado y el del proximo por venir. A la tercera
+        # alumna se le deja uno vencido, que es lo que pausa su plan y hace visible la
+        # palanca de cobro.
+        precio_plan = planes[i % len(planes)].precio
+        sesion.add(
+            CobroProgramado(
+                coach_id=coach.id,
+                alumna_id=alumna.id,
+                fecha=inicio_ciclo,
+                motivo="mensualidad",
+                monto=precio_plan,
+                estado="pagado",
+                pagado_en=inicio_ciclo,
+            )
+        )
+        sesion.add(
+            CobroProgramado(
+                coach_id=coach.id,
+                alumna_id=alumna.id,
+                fecha=inicio_ciclo + timedelta(days=30),
+                motivo="mensualidad",
+                monto=precio_plan,
+                estado="pendiente",
+            )
+        )
+        if i == 2:
+            sesion.add(
+                CobroProgramado(
+                    coach_id=coach.id,
+                    alumna_id=alumna.id,
+                    fecha=date.today() - timedelta(days=6),
+                    motivo="cita",
+                    concepto="Consulta extra de ajuste",
+                    monto=Decimal("350.00"),
+                    estado="pendiente",
+                )
+            )
 
         # Un par de consultas por delante para las tres primeras: sin ellas, el cuadro de
         # proximas fechas de la alumna sale vacio y la agenda de la coach no ensena nada.

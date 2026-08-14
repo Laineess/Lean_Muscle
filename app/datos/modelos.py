@@ -113,7 +113,9 @@ class Alumna(BaseMultiInquilino):
     #: Dato unico inicial: no se recaptura en cada chequeo.
     estatura_cm: Mapped[int | None] = mapped_column(Integer)
 
-    objetivo: Mapped[str | None] = mapped_column(String(30))
+    #: El plan comercial que contrató. Sustituye al antiguo `objetivo`: si la coach quiere
+    #: distinguir pérdida de ganancia, crea dos planes con esos nombres.
+    tarifa_id: Mapped[int | None] = mapped_column(ForeignKey("tarifa.id"))
     nivel_experiencia: Mapped[str | None] = mapped_column(String(20))
     equipo: Mapped[str | None] = mapped_column(String(30))
     estres: Mapped[int | None] = mapped_column(TINYINT)
@@ -545,6 +547,7 @@ class Tarifa(BaseMultiInquilino):
         UniqueConstraint("coach_id", "codigo", name="uq_tarifa_codigo"),
         CheckConstraint("precio > 0", name="precio_positivo"),
         CheckConstraint("dias between 1 and 365", name="dias_rango"),
+        CheckConstraint("intensidad in ('baja','media','alta')", name="intensidad_valida"),
         ARGS_DE_TABLA,
     )
 
@@ -553,6 +556,8 @@ class Tarifa(BaseMultiInquilino):
     descripcion: Mapped[str | None] = mapped_column(Text)
     precio: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     dias: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
+    #: Carga de trabajo del plan. Descriptiva: la ve la alumna y ordena la cartera.
+    intensidad: Mapped[str] = mapped_column(String(10), default="media", nullable=False)
     activa: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
@@ -836,3 +841,40 @@ class CobroCoach(Base):
     nota: Mapped[str | None] = mapped_column(Text)
     #: Quien lo capturo. Siempre un usuario con rol `admin_plataforma`.
     registrado_por: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
+
+
+class CobroProgramado(BaseMultiInquilino):
+    """Una fecha en la que la alumna debe pagar algo. Lo pone la coach en su calendario.
+
+    Es la cuenta por cobrar, no el pago: el pago aparece cuando la coach registra el ingreso
+    en finanzas y lo enlaza aqui. Separarlos es lo que permite ver adeudos antes de que
+    exista ningun movimiento.
+
+    **Un cobro vencido y sin pagar pausa el plan de la alumna.** Esa es la unica palanca de
+    cobro del sistema, y por eso la fecha y el estado viven aqui y no en el ciclo.
+    """
+
+    __tablename__ = "cobro_programado"
+    __table_args__ = (
+        CheckConstraint(
+            "motivo in ('inscripcion','mensualidad','cita','material','otro')",
+            name="motivo_valido",
+        ),
+        CheckConstraint("estado in ('pendiente','pagado','cancelado')", name="estado_cobro_valido"),
+        CheckConstraint("monto > 0", name="monto_positivo"),
+        Index("ix_cobro_alumna_fecha", "alumna_id", "fecha"),
+        ARGS_DE_TABLA,
+    )
+
+    alumna_id: Mapped[int] = mapped_column(ForeignKey("alumna.id"), nullable=False)
+    fecha: Mapped[date] = mapped_column(Date, nullable=False)
+    motivo: Mapped[str] = mapped_column(String(20), default="mensualidad", nullable=False)
+    #: Lo que la alumna lee. Si va vacio se arma con el motivo.
+    concepto: Mapped[str | None] = mapped_column(String(180))
+    monto: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    estado: Mapped[str] = mapped_column(String(20), default="pendiente", nullable=False)
+
+    #: El ingreso que lo salda. Nulo mientras esta pendiente.
+    movimiento_id: Mapped[int | None] = mapped_column(ForeignKey("movimiento_financiero.id"))
+    pagado_en: Mapped[date | None] = mapped_column(Date)
+    nota: Mapped[str | None] = mapped_column(Text)

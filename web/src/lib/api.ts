@@ -158,7 +158,7 @@ export interface InicioAlumnaApi {
     nombre: string;
     correo: string;
     estaturaCm: number | null;
-    objetivo: string | null;
+    plan: string | null;
     basculaRef: string | null;
     lugarRef: string | null;
     horaRef: string | null;
@@ -228,10 +228,11 @@ export interface FilaCarteraApi {
   chequeoFecha: string | null;
   pesoKg: number | null;
   pesoPrevio: number | null;
-  objetivo: string | null;
+  plan: string | null;
   pago: string;
   ultimoAcceso: string | null;
   alerta: "outlier" | "pago" | "inactividad" | null;
+  adeudo: number;
 }
 
 export interface ResumenPanelApi {
@@ -276,7 +277,7 @@ export interface AltaDeAlumnaApi {
   whatsapp: string | null;
   fechaNacimiento: string;
   estaturaCm: number | null;
-  objetivo: string | null;
+  tarifaUlid: string | null;
   nivelExperiencia: string | null;
 }
 
@@ -291,7 +292,7 @@ export interface EdicionDeAlumnaApi {
   nombre: string;
   whatsapp: string | null;
   estaturaCm: number | null;
-  objetivo: string | null;
+  tarifaUlid: string | null;
   nivelExperiencia: string | null;
   equipo: string | null;
   ocupacion: string | null;
@@ -323,6 +324,8 @@ export interface MovimientoNuevoApi {
   concepto: string;
   alumnaUlid: string | null;
   nota: string | null;
+  /** Cobro programado que salda este ingreso. Lo marca como pagado. */
+  cobroUlid: string | null;
 }
 
 export interface PanelFinancieroApi {
@@ -589,6 +592,51 @@ export interface MovimientoDeAuditoriaApi {
   entidad: string;
 }
 
+export interface PlanComercialApi {
+  ulid: string;
+  codigo: string;
+  nombre: string;
+  descripcion: string | null;
+  precio: number;
+  dias: number;
+  intensidad: "baja" | "media" | "alta";
+  activa: boolean;
+  alumnas: number;
+}
+
+export type PlanComercialNuevoApi = Omit<PlanComercialApi, "ulid" | "alumnas">;
+
+export type MotivoDeCobro = "inscripcion" | "mensualidad" | "cita" | "material" | "otro";
+
+export interface CobroApi2 {
+  ulid: string;
+  fecha: string;
+  motivo: MotivoDeCobro;
+  concepto: string;
+  monto: number;
+  estado: "pendiente" | "pagado" | "cancelado";
+  pagadoEn: string | null;
+  nota: string | null;
+  /** La fecha pasó y sigue pendiente. Es lo que pausa el plan de la alumna. */
+  vencido: boolean;
+}
+
+export interface CobroNuevoProgramadoApi {
+  fecha: string;
+  motivo: MotivoDeCobro;
+  concepto: string | null;
+  monto: number;
+  nota: string | null;
+}
+
+export interface AlumnaConCobrosApi {
+  ulid: string;
+  nombre: string;
+  plan: string | null;
+  pendientes: CobroApi2[];
+  adeudo: number;
+}
+
 export interface DocumentoLegalApi {
   clave: string;
   titulo: string;
@@ -636,7 +684,7 @@ export interface ExpedienteDeValidacionApi {
   alumnaUlid: string;
   alumna: string;
   estaturaCm: number | null;
-  objetivo: string | null;
+  plan: string | null;
   actual: ChequeoDeValidacionApi | null;
   anteriores: ChequeoDeValidacionApi[];
   lesiones: string | null;
@@ -783,6 +831,26 @@ export const api = {
         metodo: "POST",
         cuerpo: { motivoVerificacion },
       }),
+
+    planes: (senal?: AbortSignal) =>
+      pedir<PlanComercialApi[]>("/coach/tarifas", senal ? { senal } : {}),
+    crearPlan: (p: PlanComercialNuevoApi) =>
+      pedir<PlanComercialApi>("/coach/tarifas", { metodo: "POST", cuerpo: p }),
+    editarPlan: (ulid: string, p: PlanComercialNuevoApi) =>
+      pedir<PlanComercialApi>(`/coach/tarifas/${ulid}`, { metodo: "PUT", cuerpo: p }),
+    desactivarPlan: (ulid: string) =>
+      pedir<void>(`/coach/tarifas/${ulid}`, { metodo: "DELETE" }),
+
+    cobros: (alumnaUlid: string, senal?: AbortSignal) =>
+      pedir<CobroApi2[]>(`/coach/alumnas/${alumnaUlid}/cobros`, senal ? { senal } : {}),
+    programarCobro: (alumnaUlid: string, c: CobroNuevoProgramadoApi) =>
+      pedir<CobroApi2>(`/coach/alumnas/${alumnaUlid}/cobros`, { metodo: "POST", cuerpo: c }),
+    cancelarCobro: (ulid: string) => pedir<void>(`/coach/cobros/${ulid}`, { metodo: "DELETE" }),
+    aQuienCobrar: (texto: string, senal?: AbortSignal) =>
+      pedir<AlumnaConCobrosApi[]>(
+        `/coach/cobrar?q=${encodeURIComponent(texto)}`,
+        senal ? { senal } : {},
+      ),
 
     marca: (senal?: AbortSignal) => pedir<MarcaApi>("/coach/marca", senal ? { senal } : {}),
     guardarMarca: (m: { nombre: string; marca: string; colorAcento: string }) =>
