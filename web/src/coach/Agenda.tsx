@@ -186,7 +186,7 @@ export function Agenda() {
   // La cartera real, para el selector de alumna y para poner su nombre en cada cita.
   const alumnas = usarApiConRespaldo<FilaCarteraApi[]>(
     (senal) => api.coach.alumnas(senal),
-    carteraDeEjemplo as unknown as FilaCarteraApi[],
+    carteraDeEjemplo,
   );
 
   // Sin servidor se trabaja sobre los datos de ejemplo, en memoria. Con servidor, la

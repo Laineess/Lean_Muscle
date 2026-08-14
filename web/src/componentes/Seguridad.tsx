@@ -46,7 +46,7 @@ export function CambiarContrasena() {
     try {
       await api.acceso.cambiarContrasena(actual, nueva);
       cerrarSesion();
-      navegar("/acceso", { replace: true });
+      void navegar("/acceso", { replace: true });
     } catch (causa) {
       setError(causa instanceof ErrorApi ? causa.message : "No se pudo cambiar.");
       setEnviando(false);
@@ -123,7 +123,7 @@ export function BotonSalir({ className }: { className?: string }) {
         // el token vivo para quien lo hubiera copiado.
         void api.acceso.salir().catch(() => undefined);
         cerrarSesion();
-        navegar("/acceso", { replace: true });
+        void navegar("/acceso", { replace: true });
       }}
     >
       Cerrar sesión

@@ -75,7 +75,7 @@ export function Chequeo() {
         if (!vivo) return;
         setBorrador(b);
         setPeso(b.pesoKg !== null ? String(b.pesoKg) : "");
-        setMedidas(b.medidas as Partial<Record<TipoMedida, number>>);
+        setMedidas(b.medidas);
         setNota(b.notaAlumna ?? "");
         setVarianzaConfirmada(b.varianzaConfirmada);
         if (b.ayunoConfirmado) setCondiciones(new Set(CONDICIONES.map((c) => c.id)));
@@ -136,7 +136,7 @@ export function Chequeo() {
         cambios.lugarUsado = entorno.lugar ? (borrador.lugarRef ?? "") : "";
         cambios.horaUsada = entorno.hora ? (borrador.horaRef ?? "") : "";
       }
-      if (paso === 2) cambios.medidas = medidas as Record<string, number>;
+      if (paso === 2) cambios.medidas = medidas;
       if (paso === 4) cambios.notaAlumna = nota;
 
       setBorrador(await api.alumna.guardarChequeo(borrador.ulid, cambios));
@@ -157,7 +157,7 @@ export function Chequeo() {
   }
 
   function retroceder() {
-    if (paso === 0) navegar("/inicio");
+    if (paso === 0) void navegar("/inicio");
     else setPaso((p) => (p - 1) as Paso);
   }
 

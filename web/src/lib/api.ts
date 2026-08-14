@@ -192,6 +192,36 @@ export interface AlimentoApi {
   base?: { porcion: number; kcal: number; p: number; c: number; g: number };
 }
 
+export interface ParametrosDeCicloApi {
+  actividad: string;
+  porcentajeAjuste: number;
+  reparto: { carbohidrato: number; proteina: number; grasa: number };
+  baseProteina: string;
+  diasRefeed: number;
+  porcentajeDiaRefeed: number;
+  relacionGanancia: string;
+}
+
+/** Todo lo que abre el constructor de planes, en una llamada. */
+export interface ExpedienteDeConstructorApi {
+  alumnaUlid: string;
+  alumna: string;
+  ciclo: number;
+  fechaNacimiento: string;
+  sexo: string | null;
+  estaturaCm: number | null;
+  porcentajeGrasaObjetivo: number | null;
+  chequeo: {
+    fecha: string;
+    estado: string;
+    pesoKg: number | null;
+    porcentajeGrasa: number | null;
+  } | null;
+  parametros: ParametrosDeCicloApi;
+  nutricion: PlanApi | null;
+  entrenamiento: PlanApi | null;
+}
+
 export interface PlanApi {
   tipo: "nutricion" | "entrenamiento";
   ciclo: number;
@@ -726,6 +756,8 @@ export interface PlanGuardadoApi {
   carbohidratoG?: number | null;
   grasaG?: number | null;
   publicar: boolean;
+  /** Solo con el plan de nutrición: es donde vive la calculadora. */
+  parametros?: ParametrosDeCicloApi;
 }
 
 /* --------------------------------------------------------------- Endpoints --- */
@@ -914,6 +946,11 @@ export const api = {
     ejercicios: (q: string, senal?: AbortSignal) =>
       pedir<EjercicioCatalogoApi[]>(
         `/coach/ejercicios?q=${encodeURIComponent(q)}`,
+        senal ? { senal } : {},
+      ),
+    expedienteDePlan: (alumnaUlid: string, senal?: AbortSignal) =>
+      pedir<ExpedienteDeConstructorApi>(
+        `/coach/planes/${alumnaUlid}`,
         senal ? { senal } : {},
       ),
     guardarPlan: (alumnaUlid: string, plan: PlanGuardadoApi) =>

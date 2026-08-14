@@ -61,7 +61,7 @@ export function Buscador({ abierto, onCerrar }: { abierto: boolean; onCerrar: ()
   const navegar = useNavigate();
 
   const ir = (a: string) => {
-    navegar(a);
+    void navegar(a);
     onCerrar();
   };
 

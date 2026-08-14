@@ -38,7 +38,7 @@ export function Acceso() {
   function abrir(actor: ActorPublico) {
     recordarCorreo(correo, recordar);
     guardarActor(actor);
-    navegar(
+    void navegar(
       actor.rol === "coach" ? "/coach" : actor.rol === "admin_plataforma" ? "/plataforma" : "/inicio",
       { replace: true },
     );

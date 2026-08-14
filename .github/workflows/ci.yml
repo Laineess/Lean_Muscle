@@ -94,5 +94,8 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Estilo
+        run: npm run lint
+
       - name: Tipos y compilación
         run: npm run build

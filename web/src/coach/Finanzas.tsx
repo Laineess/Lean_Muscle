@@ -435,7 +435,7 @@ function FormMovimiento({
   // Al cambiar de tipo, la categoría anterior deja de ser válida.
   function cambiarTipo(nuevo: "ingreso" | "gasto") {
     setTipo(nuevo);
-    setCategoria(CATEGORIAS[nuevo][0]![0]);
+    setCategoria(CATEGORIAS[nuevo][0][0]);
     if (nuevo === "gasto") {
       setAlumna(null);
       setCobro(null);

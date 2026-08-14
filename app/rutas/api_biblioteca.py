@@ -7,6 +7,7 @@ comparten todas las coaches; las que llevan su `coach_id` son suyas. Por eso est
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,15 +16,21 @@ from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc
-from app.datos.modelos import Alimento, Ejercicio, Plan
+from app.datos.modelos import Alimento, Chequeo, Ejercicio, ParametrosCiclo, Plan
 from app.datos.repos import consultas as q
 from app.rutas.esquemas import (
     AlimentoCatalogo,
     AlimentoNuevo,
+    ChequeoDelConstructor,
     EjercicioCatalogo,
+    ExpedienteDeConstructor,
+    ParametrosDeCiclo,
     PlanGuardado,
+    PlanPublico,
+    RepartoDeMacros,
 )
 from app.rutas.sesion import Actor, datos, solo_coach
+from app.servicios import bitacora
 
 ruteador = APIRouter(prefix="/api/coach", tags=["biblioteca"])
 
@@ -143,8 +150,113 @@ def ejercicios(
 
 
 # ---------------------------------------------------------------------------
-# Guardado de planes
+# Planes
 # ---------------------------------------------------------------------------
+
+#: Valores con los que arranca un ciclo sin parámetros guardados. Son los de la hoja.
+PARAMETROS_INICIALES = ParametrosDeCiclo(
+    actividad="activo",
+    porcentaje_ajuste=Decimal("-0.200"),
+    reparto=RepartoDeMacros(
+        carbohidrato=Decimal("0.400"), proteina=Decimal("0.320"), grasa=Decimal("0.280")
+    ),
+    base_proteina="masa_libre_de_grasa",
+    dias_refeed=1,
+    porcentaje_dia_refeed=Decimal("0.000"),
+    relacion_ganancia="2:1",
+)
+
+
+def _plan_publico(plan: Plan | None, numero_ciclo: int) -> PlanPublico | None:
+    if plan is None:
+        return None
+    return PlanPublico(
+        tipo=plan.tipo,
+        ciclo=numero_ciclo,
+        estado=plan.estado,
+        publicado_en=plan.publicado_en,
+        contenido=plan.contenido or {},
+        kcal_objetivo=plan.kcal_objetivo,
+        proteina_g=plan.proteina_g,
+        carbohidrato_g=plan.carbohidrato_g,
+        grasa_g=plan.grasa_g,
+    )
+
+
+@ruteador.get("/planes/{alumna_ulid}", response_model=ExpedienteDeConstructor)
+def expediente_de_constructor(
+    alumna_ulid: str,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> ExpedienteDeConstructor:
+    """Lo que abre el constructor: la ficha, el último chequeo, los parámetros y los planes.
+
+    Peso y porcentaje de grasa son datos de salud, así que la lectura queda registrada.
+    """
+    alumna = q.alumna_por_ulid(s, alumna_ulid)
+    if alumna is None:
+        raise HTTPException(404, "No existe esa alumna")
+
+    ciclo = q.ciclo_vigente(s, alumna.id)
+    if ciclo is None:
+        raise HTTPException(409, "Todavía no hay ciclo abierto para esta alumna")
+
+    bitacora.registrar_acceso(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        alumna_id=alumna.id,
+        recurso=bitacora.Recurso.EXPEDIENTE,
+    )
+
+    chequeos = q.chequeos_de(s, alumna.id)
+    ultimo: Chequeo | None = chequeos[-1] if chequeos else None
+    peso = q.peso_de_chequeo(s, [ultimo.id]).get(ultimo.id) if ultimo else None
+
+    guardados = s.scalars(
+        select(ParametrosCiclo).where(ParametrosCiclo.ciclo_id == ciclo.id)
+    ).first()
+    parametros = (
+        ParametrosDeCiclo(
+            actividad=guardados.nivel_actividad,
+            porcentaje_ajuste=guardados.porcentaje_ajuste,
+            reparto=RepartoDeMacros(
+                carbohidrato=guardados.reparto_carbohidrato,
+                proteina=guardados.reparto_proteina,
+                grasa=guardados.reparto_grasa,
+            ),
+            base_proteina=guardados.base_proteina,
+            dias_refeed=guardados.dias_refeed,
+            porcentaje_dia_refeed=guardados.porcentaje_dia_refeed,
+            relacion_ganancia=guardados.relacion_ganancia,
+        )
+        if guardados is not None
+        else PARAMETROS_INICIALES
+    )
+
+    planes = q.planes_del_ciclo(s, alumna.id, ciclo.id)
+    return ExpedienteDeConstructor(
+        alumna_ulid=alumna.ulid,
+        alumna=alumna.nombre,
+        ciclo=ciclo.numero,
+        fecha_nacimiento=alumna.fecha_nacimiento,
+        sexo=alumna.sexo,
+        estatura_cm=alumna.estatura_cm,
+        porcentaje_grasa_objetivo=alumna.porcentaje_grasa_objetivo,
+        chequeo=(
+            ChequeoDelConstructor(
+                fecha=ultimo.fecha,
+                estado=ultimo.estado,
+                peso_kg=peso,
+                porcentaje_grasa=ultimo.porcentaje_grasa,
+            )
+            if ultimo is not None
+            else None
+        ),
+        parametros=parametros,
+        nutricion=_plan_publico(planes.get("nutricion"), ciclo.numero),
+        entrenamiento=_plan_publico(planes.get("entrenamiento"), ciclo.numero),
+    )
 
 
 @ruteador.put("/planes/{alumna_ulid}", status_code=204)
@@ -222,3 +334,38 @@ def guardar_plan(
     if cuerpo.publicar:
         plan.estado = "publicado"
         plan.publicado_en = ahora_utc()
+
+    if cuerpo.parametros is not None:
+        _guardar_parametros(s, actor, alumna.id, ciclo.id, cuerpo.parametros)
+
+    # Se fuerza aquí: como dependencia, la sesión hace commit después de responder, y un
+    # CHECK roto se perdería con el 204 ya enviado.
+    s.flush()
+
+
+def _guardar_parametros(
+    s: Session,
+    actor: Actor,
+    alumna_id: int,
+    ciclo_id: int,
+    p: ParametrosDeCiclo,
+) -> None:
+    """Uno por ciclo: si ya existe se actualiza, y el UNIQUE evita el duplicado."""
+    suma = p.reparto.carbohidrato + p.reparto.proteina + p.reparto.grasa
+    if suma != 1:
+        raise ErrorDeDominio(Codigo.REPARTO_DE_MACROS_NO_SUMA_UNO, suma=str(suma))
+
+    fila = s.scalars(select(ParametrosCiclo).where(ParametrosCiclo.ciclo_id == ciclo_id)).first()
+    if fila is None:
+        fila = ParametrosCiclo(coach_id=actor.coach_id, alumna_id=alumna_id, ciclo_id=ciclo_id)
+        s.add(fila)
+
+    fila.nivel_actividad = p.actividad
+    fila.porcentaje_ajuste = p.porcentaje_ajuste
+    fila.reparto_carbohidrato = p.reparto.carbohidrato
+    fila.reparto_proteina = p.reparto.proteina
+    fila.reparto_grasa = p.reparto.grasa
+    fila.base_proteina = p.base_proteina
+    fila.dias_refeed = p.dias_refeed
+    fila.porcentaje_dia_refeed = p.porcentaje_dia_refeed
+    fila.relacion_ganancia = p.relacion_ganancia

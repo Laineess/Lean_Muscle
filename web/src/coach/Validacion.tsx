@@ -233,7 +233,7 @@ export function Validacion() {
                     <span className="cifra font-semibold">{num(actual.medidas[m.tipo])} cm</span>
                     <span className="cifra w-16 text-right text-menor text-tinta-media">
                       {actual.medidas[m.tipo] != null && previo?.medidas[m.tipo] != null
-                        ? delta(actual.medidas[m.tipo]!, previo.medidas[m.tipo]!, "cm")?.texto
+                        ? delta(actual.medidas[m.tipo]!, previo.medidas[m.tipo], "cm")?.texto
                         : null}
                     </span>
                   </span>
@@ -394,7 +394,7 @@ export function Validacion() {
               await api.coach.rechazarChequeo(actual.ulid, motivo);
             }
             setAccion(null);
-            navegar("/coach");
+            void navegar("/coach");
           } catch (causa) {
             setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo guardar.");
           }

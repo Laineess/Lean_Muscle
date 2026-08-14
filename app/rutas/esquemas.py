@@ -12,9 +12,14 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, PlainSerializer
 from pydantic.alias_generators import to_camel
+
+#: Un `Decimal` sale de Pydantic como cadena, y del otro lado TypeScript los declara
+#: `number`: sumar dos importes concatenaba en vez de sumar. Se serializan como número.
+Numero = Annotated[Decimal, PlainSerializer(float, return_type=float, when_used="json")]
 
 
 class Esquema(BaseModel):
@@ -54,7 +59,7 @@ class ActorPublico(Esquema):
 
 class MedidaPublica(Esquema):
     tipo: str
-    valor: Decimal
+    valor: Numero
 
 
 class ChequeoPublico(Esquema):
@@ -62,9 +67,9 @@ class ChequeoPublico(Esquema):
     numero: int
     fecha: date
     estado: str
-    peso_kg: Decimal | None
-    porcentaje_grasa: Decimal | None
-    medidas: dict[str, Decimal]
+    peso_kg: Numero | None
+    porcentaje_grasa: Numero | None
+    medidas: dict[str, Numero]
     fotos: dict[str, bool]
     feedback: str | None
     alerta_outlier: bool
@@ -72,7 +77,7 @@ class ChequeoPublico(Esquema):
 
 class PesajePublico(Esquema):
     fecha: date
-    peso_kg: Decimal
+    peso_kg: Numero
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +90,7 @@ class CicloPublico(Esquema):
     inicia_en: date
     termina_en: date
     estado_pago: str
-    precio: Decimal
+    precio: Numero
 
 
 class PerfilAlumna(Esquema):
@@ -164,15 +169,15 @@ class FilaCartera(Esquema):
     estado: str
     chequeo_estado: str | None
     chequeo_fecha: date | None
-    peso_kg: Decimal | None
-    peso_previo: Decimal | None
+    peso_kg: Numero | None
+    peso_previo: Numero | None
     #: Nombre del plan comercial que contrató. Sustituye al antiguo objetivo.
     plan: str | None
     pago: str
     ultimo_acceso: date | None
     alerta: str | None
     #: Cuánto debe en cobros vencidos. Cero significa al corriente.
-    adeudo: Decimal
+    adeudo: Numero
 
 
 class ResumenPanel(Esquema):
@@ -180,7 +185,7 @@ class ResumenPanel(Esquema):
     marca: str
     plan: str
     limite_alumnas: int
-    precio_ciclo: Decimal
+    precio_ciclo: Numero
     por_validar: list[FilaCartera]
     con_alerta: list[FilaCartera]
     activas: int
@@ -252,7 +257,7 @@ class EdicionDeAlumna(Esquema):
     lugar_ref: str | None = None
     hora_ref: str | None = None
     zona_horaria: str | None = None
-    porcentaje_grasa_objetivo: Decimal | None = None
+    porcentaje_grasa_objetivo: Numero | None = None
     estado: str | None = None
 
 
@@ -281,7 +286,7 @@ class MovimientoPublico(Esquema):
     ulid: str
     tipo: str
     categoria: str
-    monto: Decimal
+    monto: Numero
     fecha: date
     concepto: str
     alumna_ulid: str | None
@@ -294,7 +299,7 @@ class MovimientoPublico(Esquema):
 class MovimientoNuevo(Esquema):
     tipo: str
     categoria: str
-    monto: Decimal
+    monto: Numero
     fecha: date
     concepto: str
     alumna_ulid: str | None = None
@@ -305,25 +310,25 @@ class MovimientoNuevo(Esquema):
 
 class TotalPorCategoria(Esquema):
     categoria: str
-    monto: Decimal
+    monto: Numero
 
 
 class ResumenMes(Esquema):
     mes: str
-    ingresos: Decimal
-    gastos: Decimal
-    utilidad: Decimal
+    ingresos: Numero
+    gastos: Numero
+    utilidad: Numero
 
 
 class PanelFinanciero(Esquema):
-    ingresos: Decimal
-    gastos: Decimal
-    utilidad: Decimal
+    ingresos: Numero
+    gastos: Numero
+    utilidad: Numero
     #: Fracción de los ingresos que queda como utilidad.
-    margen: Decimal
-    ingreso_por_alumna: Decimal
+    margen: Numero
+    ingreso_por_alumna: Numero
     #: Ingreso esperado si todas renuevan. **Es proyección, no dato**, y la pantalla lo dice.
-    proyeccion_mensual: Decimal
+    proyeccion_mensual: Numero
     alumnas_activas: int
     por_mes: list[ResumenMes]
     ingresos_por_categoria: list[TotalPorCategoria]
@@ -336,7 +341,7 @@ class TarifaPublica(Esquema):
     codigo: str
     nombre: str
     descripcion: str | None
-    precio: Decimal
+    precio: Numero
     dias: int
     activa: bool
 
@@ -345,7 +350,7 @@ class TarifaNueva(Esquema):
     codigo: str
     nombre: str
     descripcion: str | None = None
-    precio: Decimal
+    precio: Numero
     dias: int = 30
     activa: bool = True
 
@@ -359,12 +364,12 @@ class AlimentoCatalogo(Esquema):
     ulid: str
     nombre: str
     marca: str | None
-    porcion: Decimal
+    porcion: Numero
     unidad: str
-    kcal: Decimal
-    proteina: Decimal
-    carbo: Decimal
-    grasa: Decimal
+    kcal: Numero
+    proteina: Numero
+    carbo: Numero
+    grasa: Numero
     grupo: str | None
     #: `false` = viene de la base pública compartida por todas las coaches.
     propio: bool
@@ -373,12 +378,12 @@ class AlimentoCatalogo(Esquema):
 class AlimentoNuevo(Esquema):
     nombre: str
     marca: str | None = None
-    porcion: Decimal
+    porcion: Numero
     unidad: str = "g"
-    kcal: Decimal
-    proteina: Decimal = Decimal(0)
-    carbo: Decimal = Decimal(0)
-    grasa: Decimal = Decimal(0)
+    kcal: Numero
+    proteina: Numero = Decimal(0)
+    carbo: Numero = Decimal(0)
+    grasa: Numero = Decimal(0)
     grupo: str | None = None
 
 
@@ -393,6 +398,27 @@ class EjercicioCatalogo(Esquema):
     propio: bool
 
 
+class RepartoDeMacros(Esquema):
+    """Fracciones que suman 1. La base lo exige con un CHECK."""
+
+    carbohidrato: Numero
+    proteina: Numero
+    grasa: Numero
+
+
+class ParametrosDeCiclo(Esquema):
+    """Las entradas de la calculadora. Se guardan con el plan para que el ciclo siguiente
+    arranque de lo que la coach dejó, no de valores por omisión."""
+
+    actividad: str
+    porcentaje_ajuste: Numero
+    reparto: RepartoDeMacros
+    base_proteina: str
+    dias_refeed: int
+    porcentaje_dia_refeed: Numero
+    relacion_ganancia: str
+
+
 class PlanGuardado(Esquema):
     """El contenido va como JSON libre: su forma cambia seguido —tiempos de comida, días,
     bloques— y no se consulta por dentro, se lee completo."""
@@ -404,6 +430,33 @@ class PlanGuardado(Esquema):
     carbohidrato_g: int | None = None
     grasa_g: int | None = None
     publicar: bool = False
+    #: Solo viajan con el plan de nutrición, que es donde vive la calculadora.
+    parametros: ParametrosDeCiclo | None = None
+
+
+class ChequeoDelConstructor(Esquema):
+    """El último chequeo. Peso y grasa son las entradas que mandan toda la cadena."""
+
+    fecha: date
+    estado: str
+    peso_kg: Numero | None
+    porcentaje_grasa: Numero | None
+
+
+class ExpedienteDeConstructor(Esquema):
+    """Todo lo que necesita el constructor de planes, en una sola llamada."""
+
+    alumna_ulid: str
+    alumna: str
+    ciclo: int
+    fecha_nacimiento: date
+    sexo: str | None
+    estatura_cm: int | None
+    porcentaje_grasa_objetivo: Numero | None
+    chequeo: ChequeoDelConstructor | None
+    parametros: ParametrosDeCiclo
+    nutricion: PlanPublico | None
+    entrenamiento: PlanPublico | None
 
 
 class FotoPublica(Esquema):
@@ -413,8 +466,8 @@ class FotoPublica(Esquema):
     angulo: str
     #: Nula si ya se purgó: la fila sobrevive con fecha y motivo, la imagen no.
     disponible: bool
-    nitidez: Decimal | None
-    luminancia: Decimal | None
+    nitidez: Numero | None
+    luminancia: Numero | None
     estado_auto: str
     es_linea_base: bool
     tomada_en: datetime | None
@@ -436,11 +489,11 @@ class ComprobanteLeido(Esquema):
     """Lo que el OCR entendió. **No es una validación**: la coach confirma siempre."""
 
     pago_ulid: str
-    monto: Decimal | None
+    monto: Numero | None
     fecha: date | None
     referencia: str | None
     banco: str | None
-    confianza: Decimal
+    confianza: Numero
     #: Bajo 85 % conviene mirar el comprobante a ojo antes de confirmar.
     requiere_revision: bool
 
@@ -466,7 +519,7 @@ class MensajeNuevo(Esquema):
 
 
 class EstimacionGrasa(Esquema):
-    porcentaje_grasa: Decimal
+    porcentaje_grasa: Numero
 
 
 # ---------------------------------------------------------------------------
@@ -480,8 +533,8 @@ class FotoDeBorrador(Esquema):
     angulo: str
     estado_auto: str
     motivo_rechazo: str | None = None
-    nitidez: Decimal | None
-    luminancia: Decimal | None
+    nitidez: Numero | None
+    luminancia: Numero | None
     tomada_en: datetime | None
 
 
@@ -499,14 +552,14 @@ class BorradorChequeo(Esquema):
     ayuno_confirmado: bool
     varianza_confirmada: bool
     nota_alumna: str | None
-    peso_kg: Decimal | None
-    medidas: dict[str, Decimal]
+    peso_kg: Numero | None
+    medidas: dict[str, Numero]
     fotos: list[FotoDeBorrador]
     pesajes: list[PesajePublico]
     max_pesajes: int
 
-    peso_anterior_kg: Decimal | None
-    medidas_anteriores: dict[str, Decimal]
+    peso_anterior_kg: Numero | None
+    medidas_anteriores: dict[str, Numero]
 
     bascula_ref: str | None
     lugar_ref: str | None
@@ -520,9 +573,9 @@ class GuardadoDeChequeo(Esquema):
     """Lo que la pantalla guarda entre pasos. Todo opcional: es un borrador."""
 
     ayuno_confirmado: bool | None = None
-    peso_kg: Decimal | None = None
+    peso_kg: Numero | None = None
     varianza_confirmada: bool | None = None
-    medidas: dict[str, Decimal] | None = None
+    medidas: dict[str, Numero] | None = None
     nota_alumna: str | None = None
     bascula_usada: str | None = None
     lugar_usado: str | None = None
@@ -558,7 +611,7 @@ class RechazoChequeo(Esquema):
 
 class SuscripcionPublica(Esquema):
     plan: str
-    precio: Decimal
+    precio: Numero
     periodicidad: str
     estado: str
     inicia_en: date
@@ -583,7 +636,7 @@ class FilaDeCoach(Esquema):
     plan: str
     limite_alumnas: int
     estado: str
-    precio_ciclo: Decimal
+    precio_ciclo: Numero
     creado_en: datetime
 
     alumnas: int
@@ -607,7 +660,7 @@ class AltaDeCoach(Esquema):
     slug: str | None = None
     plan: str = "basico"
     limite_alumnas: int = 50
-    precio_ciclo: Decimal = Decimal(0)
+    precio_ciclo: Numero = Decimal(0)
     color_acento: str = "#c9a227"
     zona_horaria: str = "America/Mexico_City"
 
@@ -625,13 +678,13 @@ class EdicionDeCoach(Esquema):
     plan: str
     limite_alumnas: int
     estado: str
-    precio_ciclo: Decimal
+    precio_ciclo: Numero
     color_acento: str
 
 
 class EdicionDeSuscripcion(Esquema):
     plan: str
-    precio: Decimal
+    precio: Numero
     periodicidad: str
     estado: str
     vigente_hasta: date | None = None
@@ -641,7 +694,7 @@ class EdicionDeSuscripcion(Esquema):
 class CobroPublico(Esquema):
     ulid: str
     coach_ulid: str
-    monto: Decimal
+    monto: Numero
     fecha: date
     metodo: str
     periodo_inicia: date | None
@@ -650,7 +703,7 @@ class CobroPublico(Esquema):
 
 
 class CobroNuevo(Esquema):
-    monto: Decimal
+    monto: Numero
     fecha: date
     metodo: str = "transferencia"
     periodo_inicia: date | None = None
@@ -659,8 +712,8 @@ class CobroNuevo(Esquema):
 
 
 class ResumenDeFacturacion(Esquema):
-    cobrado_en_el_ano: Decimal
-    facturacion_mensual_esperada: Decimal
+    cobrado_en_el_ano: Numero
+    facturacion_mensual_esperada: Numero
     coaches_al_corriente: int
     coaches_vencidas: int
     coaches_en_cortesia: int
@@ -722,9 +775,9 @@ class ChequeoDeValidacion(Esquema):
     numero: int
     fecha: date
     estado: str
-    peso_kg: Decimal | None
-    porcentaje_grasa: Decimal | None
-    medidas: dict[str, Decimal]
+    peso_kg: Numero | None
+    porcentaje_grasa: Numero | None
+    medidas: dict[str, Numero]
     nota_alumna: str | None
     alerta_outlier: bool
     varianza_confirmada: bool
@@ -781,7 +834,7 @@ class PlanComercial(Esquema):
     codigo: str
     nombre: str
     descripcion: str | None
-    precio: Decimal
+    precio: Numero
     dias: int
     #: `baja`, `media` o `alta`. Descriptiva: no la usa ningún cálculo.
     intensidad: str
@@ -794,7 +847,7 @@ class PlanComercialNuevo(Esquema):
     codigo: str
     nombre: str
     descripcion: str | None = None
-    precio: Decimal
+    precio: Numero
     dias: int = 30
     intensidad: str = "media"
     activa: bool = True
@@ -805,7 +858,7 @@ class CobroDeAlumna(Esquema):
     fecha: date
     motivo: str
     concepto: str
-    monto: Decimal
+    monto: Numero
     #: `pendiente`, `en_revision`, `pagado` o `cancelado`.
     estado: str
     pagado_en: date | None
@@ -821,7 +874,7 @@ class CobroNuevoProgramado(Esquema):
     fecha: date
     motivo: str = "mensualidad"
     concepto: str | None = None
-    monto: Decimal
+    monto: Numero
     nota: str | None = None
 
 
@@ -832,7 +885,7 @@ class AlumnaConCobros(Esquema):
     nombre: str
     plan: str | None
     pendientes: list[CobroDeAlumna]
-    adeudo: Decimal
+    adeudo: Numero
 
 
 class ComprobantePorRevisar(Esquema):
@@ -845,15 +898,15 @@ class ComprobantePorRevisar(Esquema):
     fecha_cobro: date
     concepto: str
     #: Lo que la coach espera recibir.
-    monto_esperado: Decimal
+    monto_esperado: Numero
     subido_en: datetime | None
 
     #: Lo que el OCR entendió del comprobante. **No valida nada**: es una sugerencia.
-    monto_leido: Decimal | None
+    monto_leido: Numero | None
     fecha_leida: date | None
     referencia: str | None
     banco: str | None
-    confianza: Decimal
+    confianza: Numero
     #: El OCR leyó un importe distinto al esperado. Mirar la imagen deja de ser opcional.
     monto_no_cuadra: bool
 

@@ -27,6 +27,7 @@ import {
   Regla,
   Selector,
   Titulo,
+  Vacio,
 } from "@/componentes/primitivas";
 import { normalizarAlimento } from "@/coach/BuscadorCatalogo";
 import {
@@ -36,7 +37,14 @@ import {
   type TiempoDeComida,
 } from "@/coach/EditorPlan";
 import { CalendarioDeCobros } from "@/coach/CalendarioDeCobros";
-import { ErrorApi, api, descargarPdf } from "@/lib/api";
+import {
+  ErrorApi,
+  api,
+  descargarPdf,
+  type ExpedienteDeConstructorApi,
+  type HistorialApi,
+  type PlanApi,
+} from "@/lib/api";
 import {
   ACTIVIDAD,
   ROTULO_MACRO,
@@ -46,65 +54,101 @@ import {
   type BaseProteina,
   type IdActividad,
   type Macro,
+  type RelacionGanancia,
 } from "@/lib/calculadora";
-import {
-  alumna,
-  cartera,
-  chequeos,
-  historialClinico,
-  parametrosCiclo,
-  planEntrenamiento,
-  planNutricion,
-} from "@/lib/datos";
 import { edadEn, fecha, num, porcentaje } from "@/lib/formato";
-import { HOY } from "@/lib/datos";
+import { usarApi } from "@/lib/usarApi";
 
 const MACROS: Macro[] = ["carbohidrato", "proteina", "grasa"];
 
+/** Horizonte de la proyección de ganancia. No se captura: solo fija el «en N semanas». */
+const SEMANAS_GANANCIA = 20;
+
+function contenidoDeNutricion(plan: PlanApi | null) {
+  const c = plan?.contenido ?? {};
+  return {
+    notas: c.notas ?? "",
+    tiempos: (c.tiempos ?? []).map((t) => ({
+      ...t,
+      alimentos: t.alimentos.map(normalizarAlimento),
+    })),
+  };
+}
+
+function contenidoDeEntrenamiento(plan: PlanApi | null) {
+  const c = plan?.contenido ?? {};
+  return {
+    notas: c.notas ?? "",
+    plantilla: c.plantilla ?? "",
+    dias: (c.dias ?? []).map((d) => ({ ...d, ejercicios: [...d.ejercicios] })),
+  };
+}
+
 export function Constructor() {
-  const { alumnaUlid } = useParams();
-  const ficha = cartera.find((a) => a.ulid === alumnaUlid) ?? cartera[0]!;
-  const chequeo = chequeos.at(-1)!;
+  const { alumnaUlid = "" } = useParams();
+  const carga = usarApi<ExpedienteDeConstructorApi>(
+    (senal) => api.coach.expedienteDePlan(alumnaUlid, senal),
+    [alumnaUlid],
+  );
+  const clinico = usarApi<HistorialApi>(
+    (senal) => api.coach.historial(alumnaUlid, senal),
+    [alumnaUlid],
+  );
+
+  if (carga.cargando) return <Vacio>Abriendo el expediente…</Vacio>;
+  if (carga.error || !carga.datos) {
+    return (
+      <Aviso tono="error" titulo="No se pudo abrir el plan">
+        {carga.error?.message ?? "Vuelve a intentarlo."}
+      </Aviso>
+    );
+  }
+  // La clave fuerza el remonte al cambiar de alumna: el estado de abajo nace de las props.
+  return <Editor key={alumnaUlid} exp={carga.datos} clinico={clinico.datos} />;
+}
+
+function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: HistorialApi | null }) {
+  const p = exp.parametros;
+  const chequeo = exp.chequeo;
+  const nutricion = contenidoDeNutricion(exp.nutricion);
+  const entrenamiento = contenidoDeEntrenamiento(exp.entrenamiento);
 
   // Parámetros del ciclo, heredados del anterior. La coach los ajusta si hace falta.
-  const [actividad, setActividad] = useState<IdActividad>(parametrosCiclo.actividad);
-  const [ajustePct, setAjustePct] = useState(Math.round(parametrosCiclo.porcentajeAjuste * 100));
+  const [actividad, setActividad] = useState<IdActividad>(p.actividad as IdActividad);
+  const [ajustePct, setAjustePct] = useState(Math.round(p.porcentajeAjuste * 100));
   const [reparto, setReparto] = useState({
-    carbohidrato: Math.round(parametrosCiclo.reparto.carbohidrato * 100),
-    proteina: Math.round(parametrosCiclo.reparto.proteina * 100),
-    grasa: Math.round(parametrosCiclo.reparto.grasa * 100),
+    carbohidrato: Math.round(p.reparto.carbohidrato * 100),
+    proteina: Math.round(p.reparto.proteina * 100),
+    grasa: Math.round(p.reparto.grasa * 100),
   });
-  const [baseProteina, setBaseProteina] = useState<BaseProteina>(parametrosCiclo.baseProteina);
-  const [diasRefeed, setDiasRefeed] = useState(parametrosCiclo.diasRefeed);
-  const [refeedPct, setRefeedPct] = useState(Math.round(parametrosCiclo.porcentajeDiaRefeed * 100));
+  const [baseProteina, setBaseProteina] = useState<BaseProteina>(p.baseProteina as BaseProteina);
+  const [diasRefeed, setDiasRefeed] = useState(p.diasRefeed);
+  const [refeedPct, setRefeedPct] = useState(Math.round(p.porcentajeDiaRefeed * 100));
 
   // Contenido editable del plan. Arranca de lo que ya tenía el ciclo anterior.
   const [pestana, setPestana] = useState<"nutricion" | "entrenamiento">("nutricion");
-  const [tiempos, setTiempos] = useState<TiempoDeComida[]>(
-    planNutricion.tiempos.map((t) => ({ ...t, alimentos: t.alimentos.map(normalizarAlimento) })),
-  );
-  const [dias, setDias] = useState<DiaDeEntrenamiento[]>(
-    planEntrenamiento.dias.map((d) => ({ ...d, ejercicios: [...d.ejercicios] })),
-  );
-  const [plantilla, setPlantilla] = useState(planEntrenamiento.plantilla);
-  const [notasNutricion, setNotasNutricion] = useState(planNutricion.notas);
-  const [notasEntrenamiento, setNotasEntrenamiento] = useState(planEntrenamiento.notas);
+  const [tiempos, setTiempos] = useState<TiempoDeComida[]>(nutricion.tiempos);
+  const [dias, setDias] = useState<DiaDeEntrenamiento[]>(entrenamiento.dias);
+  const [plantilla, setPlantilla] = useState(entrenamiento.plantilla);
+  const [notasNutricion, setNotasNutricion] = useState(nutricion.notas);
+  const [notasEntrenamiento, setNotasEntrenamiento] = useState(entrenamiento.notas);
   const [guardando, setGuardando] = useState<"borrador" | "publicar" | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
   const [hecho, setHecho] = useState<string | null>(null);
 
   const sumaReparto = reparto.carbohidrato + reparto.proteina + reparto.grasa;
   const repartoCuadra = sumaReparto === 100;
-  const chequeoValidado = chequeo.estado === "validado";
+  const chequeoValidado = chequeo?.estado === "validado";
 
   const r = useMemo(() => {
-    if (!repartoCuadra || chequeo.porcentajeGrasa === null) return null;
+    if (!repartoCuadra || !chequeo?.pesoKg || chequeo.porcentajeGrasa === null) return null;
+    if (exp.estaturaCm === null) return null;
     return calcular({
       pesoKg: chequeo.pesoKg,
       porcentajeGrasa: chequeo.porcentajeGrasa,
-      estaturaCm: alumna.estaturaCm,
-      edad: edadEn(alumna.fechaNacimiento, HOY),
-      sexo: alumna.sexo === "M" ? "masculino" : "femenino",
+      estaturaCm: exp.estaturaCm,
+      edad: edadEn(exp.fechaNacimiento, new Date().toISOString().slice(0, 10)),
+      sexo: exp.sexo === "M" ? "masculino" : "femenino",
       actividad,
       porcentajeAjuste: ajustePct / 100,
       reparto: {
@@ -115,11 +159,12 @@ export function Constructor() {
       baseProteina,
       diasRefeed,
       porcentajeDiaRefeed: refeedPct / 100,
-      porcentajeGrasaObjetivo: alumna.porcentajeGrasaObjetivo,
-      relacionGanancia: parametrosCiclo.relacionGanancia,
-      semanasGanancia: parametrosCiclo.semanasGanancia,
+      // Sin meta de grasa no hay proyección: se pasa la actual y la calculadora la descarta.
+      porcentajeGrasaObjetivo: exp.porcentajeGrasaObjetivo ?? chequeo.porcentajeGrasa,
+      relacionGanancia: p.relacionGanancia as RelacionGanancia,
+      semanasGanancia: SEMANAS_GANANCIA,
     });
-  }, [repartoCuadra, chequeo, actividad, ajustePct, reparto, baseProteina, diasRefeed, refeedPct]);
+  }, [repartoCuadra, chequeo, exp, p, actividad, ajustePct, reparto, baseProteina, diasRefeed, refeedPct]);
 
   const comp = r?.composicion;
 
@@ -130,7 +175,7 @@ export function Constructor() {
     setHecho(null);
     setGuardando(publicar ? "publicar" : "borrador");
     try {
-      await api.coach.guardarPlan(ficha.ulid, {
+      await api.coach.guardarPlan(exp.alumnaUlid, {
         tipo: "nutricion",
         contenido: { notas: notasNutricion, tiempos },
         kcalObjetivo: r ? Math.round(r.energia.ajustadasKcal) : null,
@@ -138,8 +183,26 @@ export function Constructor() {
         carbohidratoG: r ? Math.round(r.macros.carbohidrato) : null,
         grasaG: r ? Math.round(r.macros.grasa) : null,
         publicar,
+        // Solo si cuadran: la base exige que el reparto sume exactamente 1.
+        ...(repartoCuadra
+          ? {
+              parametros: {
+                actividad,
+                porcentajeAjuste: ajustePct / 100,
+                reparto: {
+                  carbohidrato: reparto.carbohidrato / 100,
+                  proteina: reparto.proteina / 100,
+                  grasa: reparto.grasa / 100,
+                },
+                baseProteina,
+                diasRefeed,
+                porcentajeDiaRefeed: refeedPct / 100,
+                relacionGanancia: p.relacionGanancia,
+              },
+            }
+          : {}),
       });
-      await api.coach.guardarPlan(ficha.ulid, {
+      await api.coach.guardarPlan(exp.alumnaUlid, {
         tipo: "entrenamiento",
         contenido: { notas: notasEntrenamiento, plantilla, dias },
         publicar,
@@ -163,16 +226,16 @@ export function Constructor() {
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-3">
-            <Etiqueta>Ciclo {ficha.ciclo + 1} · borrador</Etiqueta>
-            <Portada>Plan de {ficha.nombre}</Portada>
+            <Etiqueta>Ciclo {exp.ciclo} · borrador</Etiqueta>
+            <Portada>Plan de {exp.alumna}</Portada>
           </div>
           <div className="flex flex-wrap gap-2">
             <Boton
               tono="discreto"
               onClick={() =>
                 void descargarPdf(
-                  `/documentos/plan-nutricion?alumna_ulid=${ficha.ulid}`,
-                  `plan-${ficha.nombre}.pdf`,
+                  `/documentos/plan-nutricion?alumna_ulid=${exp.alumnaUlid}`,
+                  `plan-${exp.alumna}.pdf`,
                 ).catch(() => undefined)
               }
             >
@@ -182,8 +245,8 @@ export function Constructor() {
               tono="discreto"
               onClick={() =>
                 void descargarPdf(
-                  `/documentos/rutina?alumna_ulid=${ficha.ulid}`,
-                  `rutina-${ficha.nombre}.pdf`,
+                  `/documentos/rutina?alumna_ulid=${exp.alumnaUlid}`,
+                  `rutina-${exp.alumna}.pdf`,
                 ).catch(() => undefined)
               }
             >
@@ -207,9 +270,12 @@ export function Constructor() {
 
       {!chequeoValidado ? (
         <Aviso tono="error" titulo="No se puede publicar todavía">
-          El chequeo de {fecha(chequeo.fecha)} sigue sin validar. Sin chequeo validado no se
-          publica plan nuevo: es la guarda de continuidad del método.{" "}
-          <Link to={`/coach/validar/${ficha.ulid}`} className="underline underline-offset-2">
+          {chequeo
+            ? `El chequeo de ${fecha(chequeo.fecha)} sigue sin validar.`
+            : "Todavía no hay ningún chequeo en este ciclo."}{" "}
+          Sin chequeo validado no se publica plan nuevo: es la guarda de continuidad del
+          método.{" "}
+          <Link to={`/coach/validar/${exp.alumnaUlid}`} className="underline underline-offset-2">
             Ir a validarlo
           </Link>
         </Aviso>
@@ -222,10 +288,14 @@ export function Constructor() {
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div className="flex flex-col gap-1">
                 <Titulo>Composición corporal</Titulo>
-                <Apoyo>Del chequeo del {fecha(chequeo.fecha)}. No se captura aquí.</Apoyo>
+                <Apoyo>
+                  {chequeo
+                    ? `Del chequeo del ${fecha(chequeo.fecha)}. No se captura aquí.`
+                    : "Sin chequeo en este ciclo todavía."}
+                </Apoyo>
               </div>
               <Boton asChild tono="discreto" medida="chica">
-                <Link to={`/coach/validar/${ficha.ulid}`}>Ver el chequeo</Link>
+                <Link to={`/coach/validar/${exp.alumnaUlid}`}>Ver el chequeo</Link>
               </Boton>
             </div>
 
@@ -343,7 +413,7 @@ export function Constructor() {
                 <Selector
                   id="c-refeed"
                   value={diasRefeed}
-                  onChange={(e) => setDiasRefeed(Number(e.target.value) as 0 | 1 | 2)}
+                  onChange={(e) => setDiasRefeed(Number(e.target.value))}
                 >
                   <option value={0}>Ninguno</option>
                   <option value={1}>1 día por semana</option>
@@ -522,7 +592,7 @@ export function Constructor() {
                   onCambio={setDias}
                   plantilla={plantilla}
                   onPlantilla={setPlantilla}
-                  lesiones={historialClinico.lesiones}
+                  lesiones={clinico?.lesiones ?? null}
                 />
                 <Campo id="c-notas-e" etiqueta="Notas de ejecución">
                   <textarea
@@ -588,7 +658,7 @@ export function Constructor() {
                     </div>
                   ))}
                 </dl>
-                <Apoyo>Relación {parametrosCiclo.relacionGanancia} entre músculo y grasa ganados.</Apoyo>
+                <Apoyo>Relación {p.relacionGanancia} entre músculo y grasa ganados.</Apoyo>
               </>
             ) : (
               <Apoyo>Sin ajuste calórico no hay proyección que hacer.</Apoyo>
@@ -597,13 +667,16 @@ export function Constructor() {
 
           <section className="flex flex-col gap-2 border-l-2 border-l-peligro pl-4">
             <Etiqueta>Restricciones de la alumna</Etiqueta>
-            <Apoyo>Intolerancia a la lactosa. No come mariscos.</Apoyo>
-            <Apoyo>Molestia en rodilla izquierda: nada de valgo en sentadilla ni prensa.</Apoyo>
+            {clinico?.restricciones ? <Apoyo>{clinico.restricciones}</Apoyo> : null}
+            {clinico?.lesiones ? <Apoyo>{clinico.lesiones}</Apoyo> : null}
+            {!clinico?.restricciones && !clinico?.lesiones ? (
+              <Apoyo>Sin restricciones registradas en su historial.</Apoyo>
+            ) : null}
           </section>
 
           <Regla />
 
-          <CalendarioDeCobros alumnaUlid={alumnaUlid ?? ""} precioSugerido={null} />
+          <CalendarioDeCobros alumnaUlid={exp.alumnaUlid} precioSugerido={null} />
         </aside>
       </div>
     </div>

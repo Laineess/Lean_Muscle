@@ -207,7 +207,7 @@ export function Inicio() {
           className="ml-auto"
           onClick={() => {
             cerrarSesion();
-            navegar("/acceso", { replace: true });
+            void navegar("/acceso", { replace: true });
           }}
         >
           <LogOut className="size-4" /> Salir
