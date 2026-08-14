@@ -137,6 +137,8 @@ export interface ActorPublico {
   correo: string;
   colorAcento: string;
   marca: string;
+  /** Entró con la contraseña inicial. Hasta que la cambie el servidor cierra lo demás. */
+  debeCambiarContrasena: boolean;
 }
 
 export interface ChequeoApi {

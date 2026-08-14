@@ -55,6 +55,13 @@ def comparar_hash(a: str, b: str) -> bool:
     return hmac.compare_digest(a, b)
 
 
+#: Contraseña con la que nace toda cuenta nueva. Es pública por diseño —la coach la dicta
+#: sin tener que leer una cadena aleatoria— y por eso **no sirve para nada más que entrar una
+#: vez**: mientras no se cambie, la sesión no abre ninguna pantalla. La guarda vive en
+#: `app/rutas/sesion.py` y la vigila `pruebas/unidad/prueba_acceso.py`.
+CONTRASENA_INICIAL = "Myprogress2026"
+
+
 def nueva_clave_temporal() -> str:
     """Formato legible para dictarla por WhatsApp: 8 caracteres sin ambiguos (0/O, 1/I/L)."""
     alfabeto = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"

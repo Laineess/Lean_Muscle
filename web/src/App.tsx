@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { Acceso } from "@/Acceso";
 import { Legales } from "@/Legales";
+import { PrimerAcceso } from "@/PrimerAcceso";
 import { Bienvenida } from "@/alumna/Bienvenida";
 import { Chequeo } from "@/alumna/Chequeo";
 import { Cuenta } from "@/alumna/Cuenta";
@@ -39,6 +40,9 @@ function Exige({ rol, children }: { rol: Rol; children: React.ReactNode }) {
   const actual = rolActual();
 
   if (actual === null) return <Navigate to="/acceso" replace state={{ desde: pathname }} />;
+  // Con la contraseña inicial sin cambiar el servidor devuelve 403 en todo lo demás; sin
+  // esto la pantalla se pintaría vacía y sin explicar por qué.
+  if (actorGuardado()?.debeCambiarContrasena) return <Navigate to="/primer-acceso" replace />;
   if (actual !== rol) return <Navigate to={INICIO_DE[actual]} replace />;
   return <>{children}</>;
 }
@@ -93,6 +97,7 @@ export function App() {
     <Routes>
       <Route path="/" element={<Entrada />} />
       <Route path="/acceso" element={<Acceso />} />
+      <Route path="/primer-acceso" element={<PrimerAcceso />} />
 
       {/* Fuera del guardia: el aviso de privacidad tiene que poder leerse sin haber entrado. */}
       <Route path="/legal/:documento" element={<Legales />} />

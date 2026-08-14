@@ -147,6 +147,14 @@ RESPUESTAS: dict[Codigo, tuple[int, str]] = {
     Codigo.MENOR_DE_EDAD: (403, "El servicio es solo para mayores de 18 años."),
     Codigo.CREDENCIALES_INVALIDAS: (401, "Correo o contraseña incorrectos."),
     Codigo.SESION_EXPIRADA: (401, "Tu sesión expiró. Vuelve a entrar."),
+    Codigo.CONTRASENA_INICIAL_SIN_CAMBIAR: (
+        403,
+        "Antes de nada, cambia la contraseña con la que te dieron de alta.",
+    ),
+    Codigo.DEMASIADOS_INTENTOS: (
+        429,
+        "Demasiados intentos fallidos. Espera unos minutos antes de volver a probar.",
+    ),
     Codigo.SIN_PERMISO: (403, "No tienes permiso para ver esto."),
     # Aislamiento
     Codigo.SIN_ALCANCE_DE_INQUILINO: (500, "Error interno. El equipo ya fue notificado."),

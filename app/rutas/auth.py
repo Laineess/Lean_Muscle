@@ -27,7 +27,7 @@ from app.dominio.avisos import Aviso as AvisoDominio
 from app.rutas.esquemas import ActorPublico, CambioDeContrasena, Credenciales
 from app.rutas.sesion import NOMBRE_COOKIE, Actor, actor_actual
 from app.servicios import avisos as cola
-from app.servicios import cuentas
+from app.servicios import cuentas, limites
 from app.servicios.seguridad import (
     hash_contrasena,
     hash_de_token,
@@ -45,13 +45,20 @@ VIGENCIA_LARGA = timedelta(days=30)
 
 @ruteador.post("/login", response_model=ActorPublico)
 def entrar(datos: Credenciales, peticion: Request, respuesta: Response) -> ActorPublico:
+    correo = datos.correo.strip().lower()
+    ip = peticion.client.host if peticion.client else None
+
     with Session(motor()) as s:
+        # Antes de mirar credenciales: quien ya gastó sus intentos no puede seguir probando.
+        # Se comprueba aquí y no después para no gastar un Argon2 por cada intento de un
+        # ataque, que es justo lo que lo convertiría en una forma de tumbar el servidor.
+        if limites.bloqueado(s, correo, ip):
+            raise ErrorDeDominio(Codigo.DEMASIADOS_INTENTOS)
+
         # Esta es la única lectura que precede al alcance: todavía no sabemos de qué coach
         # es el usuario. Va contra `usuario`, que no expone datos de otras alumnas.
         usuario = s.scalars(
-            select(Usuario)
-            .where(Usuario.email == datos.correo.strip().lower())
-            .execution_options(sin_alcance=True)
+            select(Usuario).where(Usuario.email == correo).execution_options(sin_alcance=True)
         ).first()
 
         # Se verifica siempre, exista o no el usuario: comparar contra un hash falso mantiene
@@ -60,7 +67,11 @@ def entrar(datos: Credenciales, peticion: Request, respuesta: Response) -> Actor
         correcta = verificar_contrasena(hash_guardado, datos.contrasena)
 
         if usuario is None or not correcta or usuario.estado != "activo":
+            limites.registrar(s, correo, ip, exitoso=False)
+            s.commit()
             raise ErrorDeDominio(Codigo.CREDENCIALES_INVALIDAS)
+
+        limites.registrar(s, correo, ip, exitoso=True)
 
         # Los parámetros de Argon2 suben con el tiempo; al entrar se re-cifra si hace falta.
         if requiere_rehash(usuario.hash_contrasena):
@@ -74,6 +85,7 @@ def entrar(datos: Credenciales, peticion: Request, respuesta: Response) -> Actor
         rol = usuario.rol
         coach_id = usuario.coach_id
         usuario_id = usuario.id
+        debe_cambiar = usuario.debe_cambiar_contrasena
 
         s.add(
             FilaSesion(
@@ -98,7 +110,7 @@ def entrar(datos: Credenciales, peticion: Request, respuesta: Response) -> Actor
         path="/",
     )
 
-    return _actor_publico(coach_id, usuario_id, rol)
+    return _actor_publico(coach_id, usuario_id, rol, debe_cambiar)
 
 
 @ruteador.post("/logout", status_code=204)
@@ -165,10 +177,14 @@ def cambiar_contrasena(
 @ruteador.get("/yo", response_model=ActorPublico)
 def yo(actor: Annotated[Actor, Depends(actor_actual)]) -> ActorPublico:
     """Quién soy. El frontend la llama al arrancar para saber si hay sesión viva."""
-    return _actor_publico(actor.coach_id, actor.usuario_id, actor.rol)
+    return _actor_publico(
+        actor.coach_id, actor.usuario_id, actor.rol, actor.debe_cambiar_contrasena
+    )
 
 
-def _actor_publico(coach_id: int, usuario_id: int, rol: str) -> ActorPublico:
+def _actor_publico(
+    coach_id: int, usuario_id: int, rol: str, debe_cambiar: bool = False
+) -> ActorPublico:
     with sesion_con_alcance(coach_id) as s:
         coach = s.get(Coach, coach_id)
         nombre = coach.nombre if coach else ""
@@ -186,4 +202,5 @@ def _actor_publico(coach_id: int, usuario_id: int, rol: str) -> ActorPublico:
             correo=usuario.email if usuario else "",
             color_acento=coach.color_acento if coach else "#c9a227",
             marca=(coach.marca or coach.nombre) if coach else "MyProgressPlan",
+            debe_cambiar_contrasena=debe_cambiar,
         )

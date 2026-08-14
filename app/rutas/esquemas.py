@@ -50,6 +50,8 @@ class ActorPublico(Esquema):
     #: Reemplaza al dorado de MyProgressPlan en toda la interfaz de sus alumnas.
     color_acento: str
     marca: str
+    #: Entró con la contraseña inicial. Hasta que la cambie no se abre nada más.
+    debe_cambiar_contrasena: bool = False
 
 
 # ---------------------------------------------------------------------------

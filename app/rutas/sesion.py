@@ -31,6 +31,8 @@ class Actor:
     usuario_id: int
     coach_id: int
     rol: str
+    #: Entró con la contraseña con la que se dio de alta y todavía no la ha cambiado.
+    debe_cambiar_contrasena: bool = False
 
     @property
     def es_coach(self) -> bool:
@@ -83,28 +85,45 @@ def actor_actual(
         if usuario.estado != "activo":
             raise _falla(Codigo.SIN_PERMISO)
 
-        return Actor(usuario_id=usuario.id, coach_id=usuario.coach_id, rol=usuario.rol)
+        return Actor(
+            usuario_id=usuario.id,
+            coach_id=usuario.coach_id,
+            rol=usuario.rol,
+            debe_cambiar_contrasena=usuario.debe_cambiar_contrasena,
+        )
 
 
-def datos(actor: Annotated[Actor, Depends(actor_actual)]) -> Iterator[Session]:
+def actor_establecido(actor: Annotated[Actor, Depends(actor_actual)]) -> Actor:
+    """Actor que ya puso su propia contrasena.
+
+    Toda cuenta nace con una contrasena inicial conocida —la coach la dicta— y con eso basta
+    para entrar una vez. Mientras no la cambie, esta guarda cierra el resto de la aplicacion:
+    sin ella, una contrasena que conoce cualquiera seria una contrasena permanente.
+    """
+    if actor.debe_cambiar_contrasena:
+        raise _falla(Codigo.CONTRASENA_INICIAL_SIN_CAMBIAR)
+    return actor
+
+
+def datos(actor: Annotated[Actor, Depends(actor_establecido)]) -> Iterator[Session]:
     """Sesion de base ya atada al inquilino del actor. Es la unica puerta de las rutas."""
     with sesion_con_alcance(actor.coach_id) as s:
         yield s
 
 
-def solo_coach(actor: Annotated[Actor, Depends(actor_actual)]) -> Actor:
+def solo_coach(actor: Annotated[Actor, Depends(actor_establecido)]) -> Actor:
     if not actor.es_coach:
         raise _falla(Codigo.SIN_PERMISO)
     return actor
 
 
-def solo_alumna(actor: Annotated[Actor, Depends(actor_actual)]) -> Actor:
+def solo_alumna(actor: Annotated[Actor, Depends(actor_establecido)]) -> Actor:
     if not actor.es_alumna:
         raise _falla(Codigo.SIN_PERMISO)
     return actor
 
 
-def solo_admin(actor: Annotated[Actor, Depends(actor_actual)]) -> Actor:
+def solo_admin(actor: Annotated[Actor, Depends(actor_establecido)]) -> Actor:
     """Superadmin. **Una coach no lo es aunque sea la unica del sistema.**"""
     if not actor.es_admin:
         raise _falla(Codigo.SIN_PERMISO)

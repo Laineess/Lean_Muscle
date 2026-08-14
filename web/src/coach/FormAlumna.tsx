@@ -4,9 +4,9 @@
  *  los llena la propia alumna al entrar: que la coach los capture por ella viciaría el
  *  consentimiento, que la ley exige expreso y personal para datos sensibles.
  *
- *  Al dar de alta, el servidor devuelve la clave temporal **una sola vez**. Se muestra para
- *  que la coach pueda dictarla si el correo no llega, y se advierte que no se podrá consultar
- *  después: solo se guarda su hash.
+ *  Al dar de alta, el servidor devuelve la contraseña inicial, la misma para todas. Se
+ *  muestra para que la coach pueda dictarla si el correo no llega. Solo sirve para entrar
+ *  una vez: hasta que la alumna ponga la suya, el servidor no le abre nada.
  */
 
 import { Check, Copy } from "lucide-react";
@@ -156,8 +156,8 @@ export function FormAlumna({
         }
       >
         <Apoyo>
-          Le mandamos la invitación a <strong>{claveEmitida.correo}</strong> con esta clave
-          temporal. Si no le llega, díctasela tú.
+          Le mandamos la invitación a <strong>{claveEmitida.correo}</strong> con esta
+          contraseña. Es la misma para todas: díctasela sin problema.
         </Apoyo>
 
         <div className="flex items-center gap-3 rounded-marco border border-linea-fuerte px-4 py-3">
@@ -177,9 +177,9 @@ export function FormAlumna({
           </Boton>
         </div>
 
-        <Aviso tono="atencion" titulo="Apúntala ahora">
-          No se puede volver a consultar: solo se guarda su hash. Si se pierde, tendrás que
-          generar una nueva desde su ficha.
+        <Aviso tono="atencion" titulo="Solo le sirve para entrar una vez">
+          Al entrar, lo primero que ve es la pantalla para ponerse la suya. Hasta que lo
+          haga, el sistema no le abre nada más.
         </Aviso>
 
         <Apoyo>

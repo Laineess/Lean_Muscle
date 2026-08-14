@@ -777,6 +777,29 @@ class Trabajo(Base):
     terminado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
 
 
+class IntentoDeAcceso(Base):
+    """Un intento de entrar, con su resultado. No hereda de BaseMultiInquilino a proposito:
+    al momento de intentar todavia no se sabe de que coach es quien escribe, y un correo que
+    no existe no es de nadie.
+
+    Es lo que frena la fuerza bruta. Vive en la base y no en memoria porque el limite tiene
+    que valer para todos los procesos de uvicorn, no para uno.
+    """
+
+    __tablename__ = "intento_de_acceso"
+    __table_args__ = (
+        Index("ix_intento_correo_cuando", "correo", "creado_en"),
+        Index("ix_intento_ip_cuando", "ip", "creado_en"),
+        ARGS_DE_TABLA,
+    )
+
+    #: Se guarda en minusculas y **sin verificar que exista**: quien prueba correos al azar
+    #: tambien tiene que quedar frenado.
+    correo: Mapped[str] = mapped_column(String(180), nullable=False)
+    ip: Mapped[str | None] = mapped_column(String(45))
+    exitoso: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
 class PreguntaCuestionario(BaseMultiInquilino):
     """Una pregunta que la coach agrega al cuestionario inicial.
 

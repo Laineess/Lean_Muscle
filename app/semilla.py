@@ -1110,6 +1110,14 @@ def sembrar_plataforma(sesion: Any, coach_ids: list[int]) -> None:
 
 
 def sembrar(reiniciar: bool = False) -> None:
+    # Estas cuentas tienen contrasena conocida y `--reiniciar` borra todas las tablas.
+    # Correrlo contra la base real seria abrir una puerta trasera y perder los datos en el
+    # mismo comando, asi que se rechaza antes de tocar nada.
+    from app.config import ajustes
+
+    if ajustes().es_produccion:
+        raise SystemExit("La semilla no corre en produccion: crea cuentas con contrasena conocida.")
+
     with sesion_sin_alcance("siembra de datos de desarrollo, cruza inquilinos") as s:
         existentes = s.scalars(select(Coach)).all()
         if existentes and not reiniciar:

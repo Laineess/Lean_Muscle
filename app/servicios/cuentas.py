@@ -19,6 +19,7 @@ from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc, edad_en
 from app.datos.modelos import Alumna, Ciclo, Coach, Usuario
 from app.servicios.seguridad import (
+    CONTRASENA_INICIAL,
     VIGENCIA_CLAVE_TEMPORAL,
     exigir_mayor_de_edad,
     hash_contrasena,
@@ -111,7 +112,9 @@ def dar_de_alta(
             Codigo.LIMITE_DE_ALUMNAS_ALCANZADO, activas=activas, limite=coach.limite_alumnas
         )
 
-    clave = nueva_clave_temporal()
+    # La misma para todas: la coach la dicta sin leer una cadena aleatoria. Solo alcanza
+    # para el primer acceso, y ahí el servidor obliga a cambiarla.
+    clave = CONTRASENA_INICIAL
 
     usuario = Usuario(
         coach_id=coach_id,

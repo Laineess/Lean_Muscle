@@ -22,7 +22,8 @@ def test_no_hay_textos_huerfanos() -> None:
 
 
 def test_los_estados_siguen_la_convencion() -> None:
-    # 422 dato invalido, 409 conflicto de estado, 401/403 acceso. Nada de 400 genérico.
-    permitidos = {401, 403, 409, 422, 500}
+    # 422 dato invalido, 409 conflicto de estado, 401/403 acceso, 429 limite de intentos.
+    # Nada de 400 genérico.
+    permitidos = {401, 403, 409, 422, 429, 500}
     fuera = {c: RESPUESTAS[c][0] for c in RESPUESTAS if RESPUESTAS[c][0] not in permitidos}
     assert not fuera, f"estados fuera de convención: {fuera}"

@@ -94,6 +94,10 @@ def test_toda_entidad_con_datos_de_alumnas_lleva_coach_id() -> None:
         # llevaran el filtro, el superadmin —que no es coach de nadie— no veria ninguna.
         "SuscripcionCoach",
         "CobroCoach",
+        # Al intentar entrar todavia no se sabe de que coach es el correo, y uno inventado
+        # no es de nadie. Filtrarla por inquilino dejaria sin frenar justo el caso que
+        # importa: probar correos al azar.
+        "IntentoDeAcceso",
     }
 
     fuente = (APP / "datos" / "modelos.py").read_text(encoding="utf-8")
