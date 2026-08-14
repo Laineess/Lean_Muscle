@@ -6,12 +6,13 @@
  */
 
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   BuscadorAlimento,
   BuscadorEjercicio,
   FilaEditable,
+  escalar,
   type AlimentoEnPlan,
   type EjercicioEnPlan,
 } from "@/coach/BuscadorCatalogo";
@@ -55,6 +56,45 @@ function sumar(alimentos: AlimentoEnPlan[]) {
   );
 }
 
+/** Cantidad de un alimento ya agregado. El texto se edita libre y solo se emite cuando es un
+ *  número mayor que cero: si no, borrar para reescribir dejaría la fila en 0 kcal. */
+function Cantidad({
+  id,
+  cantidad,
+  unidad,
+  onCambio,
+}: {
+  id: string;
+  cantidad: number;
+  unidad: string;
+  onCambio: (cantidad: number) => void;
+}) {
+  const [texto, setTexto] = useState(String(cantidad));
+  useEffect(() => setTexto(String(cantidad)), [cantidad]);
+
+  return (
+    <span className="flex items-center gap-1.5">
+      <Entrada
+        id={id}
+        type="number"
+        min={0}
+        step="any"
+        inputMode="decimal"
+        aria-label="Cantidad"
+        value={texto}
+        onChange={(e) => {
+          setTexto(e.target.value);
+          const valor = Number.parseFloat(e.target.value);
+          if (valor > 0) onCambio(valor);
+        }}
+        onBlur={() => setTexto(String(cantidad))}
+        className="h-9 w-20 px-2 text-right text-menor"
+      />
+      <span className="text-micro text-tinta-suave">{unidad}</span>
+    </span>
+  );
+}
+
 /* ------------------------------------------------------------- Nutrición --- */
 
 export function EditorNutricion({
@@ -85,6 +125,13 @@ export function EditorNutricion({
 
   function quitarAlimento(i: number, k: number) {
     const alimentos = tiempos[i]!.alimentos.filter((_, j) => j !== k);
+    actualizar(i, { alimentos, kcal: sumar(alimentos).kcal });
+  }
+
+  function cambiarCantidad(i: number, k: number, cantidad: number) {
+    const alimentos = tiempos[i]!.alimentos.map((a, j) =>
+      j === k ? escalar(a.nombre, a.base, cantidad, a.unidad) : a,
+    );
     actualizar(i, { alimentos, kcal: sumar(alimentos).kcal });
   }
 
@@ -175,10 +222,22 @@ export function EditorNutricion({
               ) : (
                 <ul className="flex flex-col divide-y divide-linea border-y border-linea">
                   {t.alimentos.map((a, k) => (
-                    <FilaEditable key={`${a.nombre}-${k}`} onQuitar={() => quitarAlimento(i, k)}>
+                    <FilaEditable
+                      key={`${a.nombre}-${k}`}
+                      className="items-center"
+                      onQuitar={() => quitarAlimento(i, k)}
+                    >
                       <span className="text-menor">{a.nombre}</span>
-                      <span className="cifra text-micro text-tinta-suave">
-                        {a.porcion} · {a.kcal} kcal · P {a.p} C {a.c} G {a.g}
+                      <span className="flex flex-wrap items-center gap-2">
+                        <Cantidad
+                          id={`t-${i}-a-${k}`}
+                          cantidad={a.cantidad}
+                          unidad={a.unidad}
+                          onCambio={(valor) => cambiarCantidad(i, k, valor)}
+                        />
+                        <span className="cifra text-micro text-tinta-suave">
+                          {a.kcal} kcal · P {a.p} C {a.c} G {a.g}
+                        </span>
                       </span>
                     </FilaEditable>
                   ))}

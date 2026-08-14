@@ -185,6 +185,11 @@ export interface AlimentoApi {
   p: number;
   c: number;
   g: number;
+  /** Cantidad y referencia del catálogo, para reescalar sin volver a buscar. Los planes
+   *  anteriores no las traen: se deducen de lo capturado al abrir el constructor. */
+  cantidad?: number;
+  unidad?: string;
+  base?: { porcion: number; kcal: number; p: number; c: number; g: number };
 }
 
 export interface PlanApi {

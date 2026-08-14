@@ -28,6 +28,7 @@ import {
   Selector,
   Titulo,
 } from "@/componentes/primitivas";
+import { normalizarAlimento } from "@/coach/BuscadorCatalogo";
 import {
   EditorEntrenamiento,
   EditorNutricion,
@@ -80,7 +81,7 @@ export function Constructor() {
   // Contenido editable del plan. Arranca de lo que ya tenía el ciclo anterior.
   const [pestana, setPestana] = useState<"nutricion" | "entrenamiento">("nutricion");
   const [tiempos, setTiempos] = useState<TiempoDeComida[]>(
-    planNutricion.tiempos.map((t) => ({ ...t, alimentos: [...t.alimentos] })),
+    planNutricion.tiempos.map((t) => ({ ...t, alimentos: t.alimentos.map(normalizarAlimento) })),
   );
   const [dias, setDias] = useState<DiaDeEntrenamiento[]>(
     planEntrenamiento.dias.map((d) => ({ ...d, ejercicios: [...d.ejercicios] })),
