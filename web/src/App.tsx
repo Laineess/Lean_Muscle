@@ -18,12 +18,13 @@ import { Constructor } from "@/coach/Constructor";
 import { MarcoCoach } from "@/coach/Marco";
 import { Panel } from "@/coach/Panel";
 import { Validacion } from "@/coach/Validacion";
+import { api } from "@/lib/api";
 import { registrarTrabajador } from "@/lib/push";
 import { Coaches } from "@/plataforma/Coaches";
 import { Facturacion } from "@/plataforma/Facturacion";
 import { MarcoPlataforma } from "@/plataforma/Marco";
 import { Salud } from "@/plataforma/Salud";
-import { actorGuardado, rolActual, type Rol } from "@/lib/sesion";
+import { actorGuardado, guardarActor, rolActual, type Rol } from "@/lib/sesion";
 
 /** Guarda de ruta.
  *
@@ -69,6 +70,21 @@ export function App() {
   // canal para siempre en ese dispositivo.
   useEffect(() => {
     void registrarTrabajador();
+  }, []);
+
+  // `sessionStorage` es una caché para pintar la barra sin esperar a la red, no la verdad.
+  // Sin comprobarla, una cookie caducada dejaba la interfaz en pie con todas las peticiones
+  // devolviendo 401. Un 401 aquí lo recoge el manejador global y manda al acceso.
+  useEffect(() => {
+    if (!actor) return;
+    api.acceso
+      .yo()
+      .then(guardarActor)
+      .catch(() => {
+        /* el 401 ya lo trata el manejador global; otros errores no deben cerrar sesión */
+      });
+    // Solo al arrancar: en cada navegación sería una petición de más por pantalla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

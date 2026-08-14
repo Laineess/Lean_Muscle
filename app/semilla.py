@@ -608,12 +608,15 @@ def sembrar_coach(
             )
         )
 
+        # Relativo a hoy: con fechas fijas, la demo dejaba de funcionar el dia que el ciclo
+        # vencia, y la alumna se quedaba sin poder ver su plan sin que nada estuviera roto.
+        inicio_ciclo = date.today() - timedelta(days=15)
         ciclo = Ciclo(
             coach_id=coach.id,
             alumna_id=alumna.id,
             numero=ficha["ciclo"],
-            inicia_en=date(2026, 7, 15),
-            termina_en=date(2026, 8, 14),
+            inicia_en=inicio_ciclo,
+            termina_en=inicio_ciclo + timedelta(days=30),
             estado="activo" if ficha["pago"] == "validado" else "pendiente_pago",
             precio=Decimal("1200.00"),
         )

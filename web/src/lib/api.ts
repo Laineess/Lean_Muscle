@@ -212,6 +212,8 @@ export interface PlanesDeAlumnaApi {
   entrenamiento: PlanApi | null;
   /** La guarda vive en el servidor: aquí solo se refleja. */
   bloqueadoPorPago: boolean;
+  /** Por qué: `pago`, `ciclo_vencido`, `sin_ciclo`. Nulo si no está bloqueado. */
+  motivoBloqueo: "pago" | "ciclo_vencido" | "sin_ciclo" | null;
   restricciones: string | null;
   lesiones: string | null;
 }

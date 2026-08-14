@@ -125,6 +125,7 @@ def plan(
             nutricion=None,
             entrenamiento=None,
             bloqueado_por_pago=True,
+            motivo_bloqueo="sin_ciclo",
             restricciones=historial.restricciones if historial else None,
             lesiones=historial.lesiones if historial else None,
         )
@@ -132,7 +133,9 @@ def plan(
     pago = q.pago_del_ciclo(s, [ciclo.id]).get(ciclo.id)
     estado_pago = EstadoPago(pago.estado) if pago else EstadoPago.PENDIENTE
 
-    bloqueado = False
+    # Se guarda el motivo, no solo el hecho: «bloqueado» a secas hacía que la pantalla dijera
+    # «falta tu comprobante» a quien ya había pagado y solo tenía el ciclo terminado.
+    motivo: str | None = None
     try:
         exigir_acceso_al_plan(
             CicloDominio(
@@ -143,15 +146,16 @@ def plan(
             ),
             dia_calendario(ahora_utc(), alumna.zona_horaria),
         )
-    except ErrorDeDominio:
-        bloqueado = True
+    except ErrorDeDominio as causa:
+        motivo = "pago" if causa.codigo is Codigo.PAGO_SIN_VALIDAR else "ciclo_vencido"
 
-    planes = {} if bloqueado else q.planes_del_ciclo(s, alumna.id, ciclo.id)
+    planes = {} if motivo else q.planes_del_ciclo(s, alumna.id, ciclo.id)
 
     return PlanesDeAlumna(
         nutricion=_plan_publico(planes.get("nutricion"), ciclo.numero),
         entrenamiento=_plan_publico(planes.get("entrenamiento"), ciclo.numero),
-        bloqueado_por_pago=bloqueado,
+        bloqueado_por_pago=motivo is not None,
+        motivo_bloqueo=motivo,
         restricciones=historial.restricciones if historial else None,
         lesiones=historial.lesiones if historial else None,
     )

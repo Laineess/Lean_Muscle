@@ -128,10 +128,13 @@ class PlanPublico(Esquema):
 
 
 class PlanesDeAlumna(Esquema):
-    #: Nulo cuando el pago del ciclo no está validado: la guarda vive en el servidor.
+    #: Nulo cuando el ciclo está bloqueado: la guarda vive en el servidor.
     nutricion: PlanPublico | None
     entrenamiento: PlanPublico | None
     bloqueado_por_pago: bool
+    #: `pago`, `ciclo_vencido`, `sin_ciclo` o nulo. Sin esto la pantalla decía «falta tu
+    #: comprobante» a quien ya había pagado y solo tenía el ciclo terminado.
+    motivo_bloqueo: str | None
     restricciones: str | None
     lesiones: str | None
 

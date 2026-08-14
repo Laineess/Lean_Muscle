@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
 import {
@@ -57,6 +58,7 @@ const RESPALDO: PlanesDeAlumnaApi = {
     grasaG: null,
   },
   bloqueadoPorPago: ciclo.estadoPago !== "validado",
+  motivoBloqueo: ciclo.estadoPago !== "validado" ? "pago" : null,
   restricciones: historialClinico.restricciones,
   lesiones: historialClinico.lesiones,
 };
@@ -71,17 +73,27 @@ export function MiPlan() {
   if (cargando) return <Cargando que="tu plan" />;
 
   if (datos.bloqueadoPorPago) {
+    const porPago = datos.motivoBloqueo === "pago" || datos.motivoBloqueo === null;
     return (
       <div className="flex max-w-md flex-col gap-6">
         <Etiqueta>Ciclo {datos.nutricion?.ciclo ?? ciclo.numero}</Etiqueta>
-        <Portada>Tu plan está en pausa</Portada>
+        <Portada>
+          {datos.motivoBloqueo === "ciclo_vencido" ? "Tu ciclo terminó" : "Tu plan está en pausa"}
+        </Portada>
         <Apoyo>
-          Tu comprobante todavía no ha sido validado. En cuanto tu coach lo confirme, tu plan se
-          desbloquea solo.
+          {datos.motivoBloqueo === "ciclo_vencido"
+            ? "Tu plan se libera otra vez cuando empiece el ciclo nuevo. Habla con tu coach para renovarlo."
+            : datos.motivoBloqueo === "sin_ciclo"
+              ? "Todavía no tienes un ciclo abierto. Tu coach lo activa al darte de alta."
+              : "Tu comprobante todavía no ha sido validado. En cuanto tu coach lo confirme, tu plan se desbloquea solo."}
         </Apoyo>
-        <div>
-          <Boton>Subir comprobante</Boton>
-        </div>
+        {porPago ? (
+          <div>
+            <Boton asChild>
+              <Link to="/inicio">Subir comprobante</Link>
+            </Boton>
+          </div>
+        ) : null}
       </div>
     );
   }
