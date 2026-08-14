@@ -176,7 +176,12 @@ def cobro_publico(c: CobroProgramado, hoy: date) -> CobroDeAlumna:
         estado=c.estado,
         pagado_en=c.pagado_en,
         nota=c.nota,
+        # Un comprobante en revisión ya no cuenta como vencido: la alumna hizo lo suyo y
+        # espera a la coach. Pausarle el plan por esa demora sería castigarla por algo que
+        # no depende de ella.
         vencido=c.estado == "pendiente" and c.fecha < hoy,
+        tiene_comprobante=c.comprobante_key is not None,
+        motivo_rechazo=c.motivo_rechazo,
     )
 
 

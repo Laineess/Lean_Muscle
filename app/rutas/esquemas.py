@@ -806,11 +806,15 @@ class CobroDeAlumna(Esquema):
     motivo: str
     concepto: str
     monto: Decimal
+    #: `pendiente`, `en_revision`, `pagado` o `cancelado`.
     estado: str
     pagado_en: date | None
     nota: str | None
-    #: `vencido` cuando la fecha pasó y sigue pendiente. Es lo que pausa el plan.
+    #: `vencido` cuando la fecha pasó y sigue sin pagarse. Es lo que pausa el plan.
     vencido: bool
+    tiene_comprobante: bool
+    #: Por qué se rechazó el comprobante anterior, si lo hubo. La alumna lo lee tal cual.
+    motivo_rechazo: str | None = None
 
 
 class CobroNuevoProgramado(Esquema):
@@ -829,3 +833,30 @@ class AlumnaConCobros(Esquema):
     plan: str | None
     pendientes: list[CobroDeAlumna]
     adeudo: Decimal
+
+
+class ComprobantePorRevisar(Esquema):
+    """Lo que la coach ve en su bandeja antes de abrir la imagen."""
+
+    cobro_ulid: str
+    alumna_ulid: str
+    alumna: str
+    plan: str | None
+    fecha_cobro: date
+    concepto: str
+    #: Lo que la coach espera recibir.
+    monto_esperado: Decimal
+    subido_en: datetime | None
+
+    #: Lo que el OCR entendió del comprobante. **No valida nada**: es una sugerencia.
+    monto_leido: Decimal | None
+    fecha_leida: date | None
+    referencia: str | None
+    banco: str | None
+    confianza: Decimal
+    #: El OCR leyó un importe distinto al esperado. Mirar la imagen deja de ser opcional.
+    monto_no_cuadra: bool
+
+
+class RechazoDeComprobante(Esquema):
+    motivo: str

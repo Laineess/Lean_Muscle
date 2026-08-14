@@ -22,12 +22,11 @@ from sqlalchemy.orm import Session
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc
 from app.config import ajustes
-from app.datos.modelos import Alumna, Foto, Mensaje, Pago, SuscripcionPush
+from app.datos.modelos import Alumna, Foto, Mensaje, SuscripcionPush
 from app.datos.repos import consultas as q
 from app.dominio.chequeo import Angulo
 from app.rutas import archivos
 from app.rutas.esquemas import (
-    ComprobanteLeido,
     Esquema,
     LlavePush,
     MensajeNuevo,
@@ -35,7 +34,7 @@ from app.rutas.esquemas import (
     SuscripcionNueva,
 )
 from app.rutas.sesion import Actor, actor_actual, datos, solo_alumna
-from app.servicios import almacenamiento, bitacora, imagenes, ocr
+from app.servicios import almacenamiento, bitacora, imagenes
 from app.servicios.almacenamiento import almacen
 
 ruteador = APIRouter(prefix="/api", tags=["medios"])
@@ -225,77 +224,6 @@ def servir_foto(
 # ---------------------------------------------------------------------------
 # Comprobantes de pago
 # ---------------------------------------------------------------------------
-
-
-@ruteador.post("/mi/pagos/comprobante", response_model=ComprobanteLeido)
-async def subir_comprobante(
-    actor: Annotated[Actor, Depends(solo_alumna)],
-    s: Annotated[Session, Depends(datos)],
-    archivo: Annotated[UploadFile, File()],
-) -> ComprobanteLeido:
-    """Sube el comprobante y lo lee con OCR.
-
-    **El OCR no valida: sugiere.** El pago queda pendiente hasta que la coach lo confirma
-    mirando su estado de cuenta. Un comprobante es una imagen que cualquiera puede editar.
-    """
-    alumna = _mi_alumna(s, actor)
-    ciclo = q.ciclo_vigente(s, alumna.id)
-    if ciclo is None:
-        raise HTTPException(409, "No hay ciclo abierto")
-
-    contenido = await archivo.read()
-    if not contenido:
-        raise HTTPException(422, "El archivo llegó vacío")
-    if len(contenido) > imagenes.BYTES_MAXIMOS:
-        raise HTTPException(422, "El comprobante pesa demasiado")
-
-    lectura = ocr.leer(contenido)
-
-    pago = s.scalars(
-        select(Pago).where(Pago.ciclo_id == ciclo.id, Pago.estado == "pendiente")
-    ).first()
-    if pago is None:
-        pago = Pago(
-            coach_id=actor.coach_id,
-            alumna_id=alumna.id,
-            ciclo_id=ciclo.id,
-            monto=lectura.monto if lectura.monto is not None else ciclo.precio,
-            metodo=lectura.banco or "Transferencia",
-            estado="pendiente",
-        )
-        s.add(pago)
-        s.flush()
-
-    extension = (archivo.filename or "comprobante.jpg").rsplit(".", 1)[-1].lower()[:5]
-    llave = almacenamiento.llave_de_comprobante(actor.coach_id, alumna.id, pago.id, extension)
-    almacen().guardar(llave, contenido)
-
-    pago.comprobante_key = llave
-    pago.ocr = lectura.como_json()
-    pago.confianza = lectura.confianza
-    if lectura.monto is not None:
-        pago.monto = lectura.monto
-
-    bitacora.registrar(
-        s,
-        coach_id=actor.coach_id,
-        actor_id=actor.usuario_id,
-        actor_tipo="alumna",
-        accion=bitacora.Accion.COMPROBANTE_SUBIDO,
-        entidad="pago",
-        entidad_id=pago.id,
-        detalle={"confianza_ocr": str(lectura.confianza)},
-    )
-
-    return ComprobanteLeido(
-        pago_ulid=pago.ulid,
-        monto=lectura.monto,
-        fecha=lectura.fecha,
-        referencia=lectura.referencia,
-        banco=lectura.banco,
-        confianza=lectura.confianza,
-        requiere_revision=lectura.requiere_revision,
-    )
 
 
 # ---------------------------------------------------------------------------

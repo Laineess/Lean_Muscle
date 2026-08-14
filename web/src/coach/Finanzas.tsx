@@ -10,6 +10,7 @@
 import { Lock, Plus } from "lucide-react";
 import { useState } from "react";
 
+import { Comprobantes } from "@/coach/Comprobantes";
 import { Dialogo } from "@/componentes/Dialogo";
 import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
 import { Grafica } from "@/componentes/Grafica";
@@ -105,6 +106,9 @@ export function Finanzas() {
     <div className="flex flex-col gap-10">
       {sinServidor ? <AvisoSinServidor mensaje={mensaje} /> : null}
       {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
+
+      {/* Antes que las cifras: un comprobante sin revisar es dinero que todavía no cuenta. */}
+      <Comprobantes onCambio={recargar} />
 
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-3">

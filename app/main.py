@@ -23,6 +23,7 @@ from app.rutas import (
     api_chequeo,
     api_coach,
     api_cobros,
+    api_comprobantes,
     api_documentos,
     api_finanzas,
     api_legales,
@@ -93,6 +94,7 @@ app.include_router(api_alumna.ruteador)
 app.include_router(api_chequeo.ruteador)
 app.include_router(api_coach.ruteador)
 app.include_router(api_cobros.ruteador)
+app.include_router(api_comprobantes.ruteador)
 app.include_router(api_biblioteca.ruteador)
 app.include_router(api_finanzas.ruteador)
 app.include_router(api_documentos.ruteador)

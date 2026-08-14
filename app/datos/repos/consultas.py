@@ -280,7 +280,7 @@ def cobros_pendientes_de(s: Session, alumna_id: int) -> list[CobroProgramado]:
             select(CobroProgramado)
             .where(
                 CobroProgramado.alumna_id == alumna_id,
-                CobroProgramado.estado == "pendiente",
+                CobroProgramado.estado.in_(("pendiente", "en_revision")),
             )
             .order_by(CobroProgramado.fecha)
         ).all()
@@ -298,6 +298,17 @@ def adeudos_vencidos(s: Session, alumna_id: int, hoy: date) -> list[CobroProgram
                 CobroProgramado.fecha < hoy,
             )
             .order_by(CobroProgramado.fecha)
+        ).all()
+    )
+
+
+def comprobantes_por_revisar(s: Session) -> list[CobroProgramado]:
+    """Lo que la alumna subió y la coach todavía no ha mirado. Es la bandeja de finanzas."""
+    return list(
+        s.scalars(
+            select(CobroProgramado)
+            .where(CobroProgramado.estado == "en_revision")
+            .order_by(CobroProgramado.subido_en)
         ).all()
     )
 

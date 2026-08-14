@@ -878,3 +878,18 @@ class CobroProgramado(BaseMultiInquilino):
     movimiento_id: Mapped[int | None] = mapped_column(ForeignKey("movimiento_financiero.id"))
     pagado_en: Mapped[date | None] = mapped_column(Date)
     nota: Mapped[str | None] = mapped_column(Text)
+
+    # --- Comprobante que sube la alumna ---
+    #: Archivo en el volumen cifrado. La alumna elige contra que cobro lo sube, asi que la
+    #: coach recibe el comprobante ya emparejado y solo confirma.
+    comprobante_key: Mapped[str | None] = mapped_column(String(255))
+    subido_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
+
+    #: Lo que el OCR entendio. **No valida nada**: la coach compara contra su estado de
+    #: cuenta. Un comprobante es una imagen que cualquiera puede editar.
+    ocr: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    confianza: Mapped[Decimal | None] = mapped_column(Numeric(4, 3))
+
+    #: Por que se rechazo. La alumna lo lee tal cual, asi que se escribe pensando en ella.
+    motivo_rechazo: Mapped[str | None] = mapped_column(Text)
+    revisado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)

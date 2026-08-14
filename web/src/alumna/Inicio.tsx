@@ -17,12 +17,12 @@ import {
   ErrorApi,
   api,
   type CitaDeAlumnaApi,
-  type ComprobanteApi,
+  type CobroApi2,
   type InicioAlumnaApi,
 } from "@/lib/api";
 import { chequeos, ciclo, mensajes, notificaciones, planEntrenamiento, planNutricion, alumna } from "@/lib/datos";
 import { delta, diaSemana, fecha, num } from "@/lib/formato";
-import { usarApiConRespaldo } from "@/lib/usarApi";
+import { usarApi, usarApiConRespaldo } from "@/lib/usarApi";
 import { ROTULO_ESTADO, type EstadoChequeo } from "@/lib/tipos";
 
 /** Datos de ejemplo para revisar la pantalla sin servidor. Desaparece con la API en pie. */
@@ -98,9 +98,7 @@ export function Inicio() {
 
       <ProximasFechas ciclo={datos.ciclo} citas={datos.proximasCitas} />
 
-      {datos.ciclo ? (
-        <SubirComprobante precio={datos.ciclo.precio} estado={datos.ciclo.estadoPago} />
-      ) : null}
+      <SubirComprobante />
 
       {/* ---- Lo que toca hoy ---- */}
       <section className="filete flex flex-col gap-4">
@@ -322,29 +320,33 @@ function ProximasFechas({
 
 /* -------------------------------------------------- Comprobante de pago --- */
 
-/** Subida del comprobante del ciclo.
+/** Lo que la alumna debe, con el botón para subir su comprobante.
  *
- *  El servidor lo lee con OCR y devuelve lo que entendió. **Eso no valida el pago**: la coach
- *  lo confirma contra su estado de cuenta. Un comprobante es una imagen que cualquiera puede
- *  editar, y ningún grado de confianza automática sustituye a que alguien mire el banco. Por
- *  eso la pantalla dice «recibido», nunca «pagado».
+ *  Elige contra qué cobro paga antes de subir la captura: así la coach lo recibe emparejado
+ *  y solo confirma, en lugar de tener que adivinar a qué corresponde una transferencia.
  */
-function SubirComprobante({ precio, estado }: { precio: number; estado: string }) {
+function SubirComprobante() {
+  const carga = usarApi<CobroApi2[]>((senal) => api.alumna.cobros(senal));
   const entrada = useRef<HTMLInputElement>(null);
-  const [subiendo, setSubiendo] = useState(false);
-  const [lectura, setLectura] = useState<ComprobanteApi | null>(null);
+  const [subiendo, setSubiendo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const validado = estado === "validado";
+  const [elegido, setElegido] = useState<string | null>(null);
+
+  const cobros = (carga.datos ?? []).filter((c) => c.estado !== "pagado");
+  if (cobros.length === 0) return null;
 
   async function subir(archivo: File) {
+    if (!elegido) return;
     setError(null);
-    setSubiendo(true);
+    setSubiendo(elegido);
     try {
-      setLectura(await api.alumna.subirComprobante(archivo));
-    } catch (causa: unknown) {
+      await api.alumna.subirComprobante(elegido, archivo);
+      carga.recargar();
+    } catch (causa) {
       setError(causa instanceof ErrorApi ? causa.message : "No se pudo subir el comprobante.");
     } finally {
-      setSubiendo(false);
+      setSubiendo(null);
+      setElegido(null);
       if (entrada.current) entrada.current.value = "";
     }
   }
@@ -353,43 +355,62 @@ function SubirComprobante({ precio, estado }: { precio: number; estado: string }
     <Tarjeta className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <Etiqueta>Pago del ciclo</Etiqueta>
+          <Etiqueta>Tus pagos</Etiqueta>
           <Titulo>
-            {validado
-              ? "Tu ciclo está pagado"
-              : lectura
-                ? "Comprobante recibido"
-                : "Falta tu comprobante"}
+            {cobros.some((c) => c.vencido) ? "Tienes un pago atrasado" : "Lo que te toca pagar"}
           </Titulo>
         </div>
-        <Chip tono={validado ? "exito" : estado === "rechazado" ? "error" : "espera"}>
-          {validado ? "Validado" : estado === "rechazado" ? "Rechazado" : "Pendiente"}
-        </Chip>
       </div>
 
-      <Apoyo className="medida">
-        {validado
-          ? `Tu coach ya validó los $${num(precio)} de este ciclo. Si necesitas subir otro comprobante —una corrección, un pago adelantado— puedes hacerlo desde aquí.`
-          : `Sube la captura de tu transferencia de $${num(precio)}. Tu coach la confirma contra su estado de cuenta; en cuanto lo haga se libera tu plan y te llega el recibo por correo.`}
-      </Apoyo>
+      <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+        {cobros.map((c) => (
+          <li key={c.ulid} className="flex flex-col gap-2 py-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-menor font-medium">{c.concepto}</span>
+                <span className="text-micro text-tinta-suave">{fecha(c.fecha)}</span>
+              </span>
+              <span className="flex items-center gap-3">
+                <span className="cifra font-semibold">${num(c.monto)}</span>
+                {c.estado === "en_revision" ? (
+                  <Chip tono="espera">En revisión</Chip>
+                ) : c.vencido ? (
+                  <Chip tono="error">Vencido</Chip>
+                ) : null}
+              </span>
+            </div>
 
-      {lectura ? (
-        <Aviso tono={lectura.requiereRevision ? "atencion" : "exito"} titulo="Lo que leímos">
-          <ul className="flex flex-col gap-0.5">
-            <li>Monto: {lectura.monto !== null ? `$${num(lectura.monto)}` : "no se pudo leer"}</li>
-            <li>Fecha: {lectura.fecha ? fecha(lectura.fecha) : "no se pudo leer"}</li>
-            <li>Referencia: {lectura.referencia ?? "no se pudo leer"}</li>
-            <li>Banco: {lectura.banco ?? "no se pudo leer"}</li>
-          </ul>
-          <p className="mt-2">
-            {lectura.requiereRevision
-              ? "Algunos datos no se leyeron bien. No pasa nada: tu coach lo revisa a ojo."
-              : "Tu coach lo revisa y te confirma."}
-          </p>
-        </Aviso>
-      ) : null}
+            {c.motivoRechazo ? (
+              <Aviso tono="atencion" titulo="Tu coach pidió otro comprobante">
+                {c.motivoRechazo}
+              </Aviso>
+            ) : null}
 
-      {error ? <Aviso tono="error">{error}</Aviso> : null}
+            {c.estado === "en_revision" ? (
+              <Apoyo>Tu coach lo está revisando. Te avisamos en cuanto lo confirme.</Apoyo>
+            ) : (
+              <div>
+                <Boton
+                  tono="contorno"
+                  medida="chica"
+                  disabled={subiendo !== null}
+                  onClick={() => {
+                    setElegido(c.ulid);
+                    entrada.current?.click();
+                  }}
+                >
+                  {subiendo === c.ulid ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="size-3.5" />
+                  )}
+                  Subir comprobante
+                </Boton>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
 
       <input
         ref={entrada}
@@ -402,16 +423,12 @@ function SubirComprobante({ precio, estado }: { precio: number; estado: string }
         }}
       />
 
-      <div>
-        <Boton
-          tono={validado ? "contorno" : "solido"}
-          disabled={subiendo}
-          onClick={() => entrada.current?.click()}
-        >
-          {subiendo ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-          {lectura || validado ? "Subir otro comprobante" : "Subir comprobante"}
-        </Boton>
-      </div>
+      {error ? <Aviso tono="error">{error}</Aviso> : null}
+
+      <Apoyo>
+        Tu coach confirma cada pago contra su estado de cuenta. Un pago vencido pausa tu plan
+        hasta que lo valide.
+      </Apoyo>
     </Tarjeta>
   );
 }

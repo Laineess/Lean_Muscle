@@ -614,11 +614,33 @@ export interface CobroApi2 {
   motivo: MotivoDeCobro;
   concepto: string;
   monto: number;
-  estado: "pendiente" | "pagado" | "cancelado";
+  estado: "pendiente" | "en_revision" | "pagado" | "cancelado";
   pagadoEn: string | null;
   nota: string | null;
-  /** La fecha pasó y sigue pendiente. Es lo que pausa el plan de la alumna. */
+  /** La fecha pasó y sigue sin pagarse. Es lo que pausa el plan de la alumna. */
   vencido: boolean;
+  tieneComprobante: boolean;
+  /** Por qué se rechazó el comprobante anterior. La alumna lo lee tal cual. */
+  motivoRechazo: string | null;
+}
+
+export interface ComprobantePorRevisarApi {
+  cobroUlid: string;
+  alumnaUlid: string;
+  alumna: string;
+  plan: string | null;
+  fechaCobro: string;
+  concepto: string;
+  montoEsperado: number;
+  subidoEn: string | null;
+  /** Lo que el OCR entendió. Es una sugerencia, no una validación. */
+  montoLeido: number | null;
+  fechaLeida: string | null;
+  referencia: string | null;
+  banco: string | null;
+  confianza: number;
+  /** El importe leído no coincide con el esperado. Mirar la imagen deja de ser opcional. */
+  montoNoCuadra: boolean;
 }
 
 export interface CobroNuevoProgramadoApi {
@@ -733,8 +755,10 @@ export const api = {
     borrarFoto: (chequeoUlid: string, angulo: Angulo) =>
       pedir<void>(`/mi/chequeos/${chequeoUlid}/fotos/${angulo}`, { metodo: "DELETE" }),
 
-    subirComprobante: (archivo: File) =>
-      subir<ComprobanteApi>("/mi/pagos/comprobante", archivo, "POST"),
+    /** Sus cobros: de aquí elige cuál está pagando. */
+    cobros: (senal?: AbortSignal) => pedir<CobroApi2[]>("/mi/cobros", senal ? { senal } : {}),
+    subirComprobante: (cobroUlid: string, archivo: File) =>
+      subir<CobroApi2>(`/mi/cobros/${cobroUlid}/comprobante`, archivo, "POST"),
 
     mensajes: (senal?: AbortSignal) =>
       pedir<MensajeApi[]>("/mi/mensajes", senal ? { senal } : {}),
@@ -846,6 +870,13 @@ export const api = {
     programarCobro: (alumnaUlid: string, c: CobroNuevoProgramadoApi) =>
       pedir<CobroApi2>(`/coach/alumnas/${alumnaUlid}/cobros`, { metodo: "POST", cuerpo: c }),
     cancelarCobro: (ulid: string) => pedir<void>(`/coach/cobros/${ulid}`, { metodo: "DELETE" }),
+    comprobantes: (senal?: AbortSignal) =>
+      pedir<ComprobantePorRevisarApi[]>("/coach/comprobantes", senal ? { senal } : {}),
+    validarComprobante: (cobroUlid: string) =>
+      pedir<void>(`/coach/cobros/${cobroUlid}/validar`, { metodo: "POST" }),
+    rechazarComprobante: (cobroUlid: string, motivo: string) =>
+      pedir<void>(`/coach/cobros/${cobroUlid}/rechazar`, { metodo: "POST", cuerpo: { motivo } }),
+
     aQuienCobrar: (texto: string, senal?: AbortSignal) =>
       pedir<AlumnaConCobrosApi[]>(
         `/coach/cobrar?q=${encodeURIComponent(texto)}`,
@@ -916,6 +947,11 @@ export const api = {
  */
 export function urlDeFoto(chequeoUlid: string, angulo: string, mini = false): string {
   return `${BASE}/fotos/${chequeoUlid}/${angulo}${mini ? "?mini=true" : ""}`;
+}
+
+/** La imagen del comprobante de un cobro. La ven la coach y la propia alumna. */
+export function urlDeComprobante(cobroUlid: string): string {
+  return `${BASE}/coach/cobros/${cobroUlid}/comprobante`;
 }
 
 /** El logo de la marca del inquilino en curso. `v` fuerza recarga tras subir uno nuevo. */

@@ -18,6 +18,7 @@ Este modulo es la capa 2 de cinco (Propuesta Backend, seccion 4):
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
@@ -28,6 +29,8 @@ from sqlalchemy.orm import ORMExecuteState, Session, sessionmaker, with_loader_c
 from app.compartido.errores import SinAlcanceDeInquilino
 from app.config import ajustes
 from app.datos.base import BaseMultiInquilino
+
+_registro = logging.getLogger("myprogressplan.datos")
 
 #: Exime del filtro **una sentencia suelta**. Solo para las consultas que por definicion
 #: preceden al inquilino: buscar el usuario al entrar, comprobar que un correo no este
@@ -124,7 +127,15 @@ def sesion_con_alcance(coach_id: int) -> Iterator[Session]:
     try:
         sesion.execute(text("SET @app_coach_id = :cid"), {"cid": coach_id})
         yield sesion
-        sesion.commit()
+        try:
+            sesion.commit()
+        except Exception:
+            # Como dependencia de FastAPI esto corre **despues** de armar la respuesta, asi
+            # que el cliente ya recibio su 200 y no hay forma de cambiarselo. Se registra
+            # completo para que el fallo no desaparezca sin dejar rastro: un guardado que
+            # revienta y responde «listo» es el peor error posible.
+            _registro.exception("el commit falló tras responder; se pierde el guardado")
+            raise
     except Exception:
         sesion.rollback()
         raise

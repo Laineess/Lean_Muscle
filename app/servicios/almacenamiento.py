@@ -41,6 +41,13 @@ def llave_de_logo(coach_id: int) -> str:
     return f"coach/{coach_id}/marca/logo.webp"
 
 
+def llave_de_comprobante_de_cobro(
+    coach_id: int, alumna_id: int, cobro_id: int, extension: str
+) -> str:
+    """El comprobante de un cobro programado. Nombre fijo: volver a subir reemplaza."""
+    return f"coach/{coach_id}/alumna/{alumna_id}/cobro/{cobro_id}/comprobante.{extension}"
+
+
 def llave_de_comprobante(coach_id: int, alumna_id: int, pago_id: int, extension: str) -> str:
     return f"coach/{coach_id}/alumna/{alumna_id}/pago/{pago_id}/comprobante.{extension}"
 
