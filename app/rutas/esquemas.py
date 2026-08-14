@@ -148,6 +148,8 @@ class PlanPublico(Esquema):
     proteina_g: int | None
     carbohidrato_g: int | None
     grasa_g: int | None
+    #: Cada cuánto se le piden fotos de sus comidas. Solo aplica al plan de nutrición.
+    frecuencia_fotos: str = "ninguna"
 
 
 class PlanesDeAlumna(Esquema):
@@ -437,6 +439,8 @@ class PlanGuardado(Esquema):
     publicar: bool = False
     #: Solo viajan con el plan de nutrición, que es donde vive la calculadora.
     parametros: ParametrosDeCiclo | None = None
+    #: `ninguna`, `diaria`, `semanal`, `quincenal` o `mensual`.
+    frecuencia_fotos: str = "ninguna"
 
 
 class ChequeoDelConstructor(Esquema):
@@ -860,6 +864,35 @@ class RespuestaDeAlumna(Esquema):
     pregunta: str
     tipo: str
     valor: str
+
+
+class FotoDeComidaPublica(Esquema):
+    """Una foto de un plato. **La imagen no viaja aquí**: se pide por su propia ruta."""
+
+    ulid: str
+    subida_en: datetime
+    #: Cuándo se borra. Va explícito para que la alumna lo vea, no lo tenga que calcular.
+    expira_en: datetime
+    tiempo: str | None
+    nota: str | None
+    comentario: str | None
+
+
+class FotosDeComidaDeAlumna(Esquema):
+    """Lo que ve la alumna: qué le toca y qué mandó que siga viva."""
+
+    #: `ninguna`, `diaria`, `semanal`, `quincenal` o `mensual`.
+    frecuencia: str
+    rotulo: str
+    #: Nulo si la coach no pide fotos.
+    desde: date | None
+    hasta: date | None
+    cumplido: bool
+    fotos: list[FotoDeComidaPublica]
+
+
+class ComentarioDeFoto(Esquema):
+    comentario: str
 
 
 # ---------------------------------------------------------------------------

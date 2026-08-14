@@ -412,6 +412,42 @@ class Plan(BaseMultiInquilino):
     carbohidrato_g: Mapped[int | None] = mapped_column(Integer)
     grasa_g: Mapped[int | None] = mapped_column(Integer)
 
+    #: Cada cuanto le toca a la alumna mandar fotos de sus comidas. Solo aplica al plan de
+    #: nutricion. `ninguna` es el valor de fabrica: no se le pide nada si no se pide.
+    frecuencia_fotos: Mapped[str] = mapped_column(String(12), default="ninguna", nullable=False)
+
+
+class FotoDeComida(BaseMultiInquilino):
+    """Una foto de un plato, para que la coach vea que come de verdad.
+
+    **Se borra a las 36 horas**, y eso no es una politica revisable: es lo unico que hace
+    razonable pedirle a alguien que fotografie lo que come. Nada que ver con las fotos de
+    chequeo, que viven cuatro meses porque son el registro del metodo.
+
+    La promesa se cumple por dos vias. Las consultas no devuelven nunca una foto vencida
+    —aunque el archivo siga en disco— y un trabajo borra los bytes. Si el trabajo se cae,
+    la foto deja de verse igual.
+    """
+
+    __tablename__ = "foto_de_comida"
+    __table_args__ = (
+        Index("ix_foto_comida_alumna_subida", "alumna_id", "subida_en"),
+        Index("ix_foto_comida_purga", "purgada_en", "subida_en"),
+        ARGS_DE_TABLA,
+    )
+
+    alumna_id: Mapped[int] = mapped_column(ForeignKey("alumna.id"), nullable=False)
+    #: Nula cuando ya se purgo: la fila sobrevive para la bitacora, la imagen no.
+    storage_key: Mapped[str | None] = mapped_column(String(255))
+    subida_en: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
+    purgada_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
+    #: Que comida es: la escribe la alumna en una linea. No hay lista cerrada porque el
+    #: numero de tiempos lo decide su plan.
+    tiempo: Mapped[str | None] = mapped_column(String(60))
+    nota: Mapped[str | None] = mapped_column(Text)
+    #: Lo que la coach le contesta al verla.
+    comentario: Mapped[str | None] = mapped_column(Text)
+
 
 class Alimento(Base):
     """`coach_id` nulo = base publica compartida. Por eso no hereda de BaseMultiInquilino:

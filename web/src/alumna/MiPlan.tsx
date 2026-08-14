@@ -22,6 +22,7 @@ import {
   Vacio,
 } from "@/componentes/primitivas";
 import { ErrorApi, api, descargarPdf, type PlanApi, type PlanesDeAlumnaApi } from "@/lib/api";
+import { FotosDeComida } from "@/alumna/FotosDeComida";
 import { ciclo, historialClinico, planEntrenamiento, planNutricion } from "@/lib/datos";
 import { fecha } from "@/lib/formato";
 import { usarApiConRespaldo } from "@/lib/usarApi";
@@ -41,6 +42,7 @@ const RESPALDO: PlanesDeAlumnaApi = {
     proteinaG: planNutricion.macros.proteinaG,
     carbohidratoG: planNutricion.macros.carbohidratoG,
     grasaG: planNutricion.macros.grasaG,
+    frecuenciaFotos: "ninguna",
   },
   entrenamiento: {
     tipo: "entrenamiento",
@@ -56,6 +58,7 @@ const RESPALDO: PlanesDeAlumnaApi = {
     proteinaG: null,
     carbohidratoG: null,
     grasaG: null,
+    frecuenciaFotos: "ninguna",
   },
   bloqueadoPorPago: ciclo.estadoPago !== "validado",
   motivoBloqueo: ciclo.estadoPago !== "validado" ? "pago" : null,
@@ -141,7 +144,12 @@ export function MiPlan() {
           Tu coach todavía no publica este plan. Te avisamos en cuanto esté.
         </Vacio>
       ) : pestana === "nutricion" ? (
-        <Nutricion plan={activo} restricciones={datos.restricciones} />
+        <>
+          <Nutricion plan={activo} restricciones={datos.restricciones} />
+          <Regla />
+          {/* Solo aparece si su coach le pide fotos; el componente decide. */}
+          <FotosDeComida />
+        </>
       ) : (
         <Entrenamiento plan={activo} lesiones={datos.lesiones} />
       )}

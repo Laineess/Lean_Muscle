@@ -18,6 +18,7 @@ from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc
 from app.datos.modelos import Alimento, Chequeo, Ejercicio, ParametrosCiclo, Plan
 from app.datos.repos import consultas as q
+from app.dominio.fotos_de_comida import Frecuencia
 from app.rutas.esquemas import (
     AlimentoCatalogo,
     AlimentoNuevo,
@@ -180,6 +181,7 @@ def _plan_publico(plan: Plan | None, numero_ciclo: int) -> PlanPublico | None:
         proteina_g=plan.proteina_g,
         carbohidrato_g=plan.carbohidrato_g,
         grasa_g=plan.grasa_g,
+        frecuencia_fotos=plan.frecuencia_fotos,
     )
 
 
@@ -330,6 +332,14 @@ def guardar_plan(
     plan.proteina_g = cuerpo.proteina_g
     plan.carbohidrato_g = cuerpo.carbohidrato_g
     plan.grasa_g = cuerpo.grasa_g
+
+    # Solo el de nutrición: pedir fotos de comida con la rutina de pierna no significa nada.
+    if cuerpo.tipo == "nutricion":
+        if cuerpo.frecuencia_fotos not in {f.value for f in Frecuencia}:
+            raise ErrorDeDominio(
+                Codigo.CATEGORIA_INVALIDA, categoria=cuerpo.frecuencia_fotos, tipo="frecuencia"
+            )
+        plan.frecuencia_fotos = cuerpo.frecuencia_fotos
 
     if cuerpo.publicar:
         plan.estado = "publicado"

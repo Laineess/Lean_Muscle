@@ -392,6 +392,7 @@ una prueba que borra las que ya no corresponden a ningún endpoint.
 | Unidad | Cuándo | Qué hace |
 |---|---|---|
 | [`myprogressplan-recordatorios.timer`](despliegue/myprogressplan-recordatorios.timer) | 07:00 diario | Calcula y **encola** avisos de pago próximo, pago vencido, cita de mañana, inactividad y purga de fotos |
+| [`myprogressplan-purga.timer`](despliegue/myprogressplan-purga.timer) | cada 30 min | **Borra** las imágenes vencidas: fotos de comida a las 36 h y fotos de chequeo al cumplir su retención |
 | [`myprogressplan-correo.timer`](despliegue/myprogressplan-correo.timer) | cada 5 min | **Envía** lo encolado —correo y push—, con espaciado y hasta 5 reintentos |
 | [`myprogressplan-respaldo.timer`](despliegue/myprogressplan-respaldo.timer) | 03:30 diario | Volcado de la base y de los archivos, cifrado con GPG, rotación de 30 días |
 

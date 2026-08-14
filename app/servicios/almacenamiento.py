@@ -41,6 +41,12 @@ def llave_de_logo(coach_id: int) -> str:
     return f"coach/{coach_id}/marca/logo.webp"
 
 
+def llave_de_foto_de_comida(coach_id: int, alumna_id: int, foto_ulid: str) -> str:
+    """Una foto de un plato. Va por ULID y no por fecha: en un mismo día puede haber
+    varias, y el nombre no debe permitir adivinar la siguiente."""
+    return f"coach/{coach_id}/alumna/{alumna_id}/comida/{foto_ulid}.webp"
+
+
 def llave_de_foto_de_coach(coach_id: int) -> str:
     """La foto de la coach para su presentación. No es el logo: es su cara."""
     return f"coach/{coach_id}/marca/retrato.webp"

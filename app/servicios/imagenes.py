@@ -201,3 +201,39 @@ def logo(original: bytes) -> bytes:
     salida = io.BytesIO()
     cuadrado.save(salida, format="WEBP", quality=88, method=4)
     return salida.getvalue()
+
+
+#: Lado mayor de una foto de comida. Menor que el de un chequeo: aquí no se mide nada, solo
+#: se mira el plato, y la foto vive 36 horas.
+LADO_COMIDA = 1024
+
+
+def comida(original: bytes) -> bytes:
+    """Convierte una foto de comida a WebP.
+
+    No pasa por `procesar`: aquel recorta cabeza y cuello para no guardar una imagen
+    identificable, y un plato no tiene cabeza que recortar. Lo que sí comparte es lo
+    importante: se reencoda, y **eso borra el EXIF**. Una foto de un teléfono trae dentro la
+    coordenada de dónde se tomó, y eso es la casa de la alumna.
+    """
+    from PIL import Image, ImageOps
+
+    if not original:
+        raise ImagenInvalida("archivo vacío")
+    if len(original) > BYTES_MAXIMOS:
+        raise ImagenInvalida(f"la imagen pesa más de {BYTES_MAXIMOS // 1024 // 1024} MB")
+
+    try:
+        abierta = Image.open(io.BytesIO(original))
+        abierta.load()
+    except Exception as causa:
+        raise ImagenInvalida("no se pudo leer la imagen") from causa
+
+    # Endereza según la orientación declarada antes de descartar los metadatos.
+    imagen: Image.Image = ImageOps.exif_transpose(abierta) or abierta
+    imagen = imagen.convert("RGB")
+    imagen.thumbnail((LADO_COMIDA, LADO_COMIDA), Image.Resampling.LANCZOS)
+
+    salida = io.BytesIO()
+    imagen.save(salida, format="WEBP", quality=80, method=4)
+    return salida.getvalue()

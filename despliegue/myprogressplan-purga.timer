@@ -1,0 +1,15 @@
+[Unit]
+Description=Purga de imagenes vencidas de MyProgressPlan
+
+[Timer]
+# Cada media hora. Una foto de comida vive 36 horas: con este intervalo, el borrado real
+# nunca se aleja mas de treinta minutos del plazo prometido.
+#
+# Que no se haya ejecutado no deja la foto a la vista: las consultas la filtran por fecha
+# aunque el archivo siga en disco. Este trabajo se lleva los bytes.
+OnCalendar=*:0/30
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

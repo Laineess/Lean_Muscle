@@ -42,7 +42,10 @@ import {
   ErrorApi,
   api,
   descargarPdf,
+  urlDeFotoDeComida,
   type ExpedienteDeConstructorApi,
+  type FotoDeComidaApi,
+  type FrecuenciaFotos,
   type HistorialApi,
   type PlanApi,
   type RespuestaDeAlumnaApi,
@@ -62,6 +65,15 @@ import { edadEn, fecha, num, porcentaje } from "@/lib/formato";
 import { usarApi } from "@/lib/usarApi";
 
 const MACROS: Macro[] = ["carbohidrato", "proteina", "grasa"];
+
+/** Cada cuánto se le piden fotos de sus platos. Se guarda con el plan de nutrición. */
+const FRECUENCIAS: [FrecuenciaFotos, string][] = [
+  ["ninguna", "No pedirle fotos"],
+  ["diaria", "Todos los días"],
+  ["semanal", "Una vez por semana"],
+  ["quincenal", "Cada quince días"],
+  ["mensual", "Una vez al mes"],
+];
 
 /** Horizonte de la proyección de ganancia. No se captura: solo fija el «en N semanas». */
 const SEMANAS_GANANCIA = 20;
@@ -133,6 +145,9 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
   const [dias, setDias] = useState<DiaDeEntrenamiento[]>(entrenamiento.dias);
   const [plantilla, setPlantilla] = useState(entrenamiento.plantilla);
   const [notasNutricion, setNotasNutricion] = useState(nutricion.notas);
+  const [frecuenciaFotos, setFrecuenciaFotos] = useState<FrecuenciaFotos>(
+    exp.nutricion?.frecuenciaFotos ?? "ninguna",
+  );
   const [notasEntrenamiento, setNotasEntrenamiento] = useState(entrenamiento.notas);
   const [guardando, setGuardando] = useState<"borrador" | "publicar" | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
@@ -185,6 +200,7 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
         carbohidratoG: r ? Math.round(r.macros.carbohidrato) : null,
         grasaG: r ? Math.round(r.macros.grasa) : null,
         publicar,
+        frecuenciaFotos,
         // Solo si cuadran: la base exige que el reparto sume exactamente 1.
         ...(repartoCuadra
           ? {
@@ -582,6 +598,25 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                       : null
                   }
                 />
+                <Campo
+                  id="c-fotos"
+                  etiqueta="Fotos de sus comidas"
+                  ayuda="Cada foto se borra sola a las 36 horas de que la manda."
+                >
+                  <Selector
+                    id="c-fotos"
+                    value={frecuenciaFotos}
+                    onChange={(e) => setFrecuenciaFotos(e.target.value as FrecuenciaFotos)}
+                    className="max-w-64"
+                  >
+                    {FRECUENCIAS.map(([valor, rotulo]) => (
+                      <option key={valor} value={valor}>
+                        {rotulo}
+                      </option>
+                    ))}
+                  </Selector>
+                </Campo>
+
                 <Campo id="c-notas-n" etiqueta="Notas para la alumna">
                   <textarea
                     id="c-notas-n"
@@ -683,6 +718,10 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
 
           <Regla />
 
+          <FotosDeSusComidas alumnaUlid={exp.alumnaUlid} />
+
+          <Regla />
+
           <RespuestasDelCuestionario alumnaUlid={exp.alumnaUlid} />
 
           <Regla />
@@ -715,6 +754,80 @@ function RespuestasDelCuestionario({ alumnaUlid }: { alumnaUlid: string }) {
           </div>
         ))}
       </dl>
+    </section>
+  );
+}
+
+/** Lo que mando de sus comidas. Solo lo vigente: a las 36 horas deja de existir.
+ *
+ *  Vive junto al plan porque es donde sirve: se mira el plato contra lo que se le pidio. */
+function FotosDeSusComidas({ alumnaUlid }: { alumnaUlid: string }) {
+  const carga = usarApi<FotoDeComidaApi[]>(
+    (senal) => api.coach.fotosDeComida(alumnaUlid, senal),
+    [alumnaUlid],
+  );
+  const [comentando, setComentando] = useState<string | null>(null);
+  const [texto, setTexto] = useState("");
+
+  const fotos = carga.datos ?? [];
+  if (carga.cargando || fotos.length === 0) return null;
+
+  async function guardar(ulid: string) {
+    try {
+      await api.coach.comentarFotoDeComida(ulid, texto);
+    } finally {
+      setComentando(null);
+      setTexto("");
+      carga.recargar();
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <Etiqueta>Sus comidas</Etiqueta>
+        <Chip>{fotos.length}</Chip>
+      </div>
+      <Apoyo>Se borran solas a las 36 horas de que las manda.</Apoyo>
+
+      <ul className="grid grid-cols-2 gap-2">
+        {fotos.map((f) => (
+          <li key={f.ulid} className="flex flex-col gap-1">
+            <img
+              src={urlDeFotoDeComida(f.ulid)}
+              alt={f.tiempo ?? "Comida"}
+              className="aspect-square w-full rounded-marco border border-linea object-cover"
+            />
+            <span className="text-micro text-tinta-media">{f.tiempo ?? "Sin titulo"}</span>
+            {f.nota ? <span className="text-micro text-tinta-suave">{f.nota}</span> : null}
+            {comentando === f.ulid ? (
+              <div className="flex flex-col gap-1">
+                <Entrada
+                  value={texto}
+                  onChange={(e) => setTexto(e.target.value)}
+                  placeholder="Buena porcion."
+                  aria-label="Comentario"
+                  className="h-8 text-micro"
+                />
+                <Boton medida="chica" onClick={() => void guardar(f.ulid)}>
+                  Guardar
+                </Boton>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setComentando(f.ulid);
+                  setTexto(f.comentario ?? "");
+                }}
+                className="text-left text-micro text-tinta-suave underline underline-offset-2"
+              >
+                {f.comentario ?? "Comentar"}
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

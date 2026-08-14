@@ -129,6 +129,45 @@ async function subir<T>(
   return datos as T;
 }
 
+/** Igual que `subir`, pero con campos de texto junto al archivo.
+ *
+ *  Va en el mismo `FormData` y no en la URL: una nota puede traer acentos, saltos de línea
+ *  y comas, y meterla en la query obliga a escaparla dos veces.
+ */
+async function subirConCampos<T>(
+  ruta: string,
+  archivo: File,
+  campos: Record<string, string>,
+): Promise<T> {
+  const cuerpo = new FormData();
+  cuerpo.append("archivo", archivo, archivo.name);
+  for (const [clave, valor] of Object.entries(campos)) cuerpo.append(clave, valor);
+
+  let respuesta: Response;
+  try {
+    respuesta = await fetch(`${BASE}${ruta}`, { method: "POST", credentials: "include", body: cuerpo });
+  } catch {
+    throw new ErrorApi(0, "SIN_CONEXION", "No hay conexión. Revisa tu señal e inténtalo otra vez.");
+  }
+
+  if (respuesta.status === 204) return undefined as T;
+
+  const texto = await respuesta.text();
+  const datos: unknown = texto ? JSON.parse(texto) : null;
+
+  if (!respuesta.ok) {
+    revisarSesion(respuesta.status);
+    const d = (datos ?? {}) as { codigo?: string; mensaje?: string; detail?: unknown };
+    const mensaje =
+      d.mensaje ??
+      (typeof d.detail === "string" ? d.detail : null) ??
+      "No se pudo subir el archivo.";
+    throw new ErrorApi(respuesta.status, d.codigo ?? null, mensaje);
+  }
+
+  return datos as T;
+}
+
 /* ------------------------------------------------------------------ Tipos --- */
 
 export interface ActorPublico {
@@ -323,6 +362,27 @@ export interface HojaDeCalculoApi {
   falta: string | null;
 }
 
+export type FrecuenciaFotos = "ninguna" | "diaria" | "semanal" | "quincenal" | "mensual";
+
+export interface FotoDeComidaApi {
+  ulid: string;
+  subidaEn: string;
+  /** Cuándo se borra. Va explícito para que la alumna no lo tenga que calcular. */
+  expiraEn: string;
+  tiempo: string | null;
+  nota: string | null;
+  comentario: string | null;
+}
+
+export interface FotosDeComidaApi {
+  frecuencia: FrecuenciaFotos;
+  rotulo: string;
+  desde: string | null;
+  hasta: string | null;
+  cumplido: boolean;
+  fotos: FotoDeComidaApi[];
+}
+
 export interface PlanApi {
   tipo: "nutricion" | "entrenamiento";
   ciclo: number;
@@ -342,6 +402,8 @@ export interface PlanApi {
   proteinaG: number | null;
   carbohidratoG: number | null;
   grasaG: number | null;
+  /** Cada cuánto se le piden fotos de sus comidas. Solo el plan de nutrición la usa. */
+  frecuenciaFotos: FrecuenciaFotos;
 }
 
 export interface PlanesDeAlumnaApi {
@@ -859,6 +921,7 @@ export interface PlanGuardadoApi {
   publicar: boolean;
   /** Solo con el plan de nutrición: es donde vive la calculadora. */
   parametros?: ParametrosDeCicloApi;
+  frecuenciaFotos?: FrecuenciaFotos;
 }
 
 /* --------------------------------------------------------------- Endpoints --- */
@@ -881,6 +944,13 @@ export const api = {
 
     presentacion: (senal?: AbortSignal) =>
       pedir<PresentacionApi>("/mi/presentacion", senal ? { senal } : {}),
+
+    fotosDeComida: (senal?: AbortSignal) =>
+      pedir<FotosDeComidaApi>("/mi/fotos-comida", senal ? { senal } : {}),
+    subirFotoDeComida: (archivo: File, tiempo: string, nota: string) =>
+      subirConCampos<FotoDeComidaApi>("/mi/fotos-comida", archivo, { tiempo, nota }),
+    borrarFotoDeComida: (ulid: string) =>
+      pedir<void>(`/mi/fotos-comida/${ulid}`, { metodo: "DELETE" }),
     cuestionario: (senal?: AbortSignal) =>
       pedir<CuestionarioApi>("/mi/cuestionario", senal ? { senal } : {}),
     enviarCuestionario: (envio: EnvioDeCuestionarioApi) =>
@@ -1081,6 +1151,17 @@ export const api = {
         senal ? { senal } : {},
       ),
 
+    fotosDeComida: (alumnaUlid: string, senal?: AbortSignal) =>
+      pedir<FotoDeComidaApi[]>(
+        `/coach/alumnas/${alumnaUlid}/fotos-comida`,
+        senal ? { senal } : {},
+      ),
+    comentarFotoDeComida: (ulid: string, comentario: string) =>
+      pedir<FotoDeComidaApi>(`/coach/fotos-comida/${ulid}/comentario`, {
+        metodo: "POST",
+        cuerpo: { comentario },
+      }),
+
     hoja: (alumnaUlid: string, senal?: AbortSignal) =>
       pedir<HojaDeCalculoApi>(`/coach/hoja/${alumnaUlid}`, senal ? { senal } : {}),
 
@@ -1135,6 +1216,11 @@ export function urlDeComprobante(cobroUlid: string): string {
 /** El logo de la marca del inquilino en curso. `v` fuerza recarga tras subir uno nuevo. */
 export function urlDeLogo(version = 0): string {
   return `${BASE}/logo${version ? `?v=${version}` : ""}`;
+}
+
+/** La imagen de una foto de comida. Devuelve 404 en cuanto expira. */
+export function urlDeFotoDeComida(ulid: string): string {
+  return `${BASE}/fotos-comida/${ulid}/imagen`;
 }
 
 /** Foto de la coach para su presentación. La versión evita servir la anterior en caché. */
