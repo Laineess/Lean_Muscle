@@ -11,7 +11,7 @@
 
 import type { ActorPublico } from "@/lib/api";
 
-export type Rol = "alumna" | "coach";
+export type Rol = "alumna" | "coach" | "admin_plataforma";
 
 const LLAVE_CORREO = "mpp.correo_recordado";
 const LLAVE_ACTOR = "mpp.actor";

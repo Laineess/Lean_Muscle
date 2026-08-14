@@ -81,7 +81,7 @@ EXENTOS: dict[str, str] = {
 
 def endpoints_sensibles() -> list[tuple[str, str, ast.FunctionDef]]:
     casos: list[tuple[str, str, ast.FunctionDef]] = []
-    for archivo in sorted(RUTAS.glob("api_*.py")):
+    for archivo in sorted(RUTAS.rglob("api*.py")):
         for funcion in _funciones_de(archivo):
             if not _es_endpoint(funcion):
                 continue
@@ -117,7 +117,7 @@ def test_los_exentos_siguen_existiendo() -> None:
     siguiente."""
     existentes = {
         f.name
-        for archivo in RUTAS.glob("api_*.py")
+        for archivo in RUTAS.rglob("api*.py")
         for f in _funciones_de(archivo)
         if _es_endpoint(f)
     }

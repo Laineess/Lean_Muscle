@@ -528,3 +528,138 @@ class ValidacionChequeo(Esquema):
 
 class RechazoChequeo(Esquema):
     motivo: str
+
+
+# ---------------------------------------------------------------------------
+# Panel de plataforma (superadmin)
+# ---------------------------------------------------------------------------
+
+
+class SuscripcionPublica(Esquema):
+    plan: str
+    precio: Decimal
+    periodicidad: str
+    estado: str
+    inicia_en: date
+    vigente_hasta: date | None
+    nota: str | None
+
+
+class FilaDeCoach(Esquema):
+    """Una coach vista desde la plataforma.
+
+    **Solo agregados.** Ninguna de estas cifras permite llegar a una alumna concreta: son
+    cuántas, no quiénes. Es la línea que sostiene que la plataforma sea Encargado y no
+    Responsable frente a la LFPDPPP.
+    """
+
+    ulid: str
+    nombre: str
+    slug: str
+    email: str
+    plan: str
+    limite_alumnas: int
+    estado: str
+    precio_ciclo: Decimal
+    creado_en: datetime
+
+    alumnas: int
+    alumnas_activas: int
+    chequeos_por_validar: int
+    chequeos_del_mes: int
+    fotos: int
+    mb_fotos: int
+    ultimo_acceso: datetime | None
+    #: Días sin que nadie de esa cuenta entre. Nulo si nunca ha entrado nadie.
+    dias_inactiva: int | None
+
+    suscripcion: SuscripcionPublica | None
+
+
+class AltaDeCoach(Esquema):
+    nombre: str
+    email: str
+    slug: str | None = None
+    plan: str = "basico"
+    limite_alumnas: int = 50
+    precio_ciclo: Decimal = Decimal(0)
+    color_acento: str = "#c9a227"
+    zona_horaria: str = "America/Mexico_City"
+
+
+class CoachDadaDeAlta(Esquema):
+    coach_ulid: str
+    email: str
+    #: Se devuelve una sola vez. Después solo queda su hash.
+    clave_temporal: str
+
+
+class EdicionDeCoach(Esquema):
+    nombre: str
+    plan: str
+    limite_alumnas: int
+    estado: str
+    precio_ciclo: Decimal
+    color_acento: str
+
+
+class EdicionDeSuscripcion(Esquema):
+    plan: str
+    precio: Decimal
+    periodicidad: str
+    estado: str
+    vigente_hasta: date | None = None
+    nota: str | None = None
+
+
+class CobroPublico(Esquema):
+    ulid: str
+    coach_ulid: str
+    monto: Decimal
+    fecha: date
+    metodo: str
+    periodo_inicia: date | None
+    periodo_termina: date | None
+    nota: str | None
+
+
+class CobroNuevo(Esquema):
+    monto: Decimal
+    fecha: date
+    metodo: str = "transferencia"
+    periodo_inicia: date | None = None
+    periodo_termina: date | None = None
+    nota: str | None = None
+
+
+class ResumenDeFacturacion(Esquema):
+    cobrado_en_el_ano: Decimal
+    facturacion_mensual_esperada: Decimal
+    coaches_al_corriente: int
+    coaches_vencidas: int
+    coaches_en_cortesia: int
+    por_mes: list[ResumenMes]
+
+
+class SaludPublica(Esquema):
+    """Lo que falla en silencio. Es lo que hay que mirar una vez al mes."""
+
+    avisos_pendientes: int
+    avisos_agotados: int
+    ultimo_aviso_enviado: datetime | None
+    fotos_por_purgar: int
+    mb_totales: int
+    suscripciones_push: int
+    sesiones_vivas: int
+    coaches_activas: int
+    coaches_inactivas: int
+
+
+class MovimientoDeAuditoria(Esquema):
+    """Sin `detalle` ni identificador de entidad: solo qué se hizo y en qué cuenta."""
+
+    cuando: datetime
+    coach: str
+    actor_tipo: str
+    accion: str
+    entidad: str

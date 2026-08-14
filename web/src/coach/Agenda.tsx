@@ -1,4 +1,8 @@
-/** Agenda de la coach: consultas y bloques de trabajo, con alta, edición y cancelación.
+/** Agenda de la coach: calendario con alta, edición y cancelación de citas.
+ *
+ *  Tres vistas —día, semana, mes— sobre la misma rejilla ([Calendario.tsx](./Calendario.tsx)),
+ *  que no sabe nada de la API. Aquí vive lo que sí: qué rango se pide, qué reglas se avisan
+ *  antes de enviar y qué hace cada botón.
  *
  *  Dos citas no pueden solaparse aunque una sea consulta y la otra un bloque propio: el
  *  tiempo de la coach es uno solo. Esa regla se evalúa aquí para avisar de inmediato, y se
@@ -7,9 +11,10 @@
  *  Cancelar exige motivo porque la alumna lo va a leer.
  */
 
-import { CalendarPlus, ChevronLeft, ChevronRight, Video } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { Calendario, CalendarioMes, type CitaEnRejilla } from "@/coach/Calendario";
 import { Dialogo } from "@/componentes/Dialogo";
 import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
 import {
@@ -17,15 +22,13 @@ import {
   Aviso,
   Boton,
   Campo,
-  Chip,
   Entrada,
   Etiqueta,
   Portada,
   Selector,
-  Vacio,
 } from "@/componentes/primitivas";
-import { ErrorApi, api, type CitaApi } from "@/lib/api";
-import { cartera } from "@/lib/datos";
+import { ErrorApi, api, type CitaApi, type FilaCarteraApi } from "@/lib/api";
+import { cartera as carteraDeEjemplo } from "@/lib/datos";
 import { usarApiConRespaldo } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +37,7 @@ import { cn } from "@/lib/utils";
 type TipoCita = "consulta" | "bloqueo";
 type EstadoCita = "agendada" | "confirmada" | "realizada" | "cancelada";
 type Modalidad = "presencial" | "video" | "telefono";
+type Vista = "dia" | "semana" | "mes";
 
 interface Cita {
   id: string;
@@ -68,33 +72,31 @@ const CITAS_INICIALES: Cita[] = [
 
 /* ------------------------------------------------------------- Utilidades --- */
 
-const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+const p2 = (n: number) => String(n).padStart(2, "0");
+
+function claveDe(d: Date): string {
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+}
 
 function lunesDe(fecha: Date): Date {
   const d = new Date(fecha);
-  const desplazamiento = (d.getDay() + 6) % 7; // lunes = 0
-  d.setDate(d.getDate() - desplazamiento);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // lunes = 0
   d.setHours(0, 0, 0, 0);
   return d;
-}
-
-function claveDia(iso: string): string {
-  return iso.slice(0, 10);
 }
 
 function hora(iso: string): string {
   return iso.slice(11, 16);
 }
 
-function minutos(iso: string): number {
-  const [h, m] = iso.slice(11, 16).split(":").map(Number);
-  return (h ?? 0) * 60 + (m ?? 0);
+function sumarMinutos(iso: string, minutos: number): string {
+  const d = new Date(iso);
+  d.setMinutes(d.getMinutes() + minutos);
+  return `${claveDe(d)}T${p2(d.getHours())}:${p2(d.getMinutes())}`;
 }
 
 function duracionMin(c: Pick<Cita, "iniciaEn" | "terminaEn">): number {
-  return (
-    (new Date(c.terminaEn).getTime() - new Date(c.iniciaEn).getTime()) / 60_000
-  );
+  return (new Date(c.terminaEn).getTime() - new Date(c.iniciaEn).getTime()) / 60_000;
 }
 
 /** Solape de intervalos medio abiertos: una cita que empieza cuando termina otra no choca. */
@@ -106,33 +108,12 @@ function buscarChoque(nueva: Cita, agenda: Cita[]): Cita | undefined {
   return agenda.find((c) => c.id !== nueva.id && c.estado !== "cancelada" && chocan(nueva, c));
 }
 
-function nombreAlumna(ulid: string | null): string | null {
-  if (!ulid) return null;
-  return cartera.find((a) => a.ulid === ulid)?.nombre ?? null;
-}
-
-const VACIA: Cita = {
-  id: "",
-  titulo: "",
-  tipo: "consulta",
-  estado: "agendada",
-  modalidad: "video",
-  alumnaUlid: null,
-  iniciaEn: "2026-08-17T09:00",
-  terminaEn: "2026-08-17T10:00",
-  notas: "",
-  motivoCancelacion: null,
-};
-
-/* ------------------------------------------------------------------ Vista --- */
-
 /** Traduce la cita de la API al formato local: la interfaz trabaja en hora local y la API
  *  en UTC, así que el corte se hace aquí y no en cada componente. */
 function deApi(c: CitaApi): Cita {
   const local = (iso: string) => {
     const d = new Date(iso);
-    const p = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    return `${claveDe(d)}T${p2(d.getHours())}:${p2(d.getMinutes())}`;
   };
   return {
     id: c.ulid,
@@ -160,50 +141,104 @@ function aApi(c: Cita) {
   };
 }
 
+const VACIA: Cita = {
+  id: "",
+  titulo: "",
+  tipo: "consulta",
+  estado: "agendada",
+  modalidad: "video",
+  alumnaUlid: null,
+  iniciaEn: "",
+  terminaEn: "",
+  notas: "",
+  motivoCancelacion: null,
+};
+
+/* ------------------------------------------------------------------ Vista --- */
+
 export function Agenda() {
-  const [semana, setSemana] = useState(() => lunesDe(new Date("2026-08-17T12:00:00")));
+  // En teléfono se abre en día: siete columnas en una pantalla de 6 pulgadas no se leen.
+  const [vista, setVista] = useState<Vista>(() =>
+    typeof window !== "undefined" && window.innerWidth < 640 ? "dia" : "semana",
+  );
+  const [ancla, setAncla] = useState(() => new Date());
   const [editando, setEditando] = useState<Cita | null>(null);
   const [cancelando, setCancelando] = useState<Cita | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
 
-  const desde = semana.toISOString();
+  /* ---- Qué rango se pide según la vista ---- */
+  const rango = useMemo(() => {
+    if (vista === "dia") {
+      const d = new Date(ancla);
+      d.setHours(0, 0, 0, 0);
+      return { inicio: d, dias: 1 };
+    }
+    if (vista === "semana") return { inicio: lunesDe(ancla), dias: 7 };
+
+    // El mes se pide completo con los días de relleno de las semanas de los extremos: si no,
+    // el 31 de julio aparecería vacío en la primera fila de agosto.
+    const primero = new Date(ancla.getFullYear(), ancla.getMonth(), 1);
+    return { inicio: lunesDe(primero), dias: 42 };
+  }, [vista, ancla]);
+
+  const desde = rango.inicio.toISOString();
   const carga = usarApiConRespaldo<CitaApi[]>(
-    (senal) => api.coach.agenda(desde, 7, senal),
+    (senal) => api.coach.agenda(desde, rango.dias, senal),
     [],
-    [desde],
+    [desde, rango.dias],
+  );
+
+  // La cartera real, para el selector de alumna y para poner su nombre en cada cita.
+  const alumnas = usarApiConRespaldo<FilaCarteraApi[]>(
+    (senal) => api.coach.alumnas(senal),
+    carteraDeEjemplo as unknown as FilaCarteraApi[],
   );
 
   // Sin servidor se trabaja sobre los datos de ejemplo, en memoria. Con servidor, la
   // escritura va a la API y se recarga: el solape lo decide el dominio, no el navegador.
   const [enMemoria, setEnMemoria] = useState<Cita[]>(CITAS_INICIALES);
   const citas = carga.sinServidor ? enMemoria : carga.datos.map(deApi);
-  const setCitas = setEnMemoria;
+
+  const nombreAlumna = (ulid: string | null) =>
+    ulid ? (alumnas.datos.find((a) => a.ulid === ulid)?.nombre ?? null) : null;
 
   const dias = useMemo(
     () =>
-      DIAS.map((rotulo, i) => {
-        const d = new Date(semana);
+      Array.from({ length: vista === "mes" ? 0 : rango.dias }, (_, i) => {
+        const d = new Date(rango.inicio);
         d.setDate(d.getDate() + i);
-        const clave = d.toISOString().slice(0, 10);
-        return {
-          rotulo,
-          clave,
-          numero: d.getDate(),
-          citas: citas
-            .filter((c) => claveDia(c.iniciaEn) === clave)
-            .sort((a, b) => minutos(a.iniciaEn) - minutos(b.iniciaEn)),
-        };
+        return claveDe(d);
       }),
-    [semana, citas],
+    [rango, vista],
   );
+
+  const enRejilla: CitaEnRejilla[] = citas.map((c) => ({
+    id: c.id,
+    titulo: c.titulo,
+    subtitulo: nombreAlumna(c.alumnaUlid),
+    iniciaEn: c.iniciaEn,
+    terminaEn: c.terminaEn,
+    tono: c.estado === "cancelada" ? "cancelada" : c.tipo === "consulta" ? "consulta" : "bloqueo",
+  }));
 
   const consultas = citas.filter((c) => c.tipo === "consulta" && c.estado !== "cancelada").length;
 
-  function moverSemana(delta: number) {
-    const d = new Date(semana);
-    d.setDate(d.getDate() + delta * 7);
-    setSemana(d);
+  function mover(direccion: -1 | 1) {
+    const d = new Date(ancla);
+    if (vista === "dia") d.setDate(d.getDate() + direccion);
+    else if (vista === "semana") d.setDate(d.getDate() + direccion * 7);
+    else d.setMonth(d.getMonth() + direccion);
+    setAncla(d);
   }
+
+  const rotuloRango =
+    vista === "mes"
+      ? ancla.toLocaleDateString("es-MX", { month: "long", year: "numeric" })
+      : vista === "dia"
+        ? ancla.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" })
+        : `${rango.inicio.toLocaleDateString("es-MX", { day: "numeric", month: "short" })} – ${new Date(
+            rango.inicio.getTime() + 6 * 86_400_000,
+          ).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}`;
 
   /** Ejecuta la mutación contra la API y recarga; si no hay servidor, la aplica en memoria.
    *
@@ -228,7 +263,7 @@ export function Agenda() {
     await mutar(
       () => (cita.id ? api.coach.editarCita(cita.id, aApi(cita)) : api.coach.agendar(aApi(cita))),
       () =>
-        setCitas((previas) =>
+        setEnMemoria((previas) =>
           cita.id
             ? previas.map((c) => (c.id === cita.id ? cita : c))
             : [...previas, { ...cita, id: crypto.randomUUID() }],
@@ -241,7 +276,7 @@ export function Agenda() {
     await mutar(
       () => api.coach.cancelarCita(cita.id, motivo),
       () =>
-        setCitas((previas) =>
+        setEnMemoria((previas) =>
           previas.map((c) =>
             c.id === cita.id ? { ...c, estado: "cancelada", motivoCancelacion: motivo } : c,
           ),
@@ -253,15 +288,21 @@ export function Agenda() {
   async function eliminar(id: string) {
     await mutar(
       () => api.coach.eliminarCita(id),
-      () => setCitas((previas) => previas.filter((c) => c.id !== id)),
+      () => setEnMemoria((previas) => previas.filter((c) => c.id !== id)),
     );
     setEditando(null);
+  }
+
+  /** Tocar un hueco abre el alta ya con esa hora puesta. Es el gesto que se usa el 90 % de
+   *  las veces; obligar a teclear la fecha después de haber señalado el hueco sobra. */
+  function abrirEn(iso: string) {
+    setEditando({ ...VACIA, iniciaEn: iso, terminaEn: sumarMinutos(iso, 60) });
   }
 
   if (carga.cargando) return <Cargando que="tu agenda" />;
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-6">
       {carga.sinServidor ? <AvisoSinServidor mensaje={carga.mensaje} /> : null}
       {fallo ? (
         <Aviso tono="error" titulo="No se pudo guardar">
@@ -276,95 +317,79 @@ export function Agenda() {
           </Etiqueta>
           <Portada>Agenda</Portada>
         </div>
-        <Boton
-          onClick={() => setEditando({ ...VACIA, iniciaEn: `${dias[0]!.clave}T09:00`, terminaEn: `${dias[0]!.clave}T10:00` })}
-        >
+        <Boton onClick={() => abrirEn(`${dias[0] ?? claveDe(ancla)}T09:00`)}>
           <CalendarPlus className="size-4" /> Agendar
         </Boton>
       </header>
 
-      {/* ---- Navegación de semana ---- */}
-      <div className="flex items-center justify-between gap-3">
-        <Boton tono="contorno" medida="icono" onClick={() => moverSemana(-1)} aria-label="Semana anterior">
-          <ChevronLeft className="size-4" />
+      {/* ---- Barra de navegación: hoy, flechas, rango y cambio de vista ---- */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Boton tono="contorno" medida="chica" onClick={() => setAncla(new Date())}>
+          Hoy
         </Boton>
-        <p className="text-menor font-medium">
-          {new Date(dias[0]!.clave).toLocaleDateString("es-MX", { day: "numeric", month: "long" })} —{" "}
-          {new Date(dias[6]!.clave).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })}
-        </p>
-        <Boton tono="contorno" medida="icono" onClick={() => moverSemana(1)} aria-label="Semana siguiente">
-          <ChevronRight className="size-4" />
-        </Boton>
+        <div className="flex items-center">
+          <Boton tono="discreto" medida="icono" onClick={() => mover(-1)} aria-label="Anterior">
+            <ChevronLeft className="size-4" />
+          </Boton>
+          <Boton tono="discreto" medida="icono" onClick={() => mover(1)} aria-label="Siguiente">
+            <ChevronRight className="size-4" />
+          </Boton>
+        </div>
+
+        <p className="text-menor font-medium first-letter:uppercase">{rotuloRango}</p>
+
+        <div
+          role="tablist"
+          aria-label="Vista del calendario"
+          className="ml-auto flex overflow-hidden rounded-marco border border-linea-fuerte"
+        >
+          {(["dia", "semana", "mes"] as const).map((v) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={vista === v}
+              onClick={() => setVista(v)}
+              className={cn(
+                "h-8 px-3 text-micro font-medium transition-colors",
+                vista === v ? "bg-tinta text-fondo" : "text-tinta-media hover:bg-fondo-sutil",
+              )}
+            >
+              {v === "dia" ? "Día" : v === "semana" ? "Semana" : "Mes"}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* ---- Rejilla semanal. En teléfono se apila un día tras otro. ---- */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {dias.map((dia) => (
-          <section key={dia.clave} className="flex flex-col gap-2">
-            <div className="flex items-baseline justify-between border-b border-linea pb-2">
-              <h2 className="text-menor font-semibold">{dia.rotulo}</h2>
-              <span className="cifra text-micro text-tinta-suave">{dia.numero}</span>
-            </div>
+      {vista === "mes" ? (
+        <CalendarioMes
+          ancla={ancla}
+          citas={enRejilla}
+          onTocarDia={(dia) => {
+            setAncla(new Date(`${dia}T12:00:00`));
+            setVista("dia");
+          }}
+          onTocarCita={(id) => setEditando(citas.find((c) => c.id === id) ?? null)}
+        />
+      ) : (
+        <Calendario
+          dias={dias}
+          citas={enRejilla}
+          onTocarHueco={abrirEn}
+          onTocarCita={(id) => setEditando(citas.find((c) => c.id === id) ?? null)}
+        />
+      )}
 
-            {dia.citas.length === 0 ? (
-              <button
-                onClick={() => setEditando({ ...VACIA, iniciaEn: `${dia.clave}T09:00`, terminaEn: `${dia.clave}T10:00` })}
-                className="rounded-marco border border-dashed border-linea py-6 text-micro text-tinta-suave transition-colors hover:border-tinta hover:text-tinta"
-              >
-                Libre · agendar
-              </button>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {dia.citas.map((c) => (
-                  <li key={c.id}>
-                    <button
-                      onClick={() => setEditando(c)}
-                      className={cn(
-                        "flex w-full flex-col gap-1 rounded-marco border border-linea border-l-2 p-3 text-left transition-colors hover:border-tinta",
-                        c.estado === "cancelada"
-                          ? "border-l-linea opacity-50"
-                          : c.tipo === "consulta"
-                            ? "border-l-acento"
-                            : "border-l-tinta-suave",
-                      )}
-                    >
-                      <span className="cifra text-micro font-semibold text-tinta-media">
-                        {hora(c.iniciaEn)}–{hora(c.terminaEn)}
-                      </span>
-                      <span
-                        className={cn(
-                          "text-menor font-medium",
-                          c.estado === "cancelada" && "line-through",
-                        )}
-                      >
-                        {c.titulo}
-                      </span>
-                      {nombreAlumna(c.alumnaUlid) ? (
-                        <span className="text-micro text-tinta-suave">{nombreAlumna(c.alumnaUlid)}</span>
-                      ) : null}
-                      <span className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                        {c.tipo === "bloqueo" ? <Chip>Bloque</Chip> : null}
-                        {c.estado === "confirmada" ? <Chip tono="exito">Confirmada</Chip> : null}
-                        {c.estado === "cancelada" ? <Chip tono="error">Cancelada</Chip> : null}
-                        {c.modalidad === "video" && c.estado !== "cancelada" ? (
-                          <Video className="size-3 text-tinta-suave" />
-                        ) : null}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        ))}
+      <div className="flex flex-wrap items-center gap-4">
+        <Leyenda tono="bg-acento">Consulta</Leyenda>
+        <Leyenda tono="bg-tinta-suave">Bloque de trabajo</Leyenda>
+        <Apoyo>Toca un hueco para agendar ahí.</Apoyo>
       </div>
-
-      {citas.length === 0 ? <Vacio>Tu semana está libre.</Vacio> : null}
 
       {editando ? (
         <FormularioCita
           cita={editando}
           agenda={citas}
+          alumnas={alumnas.datos}
           onGuardar={guardar}
           onCancelarCita={(c) => {
             setEditando(null);
@@ -378,6 +403,7 @@ export function Agenda() {
       {cancelando ? (
         <FormularioCancelacion
           cita={cancelando}
+          nombreAlumna={nombreAlumna(cancelando.alumnaUlid)}
           onConfirmar={cancelar}
           onCerrar={() => setCancelando(null)}
         />
@@ -386,11 +412,21 @@ export function Agenda() {
   );
 }
 
+function Leyenda({ tono, children }: { tono: string; children: string }) {
+  return (
+    <span className="flex items-center gap-2 text-micro text-tinta-media">
+      <span className={cn("h-3 w-1 rounded-full", tono)} />
+      {children}
+    </span>
+  );
+}
+
 /* ------------------------------------------------------------ Formulario --- */
 
 function FormularioCita({
   cita,
   agenda,
+  alumnas,
   onGuardar,
   onCancelarCita,
   onEliminar,
@@ -398,6 +434,7 @@ function FormularioCita({
 }: {
   cita: Cita;
   agenda: Cita[];
+  alumnas: FilaCarteraApi[];
   onGuardar: (c: Cita) => void;
   onCancelarCita: (c: Cita) => void;
   onEliminar: (id: string) => void;
@@ -447,7 +484,11 @@ function FormularioCita({
           <Boton tono="contorno" medida="chica" onClick={onCerrar}>
             Cerrar
           </Boton>
-          <Boton medida="chica" disabled={problema !== null || choque !== undefined} onClick={() => onGuardar(borrador)}>
+          <Boton
+            medida="chica"
+            disabled={problema !== null || choque !== undefined}
+            onClick={() => onGuardar(borrador)}
+          >
             {esNueva ? "Agendar" : "Guardar"}
           </Boton>
         </>
@@ -500,7 +541,7 @@ function FormularioCita({
             onChange={(e) => cambiar("alumnaUlid", e.target.value || null)}
           >
             <option value="">Elige una…</option>
-            {cartera.map((a) => (
+            {alumnas.map((a) => (
               <option key={a.ulid} value={a.ulid}>
                 {a.nombre}
               </option>
@@ -515,7 +556,16 @@ function FormularioCita({
             id="cita-inicia"
             type="datetime-local"
             value={borrador.iniciaEn}
-            onChange={(e) => cambiar("iniciaEn", e.target.value)}
+            onChange={(e) => {
+              // Mover el inicio arrastra el fin y conserva la duración: es lo que se espera
+              // al reagendar, y evita dejar una cita con fin anterior al inicio.
+              const previa = duracionMin(borrador);
+              setBorrador((b) => ({
+                ...b,
+                iniciaEn: e.target.value,
+                terminaEn: sumarMinutos(e.target.value, previa > 0 ? previa : 60),
+              }));
+            }}
           />
         </Campo>
         <Campo
@@ -530,6 +580,19 @@ function FormularioCita({
             onChange={(e) => cambiar("terminaEn", e.target.value)}
           />
         </Campo>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {[30, 45, 60, 90].map((min) => (
+          <Boton
+            key={min}
+            tono={duracion === min ? "solido" : "contorno"}
+            medida="chica"
+            onClick={() => cambiar("terminaEn", sumarMinutos(borrador.iniciaEn, min))}
+          >
+            {min} min
+          </Boton>
+        ))}
       </div>
 
       <Campo id="cita-notas" etiqueta="Notas">
@@ -562,10 +625,12 @@ function FormularioCita({
 
 function FormularioCancelacion({
   cita,
+  nombreAlumna,
   onConfirmar,
   onCerrar,
 }: {
   cita: Cita;
+  nombreAlumna: string | null;
   onConfirmar: (c: Cita, motivo: string) => void;
   onCerrar: () => void;
 }) {
@@ -595,8 +660,8 @@ function FormularioCancelacion({
       }
     >
       <Apoyo>
-        {nombreAlumna(cita.alumnaUlid)
-          ? `${nombreAlumna(cita.alumnaUlid)} recibirá un aviso con el motivo tal como lo escribas.`
+        {nombreAlumna
+          ? `${nombreAlumna} recibirá un aviso con el motivo tal como lo escribas.`
           : "El bloque se libera y la hora vuelve a quedar disponible."}
       </Apoyo>
 

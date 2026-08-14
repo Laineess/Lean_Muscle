@@ -114,7 +114,7 @@ async function subir<T>(
 /* ------------------------------------------------------------------ Tipos --- */
 
 export interface ActorPublico {
-  rol: "alumna" | "coach";
+  rol: "alumna" | "coach" | "admin_plataforma";
   nombre: string;
   correo: string;
   colorAcento: string;
@@ -453,6 +453,118 @@ export interface MensajeApi {
   leidoEn: string | null;
 }
 
+/* ------------------------------------------------------- Panel de plataforma --- */
+
+export interface SuscripcionApi {
+  plan: string;
+  precio: number;
+  periodicidad: "mensual" | "anual";
+  estado: "cortesia" | "al_corriente" | "por_vencer" | "vencida" | "cancelada";
+  iniciaEn: string;
+  vigenteHasta: string | null;
+  nota: string | null;
+}
+
+/** Una coach vista desde la plataforma. **Solo agregados: ninguna cifra llega a una alumna.** */
+export interface FilaDeCoachApi {
+  ulid: string;
+  nombre: string;
+  slug: string;
+  email: string;
+  plan: string;
+  limiteAlumnas: number;
+  estado: string;
+  precioCiclo: number;
+  creadoEn: string;
+  alumnas: number;
+  alumnasActivas: number;
+  chequeosPorValidar: number;
+  chequeosDelMes: number;
+  fotos: number;
+  mbFotos: number;
+  ultimoAcceso: string | null;
+  diasInactiva: number | null;
+  suscripcion: SuscripcionApi | null;
+}
+
+export interface AltaDeCoachApi {
+  nombre: string;
+  email: string;
+  slug: string | null;
+  plan: string;
+  limiteAlumnas: number;
+  precioCiclo: number;
+  colorAcento: string;
+  zonaHoraria: string;
+}
+
+export interface EdicionDeCoachApi {
+  nombre: string;
+  plan: string;
+  limiteAlumnas: number;
+  estado: string;
+  precioCiclo: number;
+  colorAcento: string;
+}
+
+export interface EdicionDeSuscripcionApi {
+  plan: string;
+  precio: number;
+  periodicidad: string;
+  estado: string;
+  vigenteHasta: string | null;
+  nota: string | null;
+}
+
+export interface CobroApi {
+  ulid: string;
+  coachUlid: string;
+  monto: number;
+  fecha: string;
+  metodo: string;
+  periodoInicia: string | null;
+  periodoTermina: string | null;
+  nota: string | null;
+}
+
+export interface CobroNuevoApi {
+  monto: number;
+  fecha: string;
+  metodo: string;
+  periodoInicia: string | null;
+  periodoTermina: string | null;
+  nota: string | null;
+}
+
+export interface FacturacionApi {
+  cobradoEnElAno: number;
+  facturacionMensualEsperada: number;
+  coachesAlCorriente: number;
+  coachesVencidas: number;
+  coachesEnCortesia: number;
+  porMes: { mes: string; ingresos: number; gastos: number; utilidad: number }[];
+}
+
+export interface SaludApi {
+  avisosPendientes: number;
+  avisosAgotados: number;
+  ultimoAvisoEnviado: string | null;
+  fotosPorPurgar: number;
+  mbTotales: number;
+  suscripcionesPush: number;
+  sesionesVivas: number;
+  coachesActivas: number;
+  coachesInactivas: number;
+}
+
+export interface MovimientoDeAuditoriaApi {
+  cuando: string;
+  coach: string;
+  actorTipo: string;
+  accion: string;
+  entidad: string;
+}
+
 export interface PlanGuardadoApi {
   tipo: "nutricion" | "entrenamiento";
   contenido: Record<string, unknown>;
@@ -502,6 +614,38 @@ export const api = {
       pedir<MensajeApi[]>("/mi/mensajes", senal ? { senal } : {}),
     escribir: (cuerpo: string) =>
       pedir<MensajeApi>("/mi/mensajes", { metodo: "POST", cuerpo: { cuerpo } }),
+  },
+
+  /** Panel del superadmin. Requiere rol `admin_plataforma`; una coach recibe 403. */
+  plataforma: {
+    coaches: (senal?: AbortSignal) =>
+      pedir<FilaDeCoachApi[]>("/plataforma/coaches", senal ? { senal } : {}),
+    darDeAltaCoach: (c: AltaDeCoachApi) =>
+      pedir<{ coachUlid: string; email: string; claveTemporal: string }>("/plataforma/coaches", {
+        metodo: "POST",
+        cuerpo: c,
+      }),
+    editarCoach: (ulid: string, c: EdicionDeCoachApi) =>
+      pedir<FilaDeCoachApi>(`/plataforma/coaches/${ulid}`, { metodo: "PUT", cuerpo: c }),
+
+    editarSuscripcion: (ulid: string, s: EdicionDeSuscripcionApi) =>
+      pedir<SuscripcionApi>(`/plataforma/coaches/${ulid}/suscripcion`, {
+        metodo: "PUT",
+        cuerpo: s,
+      }),
+    cobros: (ulid: string, senal?: AbortSignal) =>
+      pedir<CobroApi[]>(`/plataforma/coaches/${ulid}/cobros`, senal ? { senal } : {}),
+    registrarCobro: (ulid: string, c: CobroNuevoApi) =>
+      pedir<CobroApi>(`/plataforma/coaches/${ulid}/cobros`, { metodo: "POST", cuerpo: c }),
+
+    facturacion: (meses = 12, senal?: AbortSignal) =>
+      pedir<FacturacionApi>(`/plataforma/facturacion?meses=${meses}`, senal ? { senal } : {}),
+    salud: (senal?: AbortSignal) => pedir<SaludApi>("/plataforma/salud", senal ? { senal } : {}),
+    auditoria: (limite = 100, senal?: AbortSignal) =>
+      pedir<MovimientoDeAuditoriaApi[]>(
+        `/plataforma/auditoria?limite=${limite}`,
+        senal ? { senal } : {},
+      ),
   },
 
   push: {

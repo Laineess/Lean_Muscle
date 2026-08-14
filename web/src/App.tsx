@@ -19,6 +19,10 @@ import { MarcoCoach } from "@/coach/Marco";
 import { Panel } from "@/coach/Panel";
 import { Validacion } from "@/coach/Validacion";
 import { registrarTrabajador } from "@/lib/push";
+import { Coaches } from "@/plataforma/Coaches";
+import { Facturacion } from "@/plataforma/Facturacion";
+import { MarcoPlataforma } from "@/plataforma/Marco";
+import { Salud } from "@/plataforma/Salud";
 import { actorGuardado, rolActual, type Rol } from "@/lib/sesion";
 
 /** Guarda de ruta.
@@ -32,15 +36,20 @@ function Exige({ rol, children }: { rol: Rol; children: React.ReactNode }) {
   const actual = rolActual();
 
   if (actual === null) return <Navigate to="/acceso" replace state={{ desde: pathname }} />;
-  if (actual !== rol) return <Navigate to={actual === "coach" ? "/coach" : "/inicio"} replace />;
+  if (actual !== rol) return <Navigate to={INICIO_DE[actual]} replace />;
   return <>{children}</>;
 }
 
+/** A dónde va cada rol al entrar. */
+const INICIO_DE: Record<NonNullable<Rol>, string> = {
+  coach: "/coach",
+  alumna: "/inicio",
+  admin_plataforma: "/plataforma",
+};
+
 function Entrada() {
   const actual = rolActual();
-  if (actual === "coach") return <Navigate to="/coach" replace />;
-  if (actual === "alumna") return <Navigate to="/inicio" replace />;
-  return <Navigate to="/acceso" replace />;
+  return <Navigate to={actual ? INICIO_DE[actual] : "/acceso"} replace />;
 }
 
 export function App() {
@@ -107,6 +116,18 @@ export function App() {
         <Route path="/coach/mensajes/:alumnaUlid" element={<Conversacion />} />
         <Route path="/coach/validar/:alumnaUlid" element={<Validacion />} />
         <Route path="/coach/plan/:alumnaUlid" element={<Constructor />} />
+      </Route>
+
+      <Route
+        element={
+          <Exige rol="admin_plataforma">
+            <MarcoPlataforma />
+          </Exige>
+        }
+      >
+        <Route path="/plataforma" element={<Coaches />} />
+        <Route path="/plataforma/facturacion" element={<Facturacion />} />
+        <Route path="/plataforma/salud" element={<Salud />} />
       </Route>
 
       <Route path="*" element={<Entrada />} />

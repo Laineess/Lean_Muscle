@@ -12,11 +12,10 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from app.config import ajustes
-from app.datos.base import Base
-
 # Importar los modelos puebla Base.metadata; sin esta linea el autogenerate ve un esquema vacio.
 import app.datos.modelos  # noqa: F401
+from app.config import ajustes
+from app.datos.base import Base
 
 config = context.config
 config.set_main_option("sqlalchemy.url", ajustes().bd_url)

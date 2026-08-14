@@ -40,6 +40,17 @@ class Actor:
     def es_alumna(self) -> bool:
         return self.rol == "alumna"
 
+    @property
+    def es_admin(self) -> bool:
+        """Superadmin de la plataforma.
+
+        Su usuario cuelga de un inquilino igual que cualquier otro —el de la propia
+        plataforma— para no romper la invariante de que **todo usuario tiene `coach_id`**.
+        Lo que lo distingue no es de quien cuelga, sino que sus rutas abren sesion sin
+        alcance con motivo por escrito.
+        """
+        return self.rol == "admin_plataforma"
+
 
 def _falla(codigo: Codigo) -> HTTPException:
     estado, texto = respuesta_para(codigo)
@@ -89,6 +100,13 @@ def solo_coach(actor: Annotated[Actor, Depends(actor_actual)]) -> Actor:
 
 def solo_alumna(actor: Annotated[Actor, Depends(actor_actual)]) -> Actor:
     if not actor.es_alumna:
+        raise _falla(Codigo.SIN_PERMISO)
+    return actor
+
+
+def solo_admin(actor: Annotated[Actor, Depends(actor_actual)]) -> Actor:
+    """Superadmin. **Una coach no lo es aunque sea la unica del sistema.**"""
+    if not actor.es_admin:
         raise _falla(Codigo.SIN_PERMISO)
     return actor
 

@@ -18,10 +18,9 @@ from collections.abc import Sequence
 
 from alembic import op
 
-from app.datos.base import Base
-
 # Importar los modelos puebla Base.metadata. Sin esta línea el esquema sale vacío.
 import app.datos.modelos  # noqa: F401
+from app.datos.base import Base
 
 revision: str = "0001_inicial"
 down_revision: str | None = None

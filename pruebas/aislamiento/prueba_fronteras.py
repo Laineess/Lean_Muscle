@@ -89,6 +89,11 @@ def test_toda_entidad_con_datos_de_alumnas_lleva_coach_id() -> None:
         "Ejercicio",  # idem
         "Vulneracion",  # una vulneracion puede cruzar inquilinos
         "Trabajo",  # cola de trabajos del sistema
+        # Lo que la coach le paga a la plataforma. Es un dato *sobre* el inquilino, no *del*
+        # inquilino: pertenece a la relacion comercial, igual que la fila de `coach`. Si
+        # llevaran el filtro, el superadmin —que no es coach de nadie— no veria ninguna.
+        "SuscripcionCoach",
+        "CobroCoach",
     }
 
     fuente = (APP / "datos" / "modelos.py").read_text(encoding="utf-8")

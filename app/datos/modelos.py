@@ -768,3 +768,69 @@ class Trabajo(Base):
     max_intentos: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     ultimo_error: Mapped[str | None] = mapped_column(Text)
     terminado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# ---------------------------------------------------------------------------
+# 10. La plataforma cobrando a sus coaches
+# ---------------------------------------------------------------------------
+
+
+class SuscripcionCoach(Base):
+    """Lo que cada coach le paga a la plataforma.
+
+    **No hereda de `BaseMultiInquilino` y eso es deliberado.** Es un dato *sobre* el
+    inquilino, no *del* inquilino: pertenece a la relacion comercial entre la plataforma y la
+    coach, igual que la fila de `coach`. Si heredara, el gancho de alcance lo filtraria por la
+    sesion en curso y el superadmin —que no es coach de nadie— no veria ninguna.
+
+    Sin pasarela de pago: la coach paga por transferencia y aqui se registra si esta al
+    corriente. El dia que se conecte un cobro automatico, estas columnas ya describen el
+    estado que la pasarela tendria que sincronizar.
+    """
+
+    __tablename__ = "suscripcion_coach"
+    __table_args__ = (
+        UniqueConstraint("coach_id", name="uq_suscripcion_coach"),
+        CheckConstraint(
+            "estado in ('cortesia','al_corriente','por_vencer','vencida','cancelada')",
+            name="estado_valido",
+        ),
+        CheckConstraint("periodicidad in ('mensual','anual')", name="periodicidad_valida"),
+        ARGS_DE_TABLA,
+    )
+
+    coach_id: Mapped[int] = mapped_column(ForeignKey("coach.id"), nullable=False)
+    plan: Mapped[str] = mapped_column(String(40), default="basico", nullable=False)
+    precio: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
+    periodicidad: Mapped[str] = mapped_column(String(10), default="mensual", nullable=False)
+    estado: Mapped[str] = mapped_column(String(20), default="cortesia", nullable=False)
+
+    inicia_en: Mapped[date] = mapped_column(Date, nullable=False)
+    #: Hasta cuando esta pagado. Es la fecha que decide si aparece en morosidad.
+    vigente_hasta: Mapped[date | None] = mapped_column(Date)
+    nota: Mapped[str | None] = mapped_column(Text)
+
+
+class CobroCoach(Base):
+    """Un pago recibido de una coach. Solo insercion.
+
+    Corregir un cobro mal capturado se hace con otro cobro en negativo, no editando el
+    anterior: lo que se cobro es un hecho, y un historial que se puede reescribir no sirve
+    para cuadrar cuentas ni para responder una aclaracion.
+    """
+
+    __tablename__ = "cobro_coach"
+    __table_args__ = (Index("ix_cobro_coach_fecha", "coach_id", "fecha"), ARGS_DE_TABLA)
+
+    coach_id: Mapped[int] = mapped_column(ForeignKey("coach.id"), nullable=False)
+    monto: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    fecha: Mapped[date] = mapped_column(Date, nullable=False)
+    metodo: Mapped[str] = mapped_column(String(40), default="transferencia", nullable=False)
+
+    #: Que periodo cubre. Es lo que permite decir "pago hasta marzo" sin recalcular nada.
+    periodo_inicia: Mapped[date | None] = mapped_column(Date)
+    periodo_termina: Mapped[date | None] = mapped_column(Date)
+
+    nota: Mapped[str | None] = mapped_column(Text)
+    #: Quien lo capturo. Siempre un usuario con rol `admin_plataforma`.
+    registrado_por: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))

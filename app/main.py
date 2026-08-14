@@ -26,6 +26,7 @@ from app.rutas import (
     api_medios,
     auth,
 )
+from app.rutas.plataforma import api as api_plataforma
 from app.rutas.traduccion import respuesta_para
 
 RAIZ = Path(__file__).resolve().parent
@@ -87,6 +88,7 @@ app.include_router(api_biblioteca.ruteador)
 app.include_router(api_finanzas.ruteador)
 app.include_router(api_documentos.ruteador)
 app.include_router(api_medios.ruteador)
+app.include_router(api_plataforma.ruteador)
 
 
 @app.get("/salud", tags=["sistema"])

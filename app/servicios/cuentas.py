@@ -211,3 +211,80 @@ def cambiar_contrasena(s: Session, usuario_id: int, actual: str, nueva: str) -> 
     for sesion in s.scalars(select(Sesion).where(Sesion.usuario_id == usuario_id)):
         if sesion.revocada_en is None:
             sesion.revocada_en = ahora_utc()
+
+
+def dar_de_alta_coach(
+    s: Session,
+    *,
+    nombre: str,
+    correo: str,
+    slug: str | None,
+    plan: str,
+    limite_alumnas: int,
+    precio_ciclo: Decimal,
+    color_acento: str,
+    zona_horaria: str,
+) -> tuple[str, str, str]:
+    """Crea un inquilino nuevo con su usuaria coach. Devuelve (ulid, correo, clave temporal).
+
+    Solo lo llama el superadmin, con una sesion sin alcance: aqui se esta creando el
+    inquilino, asi que todavia no hay inquilino al que atarse.
+
+    El `slug` se deriva del nombre si no viene. Sirve para el subdominio y para la marca, y
+    es unico en toda la plataforma.
+    """
+    from app.datos.modelos import Coach as FilaCoach
+
+    correo = normalizar_correo(correo)
+    if not nombre.strip():
+        raise ErrorDeDominio(Codigo.CONCEPTO_REQUERIDO)
+
+    ya = s.scalars(
+        select(Usuario).where(Usuario.email == correo).execution_options(sin_alcance=True)
+    ).first()
+    if ya is not None:
+        raise ErrorDeDominio(Codigo.CORREO_YA_REGISTRADO, correo=correo)
+
+    candidato = _slug_de(slug or nombre)
+    tomado = s.scalars(select(FilaCoach).where(FilaCoach.slug == candidato)).first()
+    if tomado is not None:
+        raise ErrorDeDominio(Codigo.CONCEPTO_REQUERIDO, slug=candidato)
+
+    coach = FilaCoach(
+        nombre=nombre.strip(),
+        slug=candidato,
+        email=correo,
+        plan=plan,
+        limite_alumnas=limite_alumnas,
+        precio_ciclo=precio_ciclo,
+        color_acento=color_acento,
+        zona_horaria=zona_horaria,
+        estado="activa",
+    )
+    s.add(coach)
+    s.flush()
+
+    clave = nueva_clave_temporal()
+    s.add(
+        Usuario(
+            coach_id=coach.id,
+            rol="coach",
+            email=correo,
+            hash_contrasena=hash_contrasena(clave),
+            estado="activo",
+            # Igual que con las alumnas: una clave que otra persona conoce no es contrasena.
+            debe_cambiar_contrasena=True,
+        )
+    )
+    return coach.ulid, correo, clave
+
+
+def _slug_de(texto: str) -> str:
+    """Minusculas, sin tildes y con guiones. Va en la URL y en la marca."""
+    import re
+    import unicodedata
+
+    plano = unicodedata.normalize("NFKD", texto)
+    plano = "".join(c for c in plano if not unicodedata.combining(c))
+    plano = re.sub(r"[^a-zA-Z0-9]+", "-", plano).strip("-").lower()
+    return plano[:60] or "coach"

@@ -27,6 +27,7 @@ from app.datos.modelos import (
     Chequeo,
     Ciclo,
     Coach,
+    CobroCoach,
     Consentimiento,
     Ejercicio,
     Foto,
@@ -37,6 +38,7 @@ from app.datos.modelos import (
     ParametrosCiclo,
     Pesaje,
     Plan,
+    SuscripcionCoach,
     Usuario,
 )
 from app.datos.sin_alcance import sesion_sin_alcance
@@ -863,6 +865,76 @@ def sembrar_catalogos(sesion: Any) -> None:
         )
 
 
+def sembrar_plataforma(sesion: Any, coach_ids: list[int]) -> None:
+    """El inquilino de la propia plataforma, su superadmin y las suscripciones de ejemplo.
+
+    El superadmin cuelga de un inquilino igual que cualquier otro usuario —el de la
+    plataforma— para no romper la invariante de que **todo usuario tiene `coach_id`**. Lo que
+    lo distingue no es de quien cuelga, sino su rol y que sus rutas abren sesion sin alcance
+    con motivo por escrito.
+    """
+    plataforma = Coach(
+        nombre="MyProgressPlan",
+        slug="plataforma",
+        email="hola@myprogressplan.com",
+        plan="plataforma",
+        limite_alumnas=0,
+        color_acento="#c9a227",
+        estado="activa",
+    )
+    sesion.add(plataforma)
+    sesion.flush()
+
+    sesion.add(
+        Usuario(
+            coach_id=plataforma.id,
+            rol="admin_plataforma",
+            email="admin@myprogressplan.com",
+            hash_contrasena=hash_contrasena(CLAVE_DEMO),
+            estado="activo",
+        )
+    )
+
+    hoy = date.today()
+    # Una al corriente y una en cortesia: el panel de facturacion no se entiende con una sola
+    # fila, y los dos estados se pintan distinto.
+    sesion.add(
+        SuscripcionCoach(
+            coach_id=coach_ids[0],
+            plan="profesional",
+            precio=Decimal("1500.00"),
+            periodicidad="mensual",
+            estado="al_corriente",
+            inicia_en=hoy - timedelta(days=120),
+            vigente_hasta=hoy + timedelta(days=20),
+        )
+    )
+    sesion.add(
+        SuscripcionCoach(
+            coach_id=coach_ids[1],
+            plan="basico",
+            precio=Decimal(0),
+            periodicidad="mensual",
+            estado="cortesia",
+            inicia_en=hoy - timedelta(days=30),
+            nota="Primeros tres meses sin costo.",
+        )
+    )
+
+    for i in range(4):
+        inicio = (hoy.replace(day=1) - timedelta(days=30 * i)).replace(day=1)
+        sesion.add(
+            CobroCoach(
+                coach_id=coach_ids[0],
+                monto=Decimal("1500.00"),
+                fecha=inicio,
+                metodo="transferencia",
+                periodo_inicia=inicio,
+                periodo_termina=inicio + timedelta(days=30),
+            )
+        )
+
+
 def sembrar(reiniciar: bool = False) -> None:
     with sesion_sin_alcance("siembra de datos de desarrollo, cruza inquilinos") as s:
         existentes = s.scalars(select(Coach)).all()
@@ -898,6 +970,8 @@ def sembrar(reiniciar: bool = False) -> None:
             cartera=CARTERA_SEGUNDA,
             con_historial=False,
         )
+
+        sembrar_plataforma(s, [principal, segunda])
 
     print(
         "Sembrado.\n"

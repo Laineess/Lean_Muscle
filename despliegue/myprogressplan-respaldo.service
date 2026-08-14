@@ -1,0 +1,18 @@
+[Unit]
+Description=Respaldo cifrado de la base y de los archivos sensibles
+After=network-online.target mysql.service
+Requires=mysql.service
+
+[Service]
+Type=oneshot
+# Corre como root: necesita leer el volumen cifrado y la llave de respaldo, que son 400.
+User=root
+WorkingDirectory=/opt/myprogressplan
+ExecStart=/usr/bin/env bash /opt/myprogressplan/despliegue/respaldo.sh correr
+
+# Un volcado de una base con varios miles de chequeos, más el tar de las fotografías. Media
+# hora es holgado; si se pasa de ahí, algo está mal y conviene que falle en vez de colgarse.
+TimeoutStartSec=1800
+
+# Sin red no hay copia fuera del servidor, pero la local sí sirve: no se marca como fallo.
+SuccessExitStatus=0

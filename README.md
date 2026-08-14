@@ -127,7 +127,7 @@ resultante.
 ## Verificar
 
 ```powershell
-.\.venv\Scripts\python -m pytest pruebas -q        # 489 pruebas
+.\.venv\Scripts\python -m pytest pruebas -q        # 513 pruebas
 .\.venv\Scripts\python -m ruff check app pruebas
 .\.venv\Scripts\python -m mypy app
 
@@ -156,11 +156,13 @@ app/
     ciclo.py        vigencia de 30 días y bloqueos por pago
   datos/            modelos, alcance por inquilino, consultas
   rutas/            auth, API de alumna, captura del chequeo, API de coach, medios
+    plataforma/     panel del superadmin: único paquete que puede consultar sin inquilino
   servicios/        Argon2, tokens, imágenes, almacenamiento, OCR, push, correo, bitácora
   semilla.py        dos coaches, a propósito
 web/src/
   alumna/           inicio, chequeo, mi plan, evolución, mensajes, cuenta
-  coach/            panel, cartera, agenda, validación, constructor, finanzas, conversación
+  coach/            panel, cartera, calendario, validación, constructor, finanzas, conversación
+  plataforma/       coaches, facturación, salud
   componentes/      primitivas, diálogo, gráfica, estados, hilo, notificaciones
   lib/              api, calculadora, formato, sesión, tipos, push
 ```
@@ -250,7 +252,27 @@ comportamiento previsto, no un fallo— y generar el par de llaves VAPID
 (`LM_VAPID_PUBLICA` / `LM_VAPID_PRIVADA`) sin el cual el interruptor de notificaciones lo dice
 en claro en lugar de fingir que funciona.
 
-**Infraestructura**: volumen cifrado para `datos/`, respaldos y endurecimiento del VPS.
+**Infraestructura**: los scripts están escritos y **falta correrlos en el VPS**. El
+instructivo completo está en [Operación del VPS](docs/Operacion_VPS.md):
+
+```bash
+sudo bash despliegue/endurecer.sh              # ufw, fail2ban, SSH solo con llave
+sudo bash despliegue/volumen-cifrado.sh crear 20
+sudo bash despliegue/respaldo.sh preparar
+sudo bash despliegue/respaldo.sh verificar     # la prueba de restauración
+```
+
+Dos cosas de ahí que conviene tener claras antes de confiar en ellas:
+
+- **El volumen LUKS protege el disco apagado**, no el servidor encendido. La llave vive en el
+  propio servidor para que un reinicio de madrugada no deje la plataforma caída esperando que
+  alguien teclee una frase. Contra un acceso con el sistema en marcha sirven el endurecimiento
+  y la bitácora, no el cifrado. Es un intercambio consciente y reversible.
+- **Los respaldos rotan a 30 días y ese número es legal, no técnico.** El Anexo Legal §10
+  promete que las fotografías se borran a los 4 meses y que la purga alcanza a los respaldos
+  al rotarlos. Guardarlos un año haría falsa esa promesa. En el peor caso una fotografía
+  purgada sobrevive 30 días más dentro de un respaldo cifrado, y ese es el número que se
+  puede afirmar ante una solicitud ARCO.
 
 ## Fotografías: el recorte ocurre antes del disco
 
@@ -298,6 +320,39 @@ El service worker ([`web/public/sw.js`](web/public/sw.js)) **no cachea nada**. U
 guardaría respuestas con datos de salud en el almacenamiento del navegador, fuera del control
 de la sesión: seguirían disponibles después de cerrar sesión.
 
+## El panel del superadmin no ve datos de alumnas
+
+Administra coaches: altas, planes, límites, suscripciones y cobros. Y solo eso.
+
+**De las tablas con datos de alumnas ahí únicamente salen COUNT, SUM, MIN y MAX.** Nunca una
+fila, nunca un nombre, nunca un peso, nunca una fotografía. El panel dice cuántas alumnas
+tiene cada coach, no quiénes son.
+
+No es una preferencia de producto: frente a la LFPDPPP la plataforma es **Encargado** y la
+coach es **Responsable**. Esa posición —la que sostienen los cuatro documentos legales— solo
+se aguanta si el acceso técnico coincide con lo que dice el contrato. Un panel que puede
+abrir el expediente de cualquiera convierte a la plataforma en corresponsable de todo.
+
+Se impone con código, no con disciplina:
+
+- Las consultas viven aisladas en [`repos/plataforma.py`](app/datos/repos/plataforma.py).
+- [`prueba_plataforma.py`](pruebas/aislamiento/prueba_plataforma.py) lee su árbol sintáctico y
+  falla ante un `select(Alumna)` o ante cualquier columna que identifique a una persona. Las
+  columnas admitidas se declaran una por una **con su razón escrita**.
+- Es el único paquete de rutas al que
+  [`prueba_fronteras.py`](pruebas/aislamiento/prueba_fronteras.py) le permite importar
+  `sin_alcance`; a todos los demás se lo prohíbe sobre el árbol de imports.
+
+La auditoría que sí ve —qué acción, en qué cuenta, cuándo— llega **sin `detalle` y sin el
+identificador de la entidad**. Sirve para responder «¿qué pasó en esta cuenta?» ante un
+reclamo, y sigue siendo imposible reconstruir a qué alumna corresponde cada movimiento.
+
+Las coaches pagan por transferencia y el panel registra quién está al corriente. Sin pasarela
+por ahora: `suscripcion_coach` y `cobro_coach` ya describen el estado que un cobro automático
+tendría que sincronizar el día que se conecte. Los cobros son **solo inserción** — corregir
+uno mal capturado se hace con otro en negativo, porque un historial reescribible no sirve
+para cuadrar cuentas.
+
 ## Bitácora: quién vio qué y quién cambió qué
 
 Son dos registros distintos, y el Anexo Legal §6 exige ambos:
@@ -324,6 +379,7 @@ una prueba que borra las que ya no corresponden a ningún endpoint.
 |---|---|---|
 | [`myprogressplan-recordatorios.timer`](despliegue/myprogressplan-recordatorios.timer) | 07:00 diario | Calcula y **encola** avisos de pago próximo, pago vencido, cita de mañana, inactividad y purga de fotos |
 | [`myprogressplan-correo.timer`](despliegue/myprogressplan-correo.timer) | cada 5 min | **Envía** lo encolado —correo y push—, con espaciado y hasta 5 reintentos |
+| [`myprogressplan-respaldo.timer`](despliegue/myprogressplan-respaldo.timer) | 03:30 diario | Volcado de la base y de los archivos, cifrado con GPG, rotación de 30 días |
 
 Están separados a propósito: si el SMTP se cae a las 6 de la mañana, los recordatorios se
 siguen calculando y nada se pierde. Y como cada aviso lleva una llave única construida por el
