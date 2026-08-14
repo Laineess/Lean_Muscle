@@ -1,4 +1,7 @@
-"""Generación de PDF: plan de nutrición, rutina y recibo de pago.
+"""Generación de PDF: plan de nutrición, rutina, evolución y recibo de pago.
+
+Todos salen con la marca de la coach —su nombre comercial y su logo— y no con la de la
+plataforma: para la alumna el documento viene de ella, no de nosotros.
 
 Con **ReportLab**, que es Python puro y se instala como cualquier otra dependencia. WeasyPrint
 producía mejor tipografía, pero exige cairo y pango del sistema: en Windows hay que instalar
@@ -28,6 +31,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import (
     Flowable,
+    Image,
     KeepTogether,
     Paragraph,
     SimpleDocTemplate,
@@ -67,6 +71,7 @@ APOYO = _estilo("apoyo", fontSize=9, leading=13, textColor=TINTA_MEDIA)
 NOTA = _estilo("nota", fontSize=9, leading=13, textColor=TINTA_MEDIA, leftIndent=8)
 AVISO = _estilo("aviso", fontSize=8.5, leading=12, textColor=TINTA_MEDIA)
 PIE = _estilo("pie", fontSize=8, leading=11, textColor=TINTA_SUAVE)
+MARCA = _estilo("marca", fontName="Helvetica-Bold", fontSize=10.5, leading=14)
 ENCABEZADO_TABLA = _estilo("th", fontSize=7.5, leading=10, textColor=TINTA_SUAVE)
 CELDA = _estilo("td", fontSize=9.5, leading=13)
 CELDA_DER = _estilo("td-der", fontSize=9.5, leading=13, alignment=TA_RIGHT)
@@ -76,6 +81,32 @@ CELDA_DER = _estilo("td-der", fontSize=9.5, leading=13, alignment=TA_RIGHT)
 class Documento:
     nombre: str
     contenido: bytes
+
+
+@dataclass(frozen=True, slots=True)
+class Marca:
+    """Identidad de la coach en el papel. El documento sale con su marca, no con la nuestra.
+
+    `logo` son los bytes de la imagen, no una ruta: quien arma el PDF no debería tener que
+    saber dónde vive el archivo.
+    """
+
+    nombre: str
+    logo: bytes | None = None
+    #: Su color de acento en hexadecimal. Se usa para los filetes, nunca para texto.
+    color: str | None = None
+
+    @property
+    def acento(self) -> colors.Color:
+        if not self.color:
+            return ACENTO
+        try:
+            return colors.HexColor(self.color)
+        except ValueError:  # pragma: no cover - defensivo ante un hex mal guardado
+            return ACENTO
+
+
+ALTO_LOGO = 11 * mm
 
 
 class Filete(Flowable):
@@ -100,12 +131,47 @@ def _e(valor: Any) -> str:
     return texto.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def _encabezado(titulo: str, subtitulo: str) -> list[Flowable]:
+def _logo(marca: Marca) -> Flowable | None:
+    """El logo, escalado a lo alto. Si la imagen viene rota, el documento sale sin ella."""
+    if not marca.logo:
+        return None
+    try:
+        imagen = Image(io.BytesIO(marca.logo))
+        proporcion = imagen.imageWidth / imagen.imageHeight
+        imagen.drawHeight = ALTO_LOGO
+        imagen.drawWidth = ALTO_LOGO * proporcion
+        imagen.hAlign = "RIGHT"
+        return imagen
+    except Exception:  # pragma: no cover - una imagen ilegible no debe tumbar el PDF
+        return None
+
+
+def _encabezado(titulo: str, subtitulo: str, marca: Marca) -> list[Flowable]:
+    """Encabezado con la marca de la coach arriba y el título del documento debajo."""
+    logo = _logo(marca)
+    ancho_marca = ANCHO_UTIL * (0.6 if logo else 1)
+    cabecera = Table(
+        [[Paragraph(_e(marca.nombre).upper(), MARCA), logo or ""]],
+        colWidths=[ancho_marca, ANCHO_UTIL - ancho_marca],
+        style=TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]
+        ),
+    )
     return [
+        cabecera,
+        Filete(0.75, LINEA),
+        Spacer(1, 14),
         Paragraph(_e(titulo), TITULO),
         Paragraph(_e(subtitulo).upper(), ETIQUETA),
         Spacer(1, 5),
-        Filete(1.5, TINTA),
+        Filete(1.5, marca.acento),
         Spacer(1, 12),
     ]
 
@@ -255,6 +321,7 @@ def plan_de_nutricion(
     *,
     alumna: str,
     coach: str,
+    marca: Marca,
     ciclo: int,
     kcal: int,
     proteina_g: int,
@@ -265,7 +332,7 @@ def plan_de_nutricion(
     restricciones: str | None,
 ) -> Documento:
     bloques: list[Flowable] = _encabezado(
-        "Plan de nutrición", f"{alumna} · ciclo {ciclo} · {date.today():%d/%m/%Y}"
+        "Plan de nutrición", f"{alumna} · ciclo {ciclo} · {date.today():%d/%m/%Y}", marca
     )
     bloques += [
         Paragraph(f"{kcal:,}".replace(",", " ") + " kcal", CIFRA_GRANDE),
@@ -315,6 +382,7 @@ def rutina(
     *,
     alumna: str,
     coach: str,
+    marca: Marca,
     ciclo: int,
     plantilla: str | None,
     dias: list[dict[str, Any]],
@@ -322,7 +390,7 @@ def rutina(
     lesiones: str | None,
 ) -> Documento:
     bloques: list[Flowable] = _encabezado(
-        "Rutina de entrenamiento", f"{alumna} · ciclo {ciclo} · {date.today():%d/%m/%Y}"
+        "Rutina de entrenamiento", f"{alumna} · ciclo {ciclo} · {date.today():%d/%m/%Y}", marca
     )
     if plantilla:
         bloques.append(Paragraph(f"{_e(plantilla)} · {len(dias)} días por semana", APOYO))
@@ -371,6 +439,97 @@ def rutina(
 
 
 # ---------------------------------------------------------------------------
+# Evolución
+# ---------------------------------------------------------------------------
+
+
+def _delta(actual: Decimal | None, previo: Decimal | None, decimales: int = 1) -> str:
+    """Diferencia con signo. Es lo que la alumna busca primero al abrir el documento."""
+    if actual is None or previo is None:
+        return "—"
+    d = actual - previo
+    signo = "+" if d > 0 else ""
+    return f"{signo}{d:.{decimales}f}"
+
+
+def evolucion(
+    *,
+    alumna: str,
+    coach: str,
+    marca: Marca,
+    chequeos: list[dict[str, Any]],
+    medidas: list[str],
+    feedback: str | None,
+) -> Documento:
+    """Historial de chequeos, del más viejo al más nuevo.
+
+    **Sin fotografías a propósito.** Un PDF sale de la plataforma y deja de estar bajo su
+    control: las imágenes se quedan donde se pueden purgar a los cuatro meses.
+    """
+    bloques: list[Flowable] = _encabezado("Evolución", f"{alumna} · {date.today():%d/%m/%Y}", marca)
+
+    if not chequeos:
+        bloques.append(Paragraph("Todavía no hay chequeos validados.", APOYO))
+        return _construir(bloques, "evolucion.pdf", coach)
+
+    primero, ultimo = chequeos[0], chequeos[-1]
+    bloques += [
+        Paragraph(f"{_e(ultimo.get('peso_kg'))} kg", CIFRA_GRANDE),
+        Paragraph(
+            f"{_delta(ultimo.get('peso_kg'), primero.get('peso_kg'))} kg desde el primer "
+            f"chequeo · {len(chequeos)} registros",
+            APOYO,
+        ),
+    ]
+
+    anchos = [ANCHO_UTIL * 0.16, ANCHO_UTIL * 0.12, ANCHO_UTIL * 0.16, ANCHO_UTIL * 0.14]
+    resto = ANCHO_UTIL - sum(anchos)
+    anchos += [resto / 2, resto / 2]
+
+    filas: list[list[Any]] = []
+    for i, c in enumerate(chequeos):
+        previo = chequeos[i - 1] if i else None
+        grasa = c.get("porcentaje_grasa")
+        filas.append(
+            [
+                c.get("fecha"),
+                c.get("numero"),
+                c.get("peso_kg"),
+                f"{grasa:.1f} %" if grasa is not None else "—",
+                _delta(c.get("peso_kg"), previo.get("peso_kg") if previo else None),
+                _delta(
+                    c.get("porcentaje_grasa"),
+                    previo.get("porcentaje_grasa") if previo else None,
+                ),
+            ]
+        )
+
+    bloques += [
+        *_seccion("Peso y composición"),
+        _tabla(["Fecha", "Ciclo", "Peso", "% grasa", "Δ peso", "Δ grasa"], filas, anchos),
+    ]
+
+    if medidas:
+        anchos_m = [ANCHO_UTIL * 0.28] + [(ANCHO_UTIL * 0.72) / max(len(chequeos), 1)] * len(
+            chequeos
+        )
+        filas_m: list[list[Any]] = []
+        for tipo in medidas:
+            filas_m.append(
+                [tipo.capitalize()] + [c.get("medidas", {}).get(tipo, "—") for c in chequeos]
+            )
+        bloques += [
+            *_seccion("Medidas", "cm"),
+            _tabla(["Medida"] + [str(c.get("fecha")) for c in chequeos], filas_m, anchos_m),
+        ]
+
+    if feedback:
+        bloques += [*_seccion(f"Último comentario de {coach}"), _bloque_nota(feedback)]
+
+    return _construir(bloques, "evolucion.pdf", coach)
+
+
+# ---------------------------------------------------------------------------
 # Recibo de pago
 # ---------------------------------------------------------------------------
 
@@ -380,6 +539,7 @@ def recibo(
     folio: str,
     alumna: str,
     coach: str,
+    marca: Marca,
     ciclo: int,
     monto: Decimal,
     metodo: str,
@@ -392,7 +552,7 @@ def recibo(
     Decirlo en el propio documento evita que la alumna lo presente como CFDI y evita que la
     coach parezca estar emitiendo uno.
     """
-    bloques: list[Flowable] = _encabezado("Recibo", f"Folio {folio} · {coach}")
+    bloques: list[Flowable] = _encabezado("Recibo", f"Folio {folio} · {coach}", marca)
     bloques += [
         Paragraph(f"${monto:,.2f} MXN", CIFRA_GRANDE),
         Spacer(1, 12),

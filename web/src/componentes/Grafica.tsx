@@ -19,7 +19,7 @@ export function Grafica({
   puntos,
   unidad,
   decimales = 1,
-  alto = 180,
+  alto = 210,
 }: {
   puntos: PuntoSerie[];
   unidad?: string;
@@ -31,12 +31,15 @@ export function Grafica({
     return <p className="text-menor text-tinta-suave">Hacen falta al menos dos chequeos.</p>;
   }
 
+  // El SVG se escala al ancho disponible, así que el tamaño de letra es relativo a W: con
+  // 10 sobre 640 las etiquetas quedaban en unos 6 px reales y no se leían.
   const W = 640;
   const H = alto;
-  const ML = 44;
-  const MR = 8;
-  const MT = 12;
-  const MB = 26;
+  const ML = 58;
+  const MR = 10;
+  const MT = 14;
+  const MB = 34;
+  const LETRA = 15;
   const ancho = W - ML - MR;
   const altoUtil = H - MT - MB;
 
@@ -81,11 +84,11 @@ export function Grafica({
               strokeDasharray="2 5"
             />
             <text
-              x={ML - 10}
-              y={gy + 3}
+              x={ML - 12}
+              y={gy + LETRA / 3}
               textAnchor="end"
-              fontSize="10"
-              fill="var(--tinta-suave)"
+              fontSize={LETRA}
+              fill="var(--tinta-media)"
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
               {num(max - ((max - min) * g) / 2, decimales)}
@@ -113,10 +116,10 @@ export function Grafica({
         <text
           key={p.etiqueta}
           x={x(i)}
-          y={H - 6}
+          y={H - 10}
           textAnchor="middle"
-          fontSize="10"
-          fill="var(--tinta-suave)"
+          fontSize={LETRA}
+          fill="var(--tinta-media)"
         >
           {p.etiqueta}
         </text>

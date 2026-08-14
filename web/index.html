@@ -18,6 +18,14 @@
   </head>
   <body class="h-full">
     <div id="root" class="h-full"></div>
+    <!-- Antes de pintar: si no, quien eligió oscuro ve un destello blanco al abrir. -->
+    <script>
+      (function () {
+        var t = localStorage.getItem("mpp:tema");
+        if (t === "claro") document.documentElement.classList.add("claro");
+        if (t === "oscuro") document.documentElement.classList.add("dark");
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 
 import { Dialogo } from "@/componentes/Dialogo";
 import { Notificaciones } from "@/componentes/Notificaciones";
+import { InterruptorDeTema } from "@/componentes/Tema";
 import { BotonSalir, CambiarContrasena } from "@/componentes/Seguridad";
 import {
   Apoyo,
@@ -50,6 +51,17 @@ export function Cuenta() {
         <Etiqueta>Tu cuenta</Etiqueta>
         <Portada>{alumna.nombre}</Portada>
       </header>
+
+      {/* ---- Tema ---- */}
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <Titulo>Apariencia</Titulo>
+          <Apoyo>De fábrica sigue a tu teléfono. Si prefieres uno fijo, elígelo aquí.</Apoyo>
+        </div>
+        <InterruptorDeTema className="w-fit" />
+      </section>
+
+      <Regla />
 
       {/* ---- Contacto ---- */}
       <section className="flex max-w-md flex-col gap-4">

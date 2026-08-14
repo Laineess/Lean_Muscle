@@ -55,6 +55,9 @@ def _adjuntos_de(aviso: Aviso, contexto: dict[str, object]) -> list[Adjunto]:
             folio=str(contexto["folio"]),
             alumna=str(contexto["alumna"]),
             coach=str(contexto["coach"]),
+            # Sin logo: el contexto del aviso lleva el nombre comercial, no el archivo, y
+            # abrir el almacén desde el emisor por un recibo no compensa.
+            marca=pdf.Marca(nombre=str(contexto["coach"])),
             ciclo=int(str(contexto["ciclo"])),
             monto=Decimal(str(contexto["monto_numero"])),
             metodo=str(contexto["metodo"]),

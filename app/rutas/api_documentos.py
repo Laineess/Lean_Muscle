@@ -21,6 +21,7 @@ from app.datos.modelos import Alumna, Coach
 from app.datos.repos import consultas as q
 from app.rutas.sesion import Actor, actor_actual, datos
 from app.servicios import bitacora, pdf
+from app.servicios.almacenamiento import almacen
 
 ruteador = APIRouter(prefix="/api/documentos", tags=["documentos"])
 
@@ -30,6 +31,26 @@ def _respuesta(documento: pdf.Documento) -> Response:
         content=documento.contenido,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{documento.nombre}"'},
+    )
+
+
+def _marca(s: Session, coach_id: int) -> pdf.Marca:
+    """El documento sale con la marca de la coach. Si no subió logo, va solo el nombre."""
+    coach = s.get(Coach, coach_id)
+    if coach is None:  # pragma: no cover - defensivo
+        return pdf.Marca(nombre="")
+
+    logo: bytes | None = None
+    if coach.logo_key:
+        try:
+            logo = almacen().leer(coach.logo_key)
+        except FileNotFoundError:
+            logo = None
+
+    return pdf.Marca(
+        nombre=coach.marca or coach.nombre,
+        logo=logo,
+        color=coach.color_acento,
     )
 
 
@@ -84,6 +105,7 @@ def plan_nutricion(
         pdf.plan_de_nutricion(
             alumna=alumna.nombre,
             coach=coach.nombre if coach else "",
+            marca=_marca(s, actor.coach_id),
             ciclo=ciclo.numero,
             kcal=plan.kcal_objetivo or 0,
             proteina_g=plan.proteina_g or 0,
@@ -127,11 +149,58 @@ def rutina(
         pdf.rutina(
             alumna=alumna.nombre,
             coach=coach.nombre if coach else "",
+            marca=_marca(s, actor.coach_id),
             ciclo=ciclo.numero,
             plantilla=contenido.get("plantilla"),
             dias=contenido.get("dias", []),
             notas=contenido.get("notas"),
             lesiones=historial.lesiones if historial else None,
+        )
+    )
+
+
+@ruteador.get("/evolucion", response_class=Response)
+def evolucion(
+    actor: Annotated[Actor, Depends(actor_actual)],
+    s: Annotated[Session, Depends(datos)],
+    alumna_ulid: str | None = None,
+) -> Response:
+    """El historial de chequeos en papel. Sin fotografías: se quedan en la plataforma."""
+    alumna = _alumna_visible(s, actor, alumna_ulid)
+    chequeos = [c for c in q.chequeos_de(s, alumna.id) if c.estado == "validado"]
+    coach = s.get(Coach, actor.coach_id)
+
+    bitacora.registrar_acceso(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        alumna_id=alumna.id,
+        recurso=bitacora.Recurso.EXPEDIENTE,
+    )
+
+    pesos = q.peso_de_chequeo(s, [c.id for c in chequeos])
+    medidas = q.medidas_de(s, [c.id for c in chequeos])
+
+    filas = [
+        {
+            "numero": i + 1,
+            "fecha": f"{c.fecha:%d/%m/%Y}",
+            "peso_kg": pesos.get(c.id),
+            "porcentaje_grasa": (c.porcentaje_grasa * 100) if c.porcentaje_grasa else None,
+            "medidas": medidas.get(c.id, {}),
+        }
+        for i, c in enumerate(chequeos)
+    ]
+    tipos = sorted({t for m in medidas.values() for t in m})
+
+    return _respuesta(
+        pdf.evolucion(
+            alumna=alumna.nombre,
+            coach=coach.nombre if coach else "",
+            marca=_marca(s, actor.coach_id),
+            chequeos=filas,
+            medidas=tipos,
+            feedback=chequeos[-1].feedback if chequeos else None,
         )
     )
 
@@ -179,6 +248,7 @@ def recibo(
             folio=pago.ulid[-8:].upper(),
             alumna=alumna.nombre,
             coach=coach.nombre if coach else "",
+            marca=_marca(s, actor.coach_id),
             ciclo=ciclo.numero,
             monto=pago.monto,
             metodo=pago.metodo or "Transferencia",

@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Planes } from "@/coach/Planes";
 import { Notificaciones } from "@/componentes/Notificaciones";
+import { InterruptorDeTema } from "@/componentes/Tema";
 import { BotonSalir, CambiarContrasena } from "@/componentes/Seguridad";
 import {
   Apoyo,
@@ -206,6 +207,17 @@ export function Ajustes() {
 
       {/* ---- Planes ---- */}
       <Planes />
+
+      <Regla />
+
+      {/* ---- Tema ---- */}
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <Titulo>Apariencia</Titulo>
+          <Apoyo>Solo cambia cómo lo ves tú. Cada alumna elige el suyo.</Apoyo>
+        </div>
+        <InterruptorDeTema className="w-fit" />
+      </section>
 
       <Regla />
 

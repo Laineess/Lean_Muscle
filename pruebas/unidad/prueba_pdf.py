@@ -42,10 +42,15 @@ def _texto(contenido: bytes) -> str:
     return "\n".join(pagina.get_textpage().get_text_range() for pagina in documento)
 
 
+#: La marca que llevan todos los documentos de la prueba.
+MARCA = pdf.Marca(nombre="LeanMuscle", color="#c9a227")
+
+
 def _nutricion(**cambios: object) -> pdf.Documento:
     argumentos: dict[str, object] = {
         "alumna": "Andrea Sáenz",
         "coach": "Mariana Cervantes",
+        "marca": MARCA,
         "ciclo": 5,
         "kcal": 1850,
         "proteina_g": 140,
@@ -65,6 +70,7 @@ class TestFormato:
             pdf.rutina(
                 alumna="Andrea",
                 coach="Mariana",
+                marca=MARCA,
                 ciclo=5,
                 plantilla="Torso/Pierna",
                 dias=DIAS,
@@ -75,6 +81,7 @@ class TestFormato:
                 folio="MPP-1",
                 alumna="Andrea",
                 coach="Mariana",
+                marca=MARCA,
                 ciclo=5,
                 monto=Decimal("1500.00"),
                 metodo="Transferencia",
@@ -94,6 +101,65 @@ class TestFormato:
 
         fuente = modulo.__doc__ or ""
         assert "weasyprint" not in fuente.lower() or "ReportLab" in fuente
+
+
+class TestMarca:
+    """El documento sale con la marca de la coach, no con la de la plataforma."""
+
+    def test_el_nombre_comercial_encabeza_los_documentos(self) -> None:
+        texto = _texto(_nutricion().contenido)
+        assert "LEANMUSCLE" in texto
+
+    def test_sin_logo_el_documento_sale_igual(self) -> None:
+        documento = _nutricion(marca=pdf.Marca(nombre="Sin logo"))
+        assert documento.contenido.startswith(b"%PDF-")
+        assert "SIN LOGO" in _texto(documento.contenido)
+
+    def test_un_logo_ilegible_no_tumba_el_pdf(self) -> None:
+        """Un archivo corrupto en el almacén no puede dejar a la alumna sin su plan."""
+        documento = _nutricion(marca=pdf.Marca(nombre="Rota", logo=b"esto no es una imagen"))
+        assert documento.contenido.startswith(b"%PDF-")
+
+    def test_un_color_mal_guardado_cae_al_dorado(self) -> None:
+        assert pdf.Marca(nombre="X", color="no-es-hex").acento == pdf.ACENTO
+
+
+class TestEvolucion:
+    def test_lleva_el_historial_y_las_diferencias(self) -> None:
+        documento = pdf.evolucion(
+            alumna="Andrea",
+            coach="Mariana",
+            marca=MARCA,
+            chequeos=[
+                {
+                    "numero": 1,
+                    "fecha": "01/05/2026",
+                    "peso_kg": Decimal("68.0"),
+                    "porcentaje_grasa": Decimal("29.0"),
+                    "medidas": {"cintura": Decimal("82")},
+                },
+                {
+                    "numero": 2,
+                    "fecha": "01/06/2026",
+                    "peso_kg": Decimal("66.5"),
+                    "porcentaje_grasa": Decimal("27.5"),
+                    "medidas": {"cintura": Decimal("79")},
+                },
+            ],
+            medidas=["cintura"],
+            feedback="Vas muy bien.",
+        )
+        texto = _texto(documento.contenido)
+        assert "Evolución" in texto
+        assert "-1.5" in texto  # la diferencia de peso es lo que se busca primero
+        assert "Cintura" in texto
+        assert "Vas muy bien" in texto
+
+    def test_sin_chequeos_lo_dice_en_vez_de_fallar(self) -> None:
+        documento = pdf.evolucion(
+            alumna="Andrea", coach="Mariana", marca=MARCA, chequeos=[], medidas=[], feedback=None
+        )
+        assert "Todavía no hay chequeos" in _texto(documento.contenido)
 
 
 class TestContenido:
@@ -123,6 +189,7 @@ class TestContenido:
             folio="MPP-000123",
             alumna="Andrea",
             coach="Mariana",
+            marca=MARCA,
             ciclo=5,
             monto=Decimal("1500.00"),
             metodo="Transferencia",
@@ -160,6 +227,7 @@ class TestPaginacion:
         documento = pdf.rutina(
             alumna="Andrea",
             coach="Mariana",
+            marca=MARCA,
             ciclo=5,
             plantilla="Full body",
             dias=dias,

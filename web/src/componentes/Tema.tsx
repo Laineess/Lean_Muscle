@@ -1,0 +1,70 @@
+/** Modo claro y oscuro.
+ *
+ *  Tres estados, no dos: «sistema» es el valor de fábrica y es el que respeta la decisión
+ *  que la persona ya tomó en su teléfono. Elegir claro u oscuro a mano la fija.
+ *
+ *  La clase se pone en `<html>`, donde el CSS ya la espera: `.claro` bloquea la consulta de
+ *  medios y `.dark` fuerza el oscuro. La primera aplicación ocurre en `index.html`, antes de
+ *  pintar, para que no haya un parpadeo blanco al abrir en oscuro.
+ */
+
+import { Monitor, Moon, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { cn } from "@/lib/utils";
+
+export type Tema = "sistema" | "claro" | "oscuro";
+
+const LLAVE = "mpp:tema";
+
+export function temaGuardado(): Tema {
+  const v = localStorage.getItem(LLAVE);
+  return v === "claro" || v === "oscuro" ? v : "sistema";
+}
+
+export function aplicarTema(tema: Tema): void {
+  const raiz = document.documentElement;
+  raiz.classList.toggle("claro", tema === "claro");
+  raiz.classList.toggle("dark", tema === "oscuro");
+}
+
+const OPCIONES: { id: Tema; rotulo: string; Icono: typeof Sun }[] = [
+  { id: "claro", rotulo: "Claro", Icono: Sun },
+  { id: "oscuro", rotulo: "Oscuro", Icono: Moon },
+  { id: "sistema", rotulo: "Como el sistema", Icono: Monitor },
+];
+
+export function InterruptorDeTema({ className }: { className?: string }) {
+  const [tema, setTema] = useState<Tema>(temaGuardado);
+
+  useEffect(() => {
+    aplicarTema(tema);
+    if (tema === "sistema") localStorage.removeItem(LLAVE);
+    else localStorage.setItem(LLAVE, tema);
+  }, [tema]);
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Tema de la interfaz"
+      className={cn("flex items-center gap-0.5 rounded-marco border border-linea p-0.5", className)}
+    >
+      {OPCIONES.map(({ id, rotulo, Icono }) => (
+        <button
+          key={id}
+          role="radio"
+          aria-checked={tema === id}
+          title={rotulo}
+          aria-label={rotulo}
+          onClick={() => setTema(id)}
+          className={cn(
+            "grid size-7 place-items-center rounded-[calc(var(--radio)-1px)] transition-colors",
+            tema === id ? "bg-fondo-sutil text-tinta" : "text-tinta-suave hover:text-tinta",
+          )}
+        >
+          <Icono className="size-3.5" strokeWidth={1.8} />
+        </button>
+      ))}
+    </div>
+  );
+}
