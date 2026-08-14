@@ -170,3 +170,34 @@ def miniatura(contenido: bytes, lado: int = 320) -> bytes:
     salida = _io.BytesIO()
     imagen.save(salida, format="WEBP", quality=75, method=4)
     return salida.getvalue()
+
+
+#: Lado del logo ya procesado. Se ve a 24 px en la barra y a 96 en los ajustes.
+LADO_LOGO = 256
+
+
+def logo(original: bytes) -> bytes:
+    """Convierte el logo de la marca a un WebP cuadrado.
+
+    No pasa por `procesar`: aquel recorta cabeza y cuello, que es exactamente lo que un logo
+    no debe perder. Aquí solo se cuadra y se reescala.
+    """
+    from PIL import Image, ImageOps
+
+    if not original:
+        raise ImagenInvalida("archivo vacío")
+    if len(original) > BYTES_MAXIMOS:
+        raise ImagenInvalida("el logo pesa demasiado")
+
+    try:
+        imagen = Image.open(io.BytesIO(original))
+        imagen.load()
+    except Exception as causa:
+        raise ImagenInvalida("no se pudo leer la imagen") from causa
+
+    # `fit` recorta al centro en lugar de deformar: un logo estirado se ve peor que uno con
+    # los bordes recortados.
+    cuadrado = ImageOps.fit(imagen.convert("RGB"), (LADO_LOGO, LADO_LOGO), Image.Resampling.LANCZOS)
+    salida = io.BytesIO()
+    cuadrado.save(salida, format="WEBP", quality=88, method=4)
+    return salida.getvalue()

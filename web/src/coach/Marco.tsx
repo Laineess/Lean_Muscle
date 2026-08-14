@@ -10,7 +10,9 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { Buscador, DisparadorBuscador, useBuscador } from "@/coach/Buscador";
+import { urlDeLogo } from "@/lib/api";
 import { coach } from "@/lib/datos";
+import { actorGuardado } from "@/lib/sesion";
 import { iniciales } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +26,8 @@ const SECCIONES = [
 export function MarcoCoach() {
   const { abierto, setAbierto } = useBuscador();
   const [menu, setMenu] = useState(false);
+  const [logoRoto, setLogoRoto] = useState(false);
+  const marca = actorGuardado()?.marca ?? coach.marca;
   const { pathname } = useLocation();
   // El menú de teléfono se cierra al navegar; si no, queda tapando la pantalla nueva.
   useEffect(() => setMenu(false), [pathname]);
@@ -33,10 +37,20 @@ export function MarcoCoach() {
       <header className="sticky top-0 z-30 border-b border-linea bg-fondo/90 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-4 px-5 sm:px-6">
           <div className="flex items-center gap-2">
-            <span className="grid size-6 place-items-center rounded-marco border border-linea-fuerte text-[10px] font-bold">
-              {iniciales(coach.marca)}
-            </span>
-            <span className="text-menor font-semibold tracking-[-0.01em]">{coach.marca}</span>
+            {/* El logo se pide siempre; si no hay, `onError` deja las iniciales. */}
+            {logoRoto ? (
+              <span className="grid size-6 place-items-center rounded-marco border border-linea-fuerte text-[10px] font-bold">
+                {iniciales(marca)}
+              </span>
+            ) : (
+              <img
+                src={urlDeLogo()}
+                alt=""
+                onError={() => setLogoRoto(true)}
+                className="size-6 rounded-marco border border-linea object-cover"
+              />
+            )}
+            <span className="text-menor font-semibold tracking-[-0.01em]">{marca}</span>
           </div>
 
           {/* Escritorio: secciones en la barra */}

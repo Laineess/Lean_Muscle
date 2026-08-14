@@ -89,7 +89,7 @@ export function Inicio() {
         </Aviso>
       ) : null}
 
-      {datos.ciclo && datos.ciclo.estadoPago !== "validado" ? (
+      {datos.ciclo ? (
         <SubirComprobante precio={datos.ciclo.precio} estado={datos.ciclo.estadoPago} />
       ) : null}
 
@@ -224,6 +224,7 @@ function SubirComprobante({ precio, estado }: { precio: number; estado: string }
   const [subiendo, setSubiendo] = useState(false);
   const [lectura, setLectura] = useState<ComprobanteApi | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const validado = estado === "validado";
 
   async function subir(archivo: File) {
     setError(null);
@@ -243,16 +244,23 @@ function SubirComprobante({ precio, estado }: { precio: number; estado: string }
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
           <Etiqueta>Pago del ciclo</Etiqueta>
-          <Titulo>{lectura ? "Comprobante recibido" : "Falta tu comprobante"}</Titulo>
+          <Titulo>
+            {validado
+              ? "Tu ciclo está pagado"
+              : lectura
+                ? "Comprobante recibido"
+                : "Falta tu comprobante"}
+          </Titulo>
         </div>
-        <Chip tono={estado === "rechazado" ? "error" : "espera"}>
-          {estado === "rechazado" ? "Rechazado" : "Pendiente"}
+        <Chip tono={validado ? "exito" : estado === "rechazado" ? "error" : "espera"}>
+          {validado ? "Validado" : estado === "rechazado" ? "Rechazado" : "Pendiente"}
         </Chip>
       </div>
 
       <Apoyo className="medida">
-        Sube la captura de tu transferencia de ${num(precio)}. Tu coach la confirma contra su
-        estado de cuenta; en cuanto lo haga se libera tu plan y te llega el recibo por correo.
+        {validado
+          ? `Tu coach ya validó los $${num(precio)} de este ciclo. Si necesitas subir otro comprobante —una corrección, un pago adelantado— puedes hacerlo desde aquí.`
+          : `Sube la captura de tu transferencia de $${num(precio)}. Tu coach la confirma contra su estado de cuenta; en cuanto lo haga se libera tu plan y te llega el recibo por correo.`}
       </Apoyo>
 
       {lectura ? (
@@ -285,9 +293,13 @@ function SubirComprobante({ precio, estado }: { precio: number; estado: string }
       />
 
       <div>
-        <Boton disabled={subiendo} onClick={() => entrada.current?.click()}>
+        <Boton
+          tono={validado ? "contorno" : "solido"}
+          disabled={subiendo}
+          onClick={() => entrada.current?.click()}
+        >
           {subiendo ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-          {lectura ? "Subir otro" : "Subir comprobante"}
+          {lectura || validado ? "Subir otro comprobante" : "Subir comprobante"}
         </Boton>
       </div>
     </Tarjeta>

@@ -11,6 +11,22 @@
 
 const BASE = "/api";
 
+/** Qué hacer cuando el servidor dice que la sesión ya no vale.
+ *
+ *  Lo pone `main.tsx`. Sin esto, la copia del actor en `sessionStorage` mantiene la interfaz
+ *  en pie mientras cada petición devuelve 401: se ve el panel entero y no funciona nada.
+ */
+let alCaducarLaSesion: (() => void) | null = null;
+
+export function cuandoCaduqueLaSesion(accion: () => void): void {
+  alCaducarLaSesion = accion;
+}
+
+function revisarSesion(estado: number): void {
+  // 403 no: ese es «no te toca», y la sesión sigue siendo válida.
+  if (estado === 401) alCaducarLaSesion?.();
+}
+
 export class ErrorApi extends Error {
   constructor(
     readonly estado: number,
@@ -62,6 +78,7 @@ async function pedir<T>(ruta: string, opciones: Opciones = {}): Promise<T> {
   const datos: unknown = texto ? JSON.parse(texto) : null;
 
   if (!respuesta.ok) {
+    revisarSesion(respuesta.status);
     const d = (datos ?? {}) as { codigo?: string; mensaje?: string; detail?: unknown; detalle?: Record<string, unknown> };
     const mensaje =
       d.mensaje ??
@@ -100,6 +117,7 @@ async function subir<T>(
   const datos: unknown = texto ? JSON.parse(texto) : null;
 
   if (!respuesta.ok) {
+    revisarSesion(respuesta.status);
     const d = (datos ?? {}) as { codigo?: string; mensaje?: string; detail?: unknown };
     const mensaje =
       d.mensaje ??
@@ -469,6 +487,7 @@ export interface SuscripcionApi {
 export interface FilaDeCoachApi {
   ulid: string;
   nombre: string;
+  marca: string;
   slug: string;
   email: string;
   plan: string;
@@ -489,6 +508,7 @@ export interface FilaDeCoachApi {
 
 export interface AltaDeCoachApi {
   nombre: string;
+  marca: string;
   email: string;
   slug: string | null;
   plan: string;
@@ -500,6 +520,7 @@ export interface AltaDeCoachApi {
 
 export interface EdicionDeCoachApi {
   nombre: string;
+  marca: string;
   plan: string;
   limiteAlumnas: number;
   estado: string;
@@ -563,6 +584,40 @@ export interface MovimientoDeAuditoriaApi {
   actorTipo: string;
   accion: string;
   entidad: string;
+}
+
+export interface MarcaApi {
+  nombre: string;
+  marca: string;
+  colorAcento: string;
+  tieneLogo: boolean;
+}
+
+export interface ChequeoDeValidacionApi {
+  ulid: string;
+  numero: number;
+  fecha: string;
+  estado: string;
+  pesoKg: number | null;
+  porcentajeGrasa: number | null;
+  medidas: Record<string, number>;
+  notaAlumna: string | null;
+  alertaOutlier: boolean;
+  varianzaConfirmada: boolean;
+  basculaUsada: string | null;
+  lugarUsado: string | null;
+  horaUsada: string | null;
+}
+
+export interface ExpedienteDeValidacionApi {
+  alumnaUlid: string;
+  alumna: string;
+  estaturaCm: number | null;
+  objetivo: string | null;
+  actual: ChequeoDeValidacionApi | null;
+  anteriores: ChequeoDeValidacionApi[];
+  lesiones: string | null;
+  restricciones: string | null;
 }
 
 export interface PlanGuardadoApi {
@@ -697,6 +752,17 @@ export const api = {
         cuerpo: { motivoVerificacion },
       }),
 
+    marca: (senal?: AbortSignal) => pedir<MarcaApi>("/coach/marca", senal ? { senal } : {}),
+    guardarMarca: (m: { nombre: string; marca: string; colorAcento: string }) =>
+      pedir<MarcaApi>("/coach/marca", { metodo: "PUT", cuerpo: m }),
+    subirLogo: (archivo: File) => subir<MarcaApi>("/coach/logo", archivo, "PUT"),
+
+    validacion: (alumnaUlid: string, senal?: AbortSignal) =>
+      pedir<ExpedienteDeValidacionApi>(
+        `/coach/alumnas/${alumnaUlid}/validacion`,
+        senal ? { senal } : {},
+      ),
+
     /** Abrir las fotos de un chequeo queda registrado en la bitácora de accesos. */
     fotosDeChequeo: (chequeoUlid: string, senal?: AbortSignal) =>
       pedir<FotoApi[]>(`/coach/chequeos/${chequeoUlid}/fotos`, senal ? { senal } : {}),
@@ -752,6 +818,11 @@ export function urlDeFoto(chequeoUlid: string, angulo: string, mini = false): st
   return `${BASE}/fotos/${chequeoUlid}/${angulo}${mini ? "?mini=true" : ""}`;
 }
 
+/** El logo de la marca del inquilino en curso. `v` fuerza recarga tras subir uno nuevo. */
+export function urlDeLogo(version = 0): string {
+  return `${BASE}/logo${version ? `?v=${version}` : ""}`;
+}
+
 /** Descarga un PDF.
  *
  *  No usa `pedir` porque la respuesta es binaria. El navegador lo guarda con el nombre que
@@ -760,6 +831,7 @@ export function urlDeFoto(chequeoUlid: string, angulo: string, mini = false): st
 export async function descargarPdf(ruta: string, nombreSugerido: string): Promise<void> {
   const respuesta = await fetch(`${BASE}${ruta}`, { credentials: "include" });
   if (!respuesta.ok) {
+    revisarSesion(respuesta.status);
     const texto = await respuesta.text();
     let mensaje = "No se pudo generar el documento.";
     try {

@@ -555,6 +555,8 @@ class FilaDeCoach(Esquema):
 
     ulid: str
     nombre: str
+    #: Nombre comercial que ven las alumnas. Puede no ser el de la persona.
+    marca: str
     slug: str
     email: str
     plan: str
@@ -578,6 +580,8 @@ class FilaDeCoach(Esquema):
 
 class AltaDeCoach(Esquema):
     nombre: str
+    #: Vacío = se usa el nombre. Es lo que ven sus alumnas en la barra y en los correos.
+    marca: str = ""
     email: str
     slug: str | None = None
     plan: str = "basico"
@@ -596,6 +600,7 @@ class CoachDadaDeAlta(Esquema):
 
 class EdicionDeCoach(Esquema):
     nombre: str
+    marca: str
     plan: str
     limite_alumnas: int
     estado: str
@@ -663,3 +668,60 @@ class MovimientoDeAuditoria(Esquema):
     actor_tipo: str
     accion: str
     entidad: str
+
+
+# ---------------------------------------------------------------------------
+# Marca de la coach
+# ---------------------------------------------------------------------------
+
+
+class MarcaPublica(Esquema):
+    nombre: str
+    marca: str
+    color_acento: str
+    #: Nulo mientras no haya subido logo. La interfaz cae a las iniciales.
+    tiene_logo: bool
+
+
+class EdicionDeMarca(Esquema):
+    nombre: str
+    marca: str
+    color_acento: str
+
+
+# ---------------------------------------------------------------------------
+# Expediente de validación
+# ---------------------------------------------------------------------------
+
+
+class ChequeoDeValidacion(Esquema):
+    """Un chequeo con todo lo que la coach mira para validarlo."""
+
+    ulid: str
+    numero: int
+    fecha: date
+    estado: str
+    peso_kg: Decimal | None
+    porcentaje_grasa: Decimal | None
+    medidas: dict[str, Decimal]
+    nota_alumna: str | None
+    alerta_outlier: bool
+    varianza_confirmada: bool
+    bascula_usada: str | None
+    lugar_usado: str | None
+    hora_usada: str | None
+
+
+class ExpedienteDeValidacion(Esquema):
+    """Todo lo que pinta la pantalla de validación, en una sola llamada."""
+
+    alumna_ulid: str
+    alumna: str
+    estatura_cm: int | None
+    objetivo: str | None
+    #: El que toca validar. Nulo si no hay ninguno pendiente.
+    actual: ChequeoDeValidacion | None
+    #: Los anteriores, del más viejo al más nuevo, para el selector de comparación.
+    anteriores: list[ChequeoDeValidacion]
+    lesiones: str | None
+    restricciones: str | None

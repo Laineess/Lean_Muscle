@@ -43,6 +43,9 @@ class Coach(Base):
     __table_args__ = ARGS_DE_TABLA
 
     nombre: Mapped[str] = mapped_column(String(120), nullable=False)
+    #: Nombre comercial que ven las alumnas. Puede no ser el de la persona: «LeanMuscle» no
+    #: es «Mariana Cervantes», y es el que va en la barra y en los correos.
+    marca: Mapped[str | None] = mapped_column(String(120))
     slug: Mapped[str] = mapped_column(String(60), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(180), unique=True, nullable=False)
     plan: Mapped[str] = mapped_column(String(40), default="basico", nullable=False)

@@ -36,6 +36,11 @@ def llave_de_miniatura(coach_id: int, alumna_id: int, chequeo_id: int, angulo: s
     return f"coach/{coach_id}/alumna/{alumna_id}/chequeo/{chequeo_id}/{angulo}-mini.webp"
 
 
+def llave_de_logo(coach_id: int) -> str:
+    """El logo de la marca. Nombre fijo: cambiarlo reemplaza el anterior."""
+    return f"coach/{coach_id}/marca/logo.webp"
+
+
 def llave_de_comprobante(coach_id: int, alumna_id: int, pago_id: int, extension: str) -> str:
     return f"coach/{coach_id}/alumna/{alumna_id}/pago/{pago_id}/comprobante.{extension}"
 

@@ -93,6 +93,7 @@ def _filas(s: Session, hoy: date) -> list[FilaDeCoach]:
             FilaDeCoach(
                 ulid=coach.ulid,
                 nombre=coach.nombre,
+                marca=coach.marca or coach.nombre,
                 slug=coach.slug,
                 email=coach.email,
                 plan=coach.plan,
@@ -141,6 +142,7 @@ def dar_de_alta_coach(
         ulid, correo, clave = cuentas.dar_de_alta_coach(
             s,
             nombre=cuerpo.nombre,
+            marca=cuerpo.marca,
             correo=cuerpo.email,
             slug=cuerpo.slug,
             plan=cuerpo.plan,
@@ -190,6 +192,7 @@ def editar_coach(
             raise HTTPException(404, "No existe esa coach")
 
         coach.nombre = cuerpo.nombre.strip()[:120]
+        coach.marca = (cuerpo.marca.strip() or cuerpo.nombre.strip())[:120]
         coach.plan = cuerpo.plan
         coach.limite_alumnas = cuerpo.limite_alumnas
         coach.estado = cuerpo.estado

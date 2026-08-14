@@ -519,6 +519,7 @@ def sembrar_coach(
 ) -> int:
     coach = Coach(
         nombre=nombre,
+        marca=marca,
         slug=slug,
         email=email,
         plan="profesional",
@@ -875,6 +876,7 @@ def sembrar_plataforma(sesion: Any, coach_ids: list[int]) -> None:
     """
     plataforma = Coach(
         nombre="MyProgressPlan",
+        marca="MyProgressPlan",
         slug="plataforma",
         email="hola@myprogressplan.com",
         plan="plataforma",

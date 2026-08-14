@@ -11,6 +11,7 @@ import { LineChart, ListChecks, Sun } from "lucide-react";
 import type { ComponentType } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
+import { actorGuardado } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
 
 interface Pestana {
@@ -26,6 +27,9 @@ const PESTANAS: Pestana[] = [
 ];
 
 export function MarcoAlumna() {
+  // La alumna ve la marca de su coach, no la de la plataforma: la relación es con ella.
+  const marca = actorGuardado()?.marca ?? "MyProgressPlan";
+
   return (
     <div className="flex min-h-full flex-col">
       {/* Escritorio: la navegación sube y se vuelve discreta. */}
@@ -34,7 +38,7 @@ export function MarcoAlumna() {
           aria-label="Secciones"
           className="mx-auto flex h-16 w-full max-w-5xl items-center gap-8 px-6"
         >
-          <span className="text-menor font-semibold tracking-[-0.01em]">MyProgressPlan</span>
+          <span className="text-menor font-semibold tracking-[-0.01em]">{marca}</span>
           <div className="flex items-center gap-6">
             {PESTANAS.map(({ a, rotulo }) => (
               <NavLink

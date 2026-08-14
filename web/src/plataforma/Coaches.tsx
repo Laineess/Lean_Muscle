@@ -87,8 +87,10 @@ export function Coaches() {
             return (
               <li key={f.ulid} className="flex flex-col gap-3 py-4">
                 <div className="flex flex-wrap items-baseline gap-3">
-                  <h2 className="text-cuerpo font-semibold">{f.nombre}</h2>
-                  <span className="text-micro text-tinta-suave">{f.email}</span>
+                  <h2 className="text-cuerpo font-semibold">{f.marca}</h2>
+                  <span className="text-micro text-tinta-suave">
+                    {f.nombre} · {f.email}
+                  </span>
 
                   {f.estado !== "activa" ? (
                     <Chip tono="error">{f.estado === "pausa" ? "En pausa" : "Baja"}</Chip>
@@ -200,6 +202,7 @@ function FormularioAlta({
   onCreada: () => void;
 }) {
   const [nombre, setNombre] = useState("");
+  const [marca, setMarca] = useState("");
   const [email, setEmail] = useState("");
   const [plan, setPlan] = useState("basico");
   const [limite, setLimite] = useState(50);
@@ -214,6 +217,7 @@ function FormularioAlta({
     try {
       const hecha = await api.plataforma.darDeAltaCoach({
         nombre,
+        marca,
         email,
         slug: null,
         plan,
@@ -275,8 +279,20 @@ function FormularioAlta({
         </>
       }
     >
-      <Campo id="c-nombre" etiqueta="Nombre">
+      <Campo id="c-nombre" etiqueta="Nombre de la persona">
         <Entrada id="c-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+      </Campo>
+      <Campo
+        id="c-marca"
+        etiqueta="Nombre de la marca"
+        ayuda="Lo que ven sus alumnas en la app y en los correos. Vacío = se usa su nombre."
+      >
+        <Entrada
+          id="c-marca"
+          value={marca}
+          onChange={(e) => setMarca(e.target.value)}
+          placeholder={nombre || "LeanMuscle"}
+        />
       </Campo>
       <Campo id="c-email" etiqueta="Correo" ayuda="Es su usuario para entrar. Único en toda la plataforma.">
         <Entrada id="c-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -334,6 +350,7 @@ function FormularioEdicion({
   onGuardada: () => void;
 }) {
   const [nombre, setNombre] = useState(coach.nombre);
+  const [marca, setMarca] = useState(coach.marca);
   const [plan, setPlan] = useState(coach.plan);
   const [limite, setLimite] = useState(coach.limiteAlumnas);
   const [estado, setEstado] = useState(coach.estado);
@@ -354,6 +371,7 @@ function FormularioEdicion({
     try {
       await api.plataforma.editarCoach(coach.ulid, {
         nombre,
+        marca,
         plan,
         limiteAlumnas: limite,
         estado,
@@ -395,9 +413,14 @@ function FormularioEdicion({
         </>
       }
     >
-      <Campo id="e-nombre" etiqueta="Nombre">
-        <Entrada id="e-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-      </Campo>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Campo id="e-nombre" etiqueta="Nombre de la persona">
+          <Entrada id="e-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        </Campo>
+        <Campo id="e-marca" etiqueta="Nombre de la marca" ayuda="Lo que ven sus alumnas.">
+          <Entrada id="e-marca" value={marca} onChange={(e) => setMarca(e.target.value)} />
+        </Campo>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Campo id="e-plan" etiqueta="Plan">

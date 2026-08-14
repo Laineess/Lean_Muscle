@@ -75,6 +75,14 @@ export function Acceso() {
         <Apoyo>Con el correo que le diste a tu coach.</Apoyo>
       </header>
 
+      {/* Se llega aquí con `?caducada=1` cuando una petición devolvió 401. Decirlo evita que
+          parezca que la contraseña dejó de servir. */}
+      {new URLSearchParams(window.location.search).has("caducada") ? (
+        <Aviso tono="atencion" titulo="Tu sesión expiró">
+          Vuelve a entrar. Es por seguridad: las sesiones no duran para siempre.
+        </Aviso>
+      ) : null}
+
       <form onSubmit={enviar} className="flex flex-col gap-5">
         <Campo id="correo" etiqueta="Correo">
           <Entrada

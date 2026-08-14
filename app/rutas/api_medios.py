@@ -310,6 +310,33 @@ async def subir_comprobante(
 # ---------------------------------------------------------------------------
 
 
+@ruteador.get("/logo")
+def servir_logo(
+    actor: Annotated[Actor, Depends(actor_actual)],
+    s: Annotated[Session, Depends(datos)],
+) -> Response:
+    """El logo de la marca del inquilino en curso.
+
+    No es dato sensible —es la marca, se enseña a todo el mundo—, así que no deja fila en la
+    bitácora de accesos. Sí va tras la sesión: el `coach_id` sale de ella y nadie pide el
+    logo de otro inquilino.
+    """
+    from app.datos.modelos import Coach
+
+    coach = s.get(Coach, actor.coach_id)
+    if coach is None or coach.logo_key is None:
+        raise HTTPException(404, "Esta marca no tiene logo")
+
+    return Response(
+        status_code=200,
+        headers={
+            "X-Accel-Redirect": almacen().ruta_interna(coach.logo_key),
+            "Content-Type": "image/webp",
+            "Cache-Control": "private, max-age=300",
+        },
+    )
+
+
 @ruteador.get("/push/llave", response_model=LlavePush)
 def llave_de_push(
     actor: Annotated[Actor, Depends(actor_actual)],

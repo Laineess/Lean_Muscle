@@ -29,55 +29,86 @@ import {
   Selector,
   Titulo,
 } from "@/componentes/primitivas";
-import { ErrorApi, api, type FotoApi } from "@/lib/api";
-import { usarApiConRespaldo } from "@/lib/usarApi";
+import { Cargando } from "@/componentes/Estado";
+import { ErrorApi, api, urlDeFoto, type ExpedienteDeValidacionApi, type FotoApi } from "@/lib/api";
+import { usarApi, usarApiConRespaldo } from "@/lib/usarApi";
 import { composicion } from "@/lib/calculadora";
-import { alumna, cartera, chequeos } from "@/lib/datos";
 import { delta, fecha, num, porcentaje } from "@/lib/formato";
 import { ANGULOS, MEDIDAS, type Angulo } from "@/lib/tipos";
 
 export function Validacion() {
-  const { alumnaUlid } = useParams();
+  const { alumnaUlid = "" } = useParams();
   const navegar = useNavigate();
 
-  const ficha = cartera.find((a) => a.ulid === alumnaUlid) ?? cartera[0]!;
-  const actual = chequeos.at(-1)!;
+  const expediente = usarApi<ExpedienteDeValidacionApi>(
+    (senal) => api.coach.validacion(alumnaUlid, senal),
+    [alumnaUlid],
+  );
 
-  const [comparaCon, setComparaCon] = useState(chequeos.length - 2);
+  const [comparaCon, setComparaCon] = useState(0);
   const [angulo, setAngulo] = useState<Angulo>("frontal");
-  const [grasa, setGrasa] = useState(String(num((actual.porcentajeGrasa ?? 0.27) * 100)));
+  const [grasa, setGrasa] = useState("");
   const [revisado, setRevisado] = useState({ postura: false, vestimenta: false, entorno: false });
   const [accion, setAccion] = useState<"validar" | "rechazar" | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
 
+  const ficha = expediente.datos;
+  const actual = ficha?.actual ?? null;
+  // El más reciente de los anteriores es el que tiene sentido comparar por defecto.
+  const previo = ficha?.anteriores[ficha.anteriores.length - 1 - comparaCon] ?? null;
+
   // Se piden por su propia ruta a propósito: es lo que deja constancia de que esta coach
   // abrió estas fotos, y cuándo. La obligación es del Anexo Legal §6.
   const { datos: fotos, sinServidor: sinFotos } = usarApiConRespaldo<FotoApi[]>(
-    (senal) => api.coach.fotosDeChequeo(actual.ulid, senal),
+    (senal) => (actual ? api.coach.fotosDeChequeo(actual.ulid, senal) : Promise.resolve([])),
     [],
-    [actual.ulid],
+    [actual?.ulid],
   );
 
-  const previo = chequeos[comparaCon]!;
   const grasaNum = Number.parseFloat(grasa) / 100;
 
   const derivados = useMemo(() => {
-    if (!grasaNum || grasaNum < 0.03 || grasaNum > 0.7) return null;
-    const hoy = composicion(actual.pesoKg, grasaNum, alumna.estaturaCm);
-    const antes = composicion(previo.pesoKg, previo.porcentajeGrasa ?? grasaNum, alumna.estaturaCm);
+    if (!actual || !ficha?.estaturaCm) return null;
+    if (!grasaNum || grasaNum < 0.03 || grasaNum > 0.7 || actual.pesoKg === null) return null;
+    const hoy = composicion(actual.pesoKg, grasaNum, ficha.estaturaCm);
+    const antes =
+      previo?.pesoKg != null
+        ? composicion(previo.pesoKg, previo.porcentajeGrasa ?? grasaNum, ficha.estaturaCm)
+        : null;
     return {
       hoy,
-      dGrasa: delta(hoy.masaGrasaKg, antes.masaGrasaKg, "kg"),
-      dMagra: delta(hoy.masaLibreDeGrasaKg, antes.masaLibreDeGrasaKg, "kg"),
+      dGrasa: antes ? delta(hoy.masaGrasaKg, antes.masaGrasaKg, "kg") : null,
+      dMagra: antes ? delta(hoy.masaLibreDeGrasaKg, antes.masaLibreDeGrasaKg, "kg") : null,
     };
-  }, [grasaNum, actual.pesoKg, previo]);
+  }, [grasaNum, actual, previo, ficha?.estaturaCm]);
 
   const revisionCompleta = revisado.postura && revisado.vestimenta && revisado.entorno;
-  const alertaOutlier = ficha.alerta === "outlier";
+  const alertaOutlier = actual?.alertaOutlier ?? false;
   const varianza =
-    ficha.pesoKg !== null && ficha.pesoPrevio !== null
-      ? (ficha.pesoKg - ficha.pesoPrevio) / ficha.pesoPrevio
+    actual?.pesoKg != null && previo?.pesoKg != null
+      ? (actual.pesoKg - previo.pesoKg) / previo.pesoKg
       : 0;
+
+  if (expediente.cargando) return <Cargando que="el expediente" />;
+  if (expediente.error) {
+    return (
+      <Aviso tono="error" titulo="No se pudo abrir el expediente">
+        {expediente.error.message}
+      </Aviso>
+    );
+  }
+  if (!ficha || !actual) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Link to="/coach" className="flex w-fit items-center gap-2 text-menor text-tinta-media hover:text-tinta">
+          <ArrowLeft className="size-4" /> Panel
+        </Link>
+        <Aviso tono="info" titulo="No hay nada que validar">
+          {ficha?.alumna ?? "Esta alumna"} todavía no ha enviado ningún chequeo.
+        </Aviso>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-10">
@@ -88,7 +119,7 @@ export function Validacion() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-3">
             <Etiqueta>Chequeo del {fecha(actual.fecha)}</Etiqueta>
-            <Portada>{ficha.nombre}</Portada>
+            <Portada>{ficha.alumna}</Portada>
           </div>
           <div className="flex flex-wrap gap-2">
             <Boton tono="peligro" onClick={() => setAccion("rechazar")}>
@@ -109,7 +140,7 @@ export function Validacion() {
 
       {alertaOutlier ? (
         <Aviso tono="error" titulo={`Alerta de outlier: ${num(varianza * 100)} % de cambio`}>
-          De {num(ficha.pesoPrevio)} kg a {num(ficha.pesoKg)} kg en un ciclo. Para validar tendrás
+          De {num(previo?.pesoKg)} kg a {num(actual.pesoKg)} kg en un ciclo. Para validar tendrás
           que escribir por qué lo consideras real.
         </Aviso>
       ) : null}
@@ -126,7 +157,7 @@ export function Validacion() {
             <div className="grid gap-3 sm:grid-cols-2">
               <Campo id="v-contra" etiqueta="Comparar contra">
                 <Selector id="v-contra" value={comparaCon} onChange={(e) => setComparaCon(Number(e.target.value))}>
-                  {chequeos.slice(0, -1).map((c, i) => (
+                  {[...ficha.anteriores].reverse().map((c, i) => (
                     <option key={c.ulid} value={i}>
                       #{c.numero} · {fecha(c.fecha)}
                     </option>
@@ -156,12 +187,20 @@ export function Validacion() {
                 { c: actual, rotulo: "Este chequeo" },
               ].map(({ c, rotulo }) => (
                 <figure key={rotulo} className="overflow-hidden rounded-marco border border-linea">
-                  <div className="grid aspect-3/4 place-items-center bg-fondo-sutil text-micro text-tinta-suave">
-                    {angulo} · {fecha(c.fecha, { day: "numeric", month: "short" })}
-                  </div>
+                  {c ? (
+                    <img
+                      src={urlDeFoto(c.ulid, angulo)}
+                      alt={`Toma ${angulo} del ${fecha(c.fecha)}`}
+                      className="aspect-3/4 w-full bg-fondo-sutil object-cover"
+                    />
+                  ) : (
+                    <div className="grid aspect-3/4 place-items-center bg-fondo-sutil text-micro text-tinta-suave">
+                      sin chequeo anterior
+                    </div>
+                  )}
                   <figcaption className="flex items-center justify-between gap-2 border-t border-linea px-3 py-2 text-micro font-medium">
                     <span>{rotulo}</span>
-                    <span className="cifra text-tinta-media">{num(c.pesoKg)} kg</span>
+                    <span className="cifra text-tinta-media">{c ? `${num(c.pesoKg)} kg` : "—"}</span>
                   </figcaption>
                 </figure>
               ))}
@@ -177,10 +216,12 @@ export function Validacion() {
               <li className="flex items-baseline justify-between gap-3 py-3">
                 <span className="text-menor font-semibold">Peso</span>
                 <span className="flex items-baseline gap-4">
-                  <span className="cifra text-menor text-tinta-suave">{num(previo.pesoKg)}</span>
+                  <span className="cifra text-menor text-tinta-suave">{num(previo?.pesoKg)}</span>
                   <span className="cifra font-semibold">{num(actual.pesoKg)} kg</span>
                   <span className="cifra w-16 text-right text-menor text-tinta-media">
-                    {delta(actual.pesoKg, previo.pesoKg, "kg")?.texto}
+                    {actual.pesoKg != null && previo?.pesoKg != null
+                      ? delta(actual.pesoKg, previo.pesoKg, "kg")?.texto
+                      : null}
                   </span>
                 </span>
               </li>
@@ -188,10 +229,12 @@ export function Validacion() {
                 <li key={m.tipo} className="flex items-baseline justify-between gap-3 py-3">
                   <span className="text-menor">{m.rotulo}</span>
                   <span className="flex items-baseline gap-4">
-                    <span className="cifra text-menor text-tinta-suave">{num(previo.medidas[m.tipo])}</span>
+                    <span className="cifra text-menor text-tinta-suave">{num(previo?.medidas[m.tipo])}</span>
                     <span className="cifra font-semibold">{num(actual.medidas[m.tipo])} cm</span>
                     <span className="cifra w-16 text-right text-menor text-tinta-media">
-                      {delta(actual.medidas[m.tipo], previo.medidas[m.tipo], "cm")?.texto}
+                      {actual.medidas[m.tipo] != null && previo?.medidas[m.tipo] != null
+                        ? delta(actual.medidas[m.tipo]!, previo.medidas[m.tipo]!, "cm")?.texto
+                        : null}
                     </span>
                   </span>
                 </li>
@@ -213,7 +256,7 @@ export function Validacion() {
               id="v-grasa"
               etiqueta="% de grasa corporal"
               sufijo="%"
-              ayuda={`Mes pasado: ${previo.porcentajeGrasa ? porcentaje(previo.porcentajeGrasa) : "—"}`}
+              ayuda={`Mes pasado: ${previo?.porcentajeGrasa ? porcentaje(previo.porcentajeGrasa) : "—"}`}
               {...(grasa && !derivados ? { error: "Entre 3 % y 70 %." } : {})}
             >
               <Entrada
@@ -274,8 +317,8 @@ export function Validacion() {
                     : "Sin datos",
                 ],
                 ["Ángulos", `${fotos.filter((f) => f.disponible).length} de 3`],
-                ["Medidas", "8 de 8"],
-                ["Mismo día", "Sí"],
+                ["Medidas", `${Object.keys(actual.medidas).length} de ${MEDIDAS.length}`],
+                ["Confirmó varianza", actual.varianzaConfirmada ? "Sí" : "No hizo falta"],
               ].map(([k, v]) => (
                 <div key={k} className="flex items-baseline justify-between gap-3">
                   <dt className="text-tinta-suave">{k}</dt>
@@ -317,16 +360,25 @@ export function Validacion() {
             </div>
           </section>
 
-          <section className="flex flex-col gap-2">
-            <Etiqueta>Nota de la alumna</Etiqueta>
-            <Apoyo>Dormí mal la última semana por trabajo. Entrené los 4 días igual.</Apoyo>
-          </section>
+          {actual.notaAlumna ? (
+            <section className="flex flex-col gap-2">
+              <Etiqueta>Nota de la alumna</Etiqueta>
+              <Apoyo>{actual.notaAlumna}</Apoyo>
+            </section>
+          ) : null}
+
+          {ficha.lesiones ? (
+            <section className="flex flex-col gap-2">
+              <Etiqueta>Lesiones declaradas</Etiqueta>
+              <Apoyo>{ficha.lesiones}</Apoyo>
+            </section>
+          ) : null}
         </aside>
       </div>
 
       <DialogoAccion
         accion={accion}
-        nombre={ficha.nombre}
+        nombre={ficha.alumna}
         conOutlier={alertaOutlier}
         revisionCompleta={revisionCompleta}
         onCerrar={() => setAccion(null)}

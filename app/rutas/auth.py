@@ -185,5 +185,5 @@ def _actor_publico(coach_id: int, usuario_id: int, rol: str) -> ActorPublico:
             nombre=nombre,
             correo=usuario.email if usuario else "",
             color_acento=coach.color_acento if coach else "#c9a227",
-            marca=coach.nombre if coach else "MyProgressPlan",
+            marca=(coach.marca or coach.nombre) if coach else "MyProgressPlan",
         )

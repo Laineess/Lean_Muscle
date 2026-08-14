@@ -217,6 +217,7 @@ def dar_de_alta_coach(
     s: Session,
     *,
     nombre: str,
+    marca: str,
     correo: str,
     slug: str | None,
     plan: str,
@@ -252,6 +253,7 @@ def dar_de_alta_coach(
 
     coach = FilaCoach(
         nombre=nombre.strip(),
+        marca=(marca.strip() or nombre.strip())[:120],
         slug=candidato,
         email=correo,
         plan=plan,

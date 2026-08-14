@@ -7,16 +7,18 @@ devuelve 404 sin revelar que existe en otro inquilino.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc
 from app.config import ajustes
-from app.datos.modelos import Cita, Coach, Usuario
+from app.datos.modelos import Chequeo, Cita, Coach, Usuario
 from app.datos.repos import consultas as q
 from app.dominio.agenda import EstadoCita, Franja, agendar, transicionar
 from app.dominio.avisos import Aviso
@@ -24,22 +26,27 @@ from app.rutas.esquemas import (
     AltaDeAlumna,
     AlumnaDadaDeAlta,
     CancelacionCita,
+    ChequeoDeValidacion,
     CitaNueva,
     CitaPublica,
     ClaveTemporalEmitida,
     ClaveTemporalPedida,
     EdicionDeAlumna,
+    EdicionDeMarca,
     EstimacionGrasa,
+    ExpedienteDeValidacion,
     FilaCartera,
     FotoPublica,
     HistorialPublico,
+    MarcaPublica,
     RechazoChequeo,
     ResumenPanel,
     ValidacionChequeo,
 )
 from app.rutas.sesion import Actor, datos, solo_coach
+from app.servicios import almacenamiento, bitacora, cuentas, imagenes
 from app.servicios import avisos as cola
-from app.servicios import bitacora, cuentas
+from app.servicios.almacenamiento import almacen
 from app.servicios.seguridad import VIGENCIA_CLAVE_TEMPORAL
 
 ruteador = APIRouter(prefix="/api/coach", tags=["coach"])
@@ -136,7 +143,7 @@ def panel(
 
     return ResumenPanel(
         coach=coach.nombre,
-        marca=coach.nombre,
+        marca=coach.marca or coach.nombre,
         plan=coach.plan,
         limite_alumnas=coach.limite_alumnas,
         precio_ciclo=coach.precio_ciclo,
@@ -736,3 +743,168 @@ def eliminar_cita(
     if cita is None:
         raise HTTPException(404, "No existe esa cita")
     s.delete(cita)
+
+
+# ---------------------------------------------------------------------------
+# Marca
+# ---------------------------------------------------------------------------
+
+
+@ruteador.get("/marca", response_model=MarcaPublica)
+def ver_marca(
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> MarcaPublica:
+    coach = s.get(Coach, actor.coach_id)
+    if coach is None:  # pragma: no cover - defensivo
+        raise ErrorDeDominio(Codigo.SIN_PERMISO)
+    return MarcaPublica(
+        nombre=coach.nombre,
+        marca=coach.marca or coach.nombre,
+        color_acento=coach.color_acento,
+        tiene_logo=coach.logo_key is not None,
+    )
+
+
+@ruteador.put("/marca", response_model=MarcaPublica)
+def editar_marca(
+    cuerpo: EdicionDeMarca,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> MarcaPublica:
+    """Nombre, nombre comercial y color.
+
+    El color se guarda tal cual y es el unico token que cambia con la marca: negro y gris son
+    la estructura y no se tocan.
+    """
+    coach = s.get(Coach, actor.coach_id)
+    if coach is None:  # pragma: no cover - defensivo
+        raise ErrorDeDominio(Codigo.SIN_PERMISO)
+
+    if not cuerpo.nombre.strip() or not cuerpo.marca.strip():
+        raise ErrorDeDominio(Codigo.CONCEPTO_REQUERIDO)
+    if not re.fullmatch(r"#[0-9a-fA-F]{6}", cuerpo.color_acento):
+        raise HTTPException(422, "El color va en formato #rrggbb")
+
+    coach.nombre = cuerpo.nombre.strip()[:120]
+    coach.marca = cuerpo.marca.strip()[:120]
+    coach.color_acento = cuerpo.color_acento
+    s.flush()
+
+    return MarcaPublica(
+        nombre=coach.nombre,
+        marca=coach.marca,
+        color_acento=coach.color_acento,
+        tiene_logo=coach.logo_key is not None,
+    )
+
+
+@ruteador.put("/logo", response_model=MarcaPublica)
+async def subir_logo(
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+    archivo: Annotated[UploadFile, File()],
+) -> MarcaPublica:
+    """Sube el logo de la marca.
+
+    Se recorta al centro y se cuadra, no se deforma. Nombre de archivo fijo: subir otro
+    reemplaza el anterior en lugar de acumular versiones que nadie va a borrar.
+    """
+    coach = s.get(Coach, actor.coach_id)
+    if coach is None:  # pragma: no cover - defensivo
+        raise ErrorDeDominio(Codigo.SIN_PERMISO)
+
+    try:
+        contenido = imagenes.logo(await archivo.read())
+    except imagenes.ImagenInvalida as causa:
+        raise HTTPException(422, str(causa)) from causa
+
+    llave = almacenamiento.llave_de_logo(actor.coach_id)
+    almacen().guardar(llave, contenido)
+    coach.logo_key = llave
+    s.flush()
+
+    return MarcaPublica(
+        nombre=coach.nombre,
+        marca=coach.marca or coach.nombre,
+        color_acento=coach.color_acento,
+        tiene_logo=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Expediente de validacion
+# ---------------------------------------------------------------------------
+
+
+def _chequeo_de_validacion(
+    c: Chequeo, numero: int, peso: Decimal | None, medidas: dict[str, Decimal]
+) -> ChequeoDeValidacion:
+    return ChequeoDeValidacion(
+        ulid=c.ulid,
+        numero=numero,
+        fecha=c.fecha,
+        estado=c.estado,
+        peso_kg=peso,
+        porcentaje_grasa=c.porcentaje_grasa,
+        medidas=medidas,
+        nota_alumna=c.nota_alumna,
+        alerta_outlier=c.alerta_outlier,
+        varianza_confirmada=c.varianza_confirmada,
+        bascula_usada=c.bascula_usada,
+        lugar_usado=c.lugar_usado,
+        hora_usada=c.hora_usada,
+    )
+
+
+@ruteador.get("/alumnas/{ulid}/validacion", response_model=ExpedienteDeValidacion)
+def expediente_de_validacion(
+    ulid: str,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> ExpedienteDeValidacion:
+    """Todo lo que la pantalla de validacion necesita, en una llamada.
+
+    Las fotografias **no** viajan aqui: se piden por su propia ruta, que es la que deja
+    constancia de que esta coach las abrio y cuando.
+    """
+    alumna = q.alumna_por_ulid(s, ulid)
+    if alumna is None:
+        raise HTTPException(404, "No existe esa alumna")
+
+    historia = q.chequeos_de(s, alumna.id)
+    ids = [c.id for c in historia]
+    pesos = q.peso_de_chequeo(s, ids)
+    medidas = q.medidas_de(s, ids)
+
+    publicos = [
+        _chequeo_de_validacion(c, i + 1, pesos.get(c.id), medidas.get(c.id, {}))
+        for i, c in enumerate(historia)
+    ]
+
+    # El que toca validar es el ultimo pendiente; si no hay ninguno, el ultimo enviado, para
+    # que la pantalla siga sirviendo de consulta despues de validar.
+    pendientes = [p for p in publicos if p.estado == "pendiente_evaluacion"]
+    actual = pendientes[-1] if pendientes else (publicos[-1] if publicos else None)
+    anteriores = [p for p in publicos if actual is None or p.ulid != actual.ulid]
+
+    historial = q.historial_vigente(s, alumna.id)
+    if historial is not None:
+        bitacora.registrar_acceso(
+            s,
+            coach_id=actor.coach_id,
+            actor_id=actor.usuario_id,
+            alumna_id=alumna.id,
+            recurso=bitacora.Recurso.EXPEDIENTE,
+        )
+
+    return ExpedienteDeValidacion(
+        alumna_ulid=alumna.ulid,
+        alumna=alumna.nombre,
+        estatura_cm=alumna.estatura_cm,
+        objetivo=alumna.objetivo,
+        actual=actual,
+        anteriores=anteriores,
+        lesiones=historial.lesiones if historial else None,
+        restricciones=historial.restricciones if historial else None,
+    )
