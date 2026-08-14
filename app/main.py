@@ -27,6 +27,7 @@ from app.rutas import (
     api_cuestionario,
     api_documentos,
     api_finanzas,
+    api_hoja,
     api_legales,
     api_medios,
     api_presentacion,
@@ -105,6 +106,7 @@ app.include_router(api_medios.ruteador)
 app.include_router(api_plataforma.ruteador)
 app.include_router(api_presentacion.ruteador)
 app.include_router(api_cuestionario.ruteador)
+app.include_router(api_hoja.ruteador)
 
 
 @app.get("/salud", tags=["sistema"])

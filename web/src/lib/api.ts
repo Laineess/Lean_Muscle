@@ -291,6 +291,36 @@ export interface RespuestaDeAlumnaApi {
   valor: string;
 }
 
+export interface CeldaDeHojaApi {
+  celda: string;
+  rotulo: string;
+  valor: string;
+  unidad: string;
+  formula: string;
+  capturado: boolean;
+}
+
+export interface BloqueDeHojaApi {
+  titulo: string;
+  rango: string;
+  celdas: CeldaDeHojaApi[];
+}
+
+export interface TablaDeHojaApi {
+  titulo: string;
+  rango: string;
+  encabezados: string[];
+  filas: string[][];
+}
+
+export interface HojaDeCalculoApi {
+  alumna: string;
+  bloques: BloqueDeHojaApi[];
+  tablas: TablaDeHojaApi[];
+  /** Por qué no se puede calcular todavía, si es el caso. */
+  falta: string | null;
+}
+
 export interface PlanApi {
   tipo: "nutricion" | "entrenamiento";
   ciclo: number;
@@ -1048,6 +1078,9 @@ export const api = {
         `/coach/alumnas/${alumnaUlid}/cuestionario`,
         senal ? { senal } : {},
       ),
+
+    hoja: (alumnaUlid: string, senal?: AbortSignal) =>
+      pedir<HojaDeCalculoApi>(`/coach/hoja/${alumnaUlid}`, senal ? { senal } : {}),
 
     expedienteDePlan: (alumnaUlid: string, senal?: AbortSignal) =>
       pedir<ExpedienteDeConstructorApi>(

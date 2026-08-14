@@ -861,6 +861,45 @@ class RespuestaDeAlumna(Esquema):
 
 
 # ---------------------------------------------------------------------------
+# La calculadora con la forma de la hoja original
+# ---------------------------------------------------------------------------
+
+
+class CeldaDeHoja(Esquema):
+    celda: str
+    rotulo: str
+    #: Ya formateado como lo enseña Excel. La coach compara de un vistazo, no opera con él.
+    valor: str
+    unidad: str
+    #: La fórmula del archivo, tal cual. Solo para leerla.
+    formula: str
+    capturado: bool
+
+
+class BloqueDeHoja(Esquema):
+    titulo: str
+    rango: str
+    celdas: list[CeldaDeHoja]
+
+
+class TablaDeHoja(Esquema):
+    titulo: str
+    rango: str
+    encabezados: list[str]
+    filas: list[list[str]]
+
+
+class HojaDeCalculo(Esquema):
+    """La hoja completa. Nula solo si falta el chequeo del que salen peso y grasa."""
+
+    alumna: str
+    bloques: list[BloqueDeHoja]
+    tablas: list[TablaDeHoja]
+    #: Por qué no se puede calcular todavía, si es el caso.
+    falta: str | None = None
+
+
+# ---------------------------------------------------------------------------
 # Expediente de validación
 # ---------------------------------------------------------------------------
 

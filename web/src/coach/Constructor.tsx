@@ -37,6 +37,7 @@ import {
   type TiempoDeComida,
 } from "@/coach/EditorPlan";
 import { CalendarioDeCobros } from "@/coach/CalendarioDeCobros";
+import { Hoja } from "@/coach/Hoja";
 import {
   ErrorApi,
   api,
@@ -532,6 +533,11 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
               ) : null}
             </section>
           ) : null}
+
+          <Regla />
+
+          {/* ---- La misma cuenta, con la forma de su hoja ---- */}
+          <Hoja alumnaUlid={exp.alumnaUlid} />
 
           <Regla />
 

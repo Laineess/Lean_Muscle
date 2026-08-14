@@ -9,3 +9,4 @@ pip-tools
 types-pymysql
 types-reportlab
 pypdfium2            # lee el texto de los PDF generados, para probar su contenido
+openpyxl             # lee la hoja de calculo original, para la prueba de fidelidad

@@ -125,7 +125,7 @@ RANGO_GKG: dict[str, tuple[Decimal, Decimal]] = {
 }
 
 #: Clasificación de IMC, tabla E65:F84 de la hoja.
-_ESCALA_IMC: tuple[tuple[Decimal, str], ...] = (
+ESCALA_IMC: tuple[tuple[Decimal, str], ...] = (
     (Decimal(18), "Muy delgado"),
     (Decimal(21), "Delgado"),
     (Decimal(26), "Normal"),
@@ -134,7 +134,7 @@ _ESCALA_IMC: tuple[tuple[Decimal, str], ...] = (
 
 
 def clasificar_imc(imc: Decimal) -> str:
-    for tope, etiqueta in _ESCALA_IMC:
+    for tope, etiqueta in ESCALA_IMC:
         if imc < tope:
             return etiqueta
     return "Obesidad"
