@@ -117,7 +117,7 @@ RESPUESTAS: dict[Codigo, tuple[int, str]] = {
     Codigo.LIMITE_DE_ALUMNAS_ALCANZADO: (409, "Alcanzaste el límite de alumnas de tu plan."),
     Codigo.CONTRASENA_DEBIL: (
         422,
-        "La contraseña necesita al menos 10 caracteres, con letras y números.",
+        "La contraseña necesita al menos 8 caracteres, con un número y un carácter especial.",
     ),
     Codigo.CONTRASENA_ACTUAL_INCORRECTA: (422, "Tu contraseña actual no es correcta."),
     # Guardas de plan y ciclo

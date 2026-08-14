@@ -31,7 +31,7 @@ from app.servicios.seguridad import (
 #: direcciones válidas; lo que de verdad confirma un correo es que llegue la invitación.
 CORREO = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
 
-LONGITUD_MINIMA_CONTRASENA = 10
+LONGITUD_MINIMA_CONTRASENA = 8
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,14 +50,19 @@ def normalizar_correo(correo: str) -> str:
 
 
 def validar_contrasena(clara: str) -> None:
-    """Longitud sobre complejidad.
+    """Ocho caracteres, con al menos un número y un carácter especial.
 
-    Exigir símbolos y mayúsculas produce contraseñas cortas y predecibles anotadas en un
-    papel. Diez caracteres con letras y números es un mínimo razonable que la gente sí usa.
+    Es la regla que pidió la clienta. Vale la pena saber que el largo pesa más que la
+    variedad —«caballocorreverde7» aguanta más que «Ab3$xq!p»— y por eso el freno de fuerza
+    bruta de `app/servicios/limites.py` importa tanto como esta comprobación.
     """
     if len(clara) < LONGITUD_MINIMA_CONTRASENA:
         raise ErrorDeDominio(Codigo.CONTRASENA_DEBIL, minimo=LONGITUD_MINIMA_CONTRASENA)
-    if not (any(c.isalpha() for c in clara) and any(c.isdigit() for c in clara)):
+    if not any(c.isdigit() for c in clara):
+        raise ErrorDeDominio(Codigo.CONTRASENA_DEBIL, minimo=LONGITUD_MINIMA_CONTRASENA)
+    # Especial por exclusión: cualquier cosa que no sea letra, número ni espacio. Una lista
+    # cerrada de símbolos empuja a que todo el mundo termine el suyo en el mismo signo.
+    if not any(not c.isalnum() and not c.isspace() for c in clara):
         raise ErrorDeDominio(Codigo.CONTRASENA_DEBIL, minimo=LONGITUD_MINIMA_CONTRASENA)
 
 

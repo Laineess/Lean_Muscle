@@ -67,6 +67,14 @@ export function Inicio() {
   if (!datos.perfil.cuestionarioCompleto) return <Navigate to="/bienvenida" replace />;
 
   const historico = datos.chequeos;
+
+  // Recién dada de alta: todavía no hay un solo chequeo, así que no hay peso, ni medidas,
+  // ni nada que comparar. El panel entero se apoya en el último chequeo, de modo que sin
+  // esto la pantalla reventaba y se quedaba en negro.
+  if (historico.length === 0) {
+    return <PrimerChequeo nombre={datos.perfil.nombre} coach={datos.coach} />;
+  }
+
   const ultimo = historico.at(-1)!;
   const previo = historico.at(-2) ?? ultimo;
   const base = historico[0]!;
@@ -435,5 +443,43 @@ function SubirComprobante() {
         hasta que lo valide.
       </Apoyo>
     </Tarjeta>
+  );
+}
+
+/** Lo que ve una alumna que acaba de entrar y todavía no se ha medido.
+ *
+ *  Es el último paso del alta, no una pantalla vacía: sin su primer chequeo la coach no
+ *  puede calcular nada, así que aquí solo hay una cosa que hacer.
+ */
+function PrimerChequeo({ nombre, coach }: { nombre: string; coach: string }) {
+  return (
+    <div className="flex flex-col gap-10">
+      <header className="flex flex-col gap-3">
+        <Etiqueta>Ya casi</Etiqueta>
+        <Portada>Hola, {nombre.split(" ")[0]}</Portada>
+        <Apoyo>
+          Falta lo último: tu primer chequeo. De ahí salen tu peso, tus medidas y el punto de
+          partida con el que {coach.split(" ")[0]} arma tu plan.
+        </Apoyo>
+      </header>
+
+      <section className="filete flex flex-col gap-4">
+        <Etiqueta>Qué te va a pedir</Etiqueta>
+        <ul className="flex flex-col gap-2 text-menor text-tinta-media">
+          <li>Cómo llegas hoy: en ayunas, sin entrenar, recién despierta.</li>
+          <li>Tu peso.</li>
+          <li>Tus medidas: cintura, cadera, brazo y las demás.</li>
+          <li>Tres fotos. Se guardan sin cara y se borran a los cuatro meses.</li>
+        </ul>
+        <Apoyo>Son unos diez minutos. Puedes dejarlo a medias y seguir después.</Apoyo>
+        <div>
+          <Boton asChild medida="grande">
+            <Link to="/chequeo">
+              Empezar mi chequeo <ArrowRight className="size-4" />
+            </Link>
+          </Boton>
+        </div>
+      </section>
+    </div>
   );
 }

@@ -9,9 +9,10 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 
-from app.compartido.errores import Codigo
+from app.compartido.errores import Codigo, ErrorDeDominio
 from app.rutas.sesion import Actor, actor_establecido
 from app.servicios import limites
+from app.servicios.cuentas import validar_contrasena
 from app.servicios.seguridad import CONTRASENA_INICIAL, hash_contrasena, verificar_contrasena
 
 
@@ -29,6 +30,37 @@ class TestContrasenaInicial:
     def test_dos_cuentas_no_comparten_el_hash(self) -> None:
         """Argon2 sala cada una. Sin eso, un vistazo a la tabla diría quién no la cambió."""
         assert hash_contrasena(CONTRASENA_INICIAL) != hash_contrasena(CONTRASENA_INICIAL)
+
+
+class TestReglasDeContrasena:
+    """Ocho caracteres, un número y un carácter especial. Es la regla que pidió la clienta."""
+
+    @pytest.mark.parametrize(
+        "clara",
+        ["buena123!", "Ab3$xq!p", "mi.clave.9", "ocho1234#"],
+    )
+    def test_acepta_las_que_cumplen(self, clara: str) -> None:
+        validar_contrasena(clara)
+
+    @pytest.mark.parametrize(
+        ("clara", "por_que"),
+        [
+            ("corta1!", "menos de ocho"),
+            ("sinnumero!", "sin número"),
+            ("sinespecial9", "sin carácter especial"),
+            ("muylargaperosinnada", "larga pero sin número ni especial"),
+        ],
+    )
+    def test_rechaza_las_que_no(self, clara: str, por_que: str) -> None:
+        with pytest.raises(ErrorDeDominio) as caso:
+            validar_contrasena(clara)
+        assert caso.value.codigo is Codigo.CONTRASENA_DEBIL, por_que
+
+    def test_la_inicial_no_sirve_como_definitiva(self) -> None:
+        """`Myprogress2026` no lleva carácter especial, así que la regla la rechaza. Es lo
+        correcto: la conoce la coach, y nadie debería poder dejarla puesta."""
+        with pytest.raises(ErrorDeDominio):
+            validar_contrasena(CONTRASENA_INICIAL)
 
 
 class TestGuardaDeSesion:

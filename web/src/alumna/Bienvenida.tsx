@@ -80,7 +80,9 @@ export function Bienvenida() {
       c={c}
       onListo={() => {
         cuestionario.recargar();
-        void navegar("/inicio", { replace: true });
+        // Directo a su primer chequeo, no al panel: sin peso ni medidas su coach no puede
+        // calcular nada, y mandarla al inicio solo aplaza el único paso que falta.
+        void navegar("/chequeo", { replace: true });
       }}
     />
   );

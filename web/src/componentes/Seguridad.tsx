@@ -12,7 +12,11 @@ import { Apoyo, Aviso, Boton, Campo, Entrada, Etiqueta, Titulo } from "@/compone
 import { ErrorApi, api } from "@/lib/api";
 import { cerrarSesion } from "@/lib/sesion";
 
-const LONGITUD_MINIMA = 10;
+const LONGITUD_MINIMA = 8;
+
+/** Cualquier cosa que no sea letra, número ni espacio. Se define por exclusión, igual que
+ *  el servidor: una lista cerrada de símbolos empuja a que todos terminen en el mismo. */
+const ESPECIAL = /[^A-Za-z0-9\s]/;
 
 export function CambiarContrasena() {
   const navegar = useNavigate();
@@ -22,19 +26,21 @@ export function CambiarContrasena() {
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
-  // Las mismas reglas del servidor: longitud sobre complejidad. Exigir símbolos produce
-  // contraseñas cortas y predecibles anotadas en un papel.
+  // Las mismas reglas que aplica el servidor. Se comprueban aquí para avisar mientras
+  // escribe, no para autorizar: quien decide es `validar_contrasena`.
   const problema = !actual
     ? "Escribe tu contraseña actual."
     : nueva.length < LONGITUD_MINIMA
       ? `La nueva necesita al menos ${LONGITUD_MINIMA} caracteres.`
-      : !(/[a-zA-Z]/.test(nueva) && /\d/.test(nueva))
-        ? "Mezcla letras y números."
-        : nueva !== repetida
-          ? "Las dos nuevas no coinciden."
-          : nueva === actual
-            ? "La nueva tiene que ser distinta de la actual."
-            : null;
+      : !/\d/.test(nueva)
+        ? "Necesita al menos un número."
+        : !ESPECIAL.test(nueva)
+          ? "Necesita al menos un carácter especial, por ejemplo ! ? # o $."
+          : nueva !== repetida
+            ? "Las dos nuevas no coinciden."
+            : nueva === actual
+              ? "La nueva tiene que ser distinta de la actual."
+              : null;
 
   async function guardar() {
     if (problema) {
