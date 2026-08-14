@@ -127,7 +127,7 @@ resultante.
 ## Verificar
 
 ```powershell
-.\.venv\Scripts\python -m pytest pruebas -q        # 513 pruebas
+.\.venv\Scripts\python -m pytest pruebas -q        # 522 pruebas
 .\.venv\Scripts\python -m ruff check app pruebas
 .\.venv\Scripts\python -m mypy app
 
@@ -145,9 +145,8 @@ local**, así que después hay que volver a sembrar:
 .\.venv\Scripts\python -m app.semilla --reiniciar
 ```
 
-Los PDF necesitan las bibliotecas de WeasyPrint. En Ubuntu:
-`apt install libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0`; en Windows hace falta el
-runtime de GTK3. Sin ellas la descarga responde 503 con el motivo, no un error genérico.
+Los PDF no necesitan nada del sistema: **ReportLab es Python puro**, así que se generan
+igual en Windows que en el VPS y sus pruebas corren en cualquier máquina.
 [GitHub Actions](.github/workflows/ci.yml) sí las corre, y **si la prueba de fuga falla no
 se fusiona**.
 

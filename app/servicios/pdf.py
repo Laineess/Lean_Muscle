@@ -1,49 +1,75 @@
 """Generación de PDF: plan de nutrición, rutina y recibo de pago.
 
-Con **WeasyPrint**: convierte HTML y CSS a PDF sin navegador. En un VPS sin Docker pesa
-muchísimo menos que arrastrar un Chromium para imprimir tres páginas.
+Con **ReportLab**, que es Python puro y se instala como cualquier otra dependencia. WeasyPrint
+producía mejor tipografía, pero exige cairo y pango del sistema: en Windows hay que instalar
+el runtime de GTK a mano y en el VPS son tres paquetes más de apt. Para tres documentos de
+maquetación fija no compensa que la instalación dependa del sistema operativo.
 
-El HTML se escribe pensando en papel, no en pantalla: sin modo oscuro, sin interacción, con
-la unidad en milímetros y saltos de página explícitos. La alumna imprime esto y se lo lleva
-al gimnasio.
+Se compone con Platypus —flujo de bloques— y no colocando coordenadas: así una rutina de
+quince ejercicios reparte sus páginas sola, y el encabezado de cada tabla se repite al
+cortarse.
+
+Las fuentes son las estándar del formato. Su codificación cubre acentos y eñes, que es todo
+lo que necesita el español, y evita empotrar un archivo de tipografía en cada documento.
 """
 
 from __future__ import annotations
 
+import io
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from html import escape
 from typing import Any
 
-#: Hoja de estilo compartida. Los colores son los del sistema, pero apagados: el dorado
-#: sobre papel blanco casi no se ve, así que en impresión el acento es una línea, no texto.
-ESTILO = """
-@page { size: Letter; margin: 18mm 16mm 20mm; }
-* { box-sizing: border-box; }
-body { font-family: -apple-system, "Segoe UI", sans-serif; font-size: 10pt;
-       color: #111; line-height: 1.5; margin: 0; }
-h1 { font-size: 20pt; margin: 0 0 4pt; letter-spacing: -0.4pt; }
-h2 { font-size: 12pt; margin: 18pt 0 6pt; padding-bottom: 3pt;
-     border-bottom: 0.5pt solid #d8d8d8; }
-h3 { font-size: 10pt; margin: 12pt 0 4pt; }
-.encabezado { border-bottom: 1.5pt solid #111; padding-bottom: 8pt; margin-bottom: 4pt; }
-.etiqueta { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.8pt;
-            color: #767676; font-weight: 600; }
-.cifra { font-variant-numeric: tabular-nums; }
-.grande { font-size: 26pt; font-weight: 700; letter-spacing: -1pt; }
-table { width: 100%; border-collapse: collapse; margin-top: 4pt; }
-th { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.6pt; color: #767676;
-     text-align: left; padding: 3pt 0; border-bottom: 0.5pt solid #d8d8d8; }
-td { padding: 4pt 0; border-bottom: 0.25pt solid #eee; vertical-align: top; }
-td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.nota { border-left: 1.5pt solid #c9a227; padding-left: 8pt; margin: 4pt 0 0;
-        font-size: 9pt; color: #4a4a4a; }
-.pie { margin-top: 20pt; padding-top: 8pt; border-top: 0.5pt solid #d8d8d8;
-       font-size: 8pt; color: #767676; }
-.dia { page-break-inside: avoid; margin-bottom: 14pt; }
-.aviso { background: #f6f6f5; padding: 8pt; font-size: 8.5pt; margin-top: 12pt; }
-"""
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_RIGHT
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.platypus import (
+    Flowable,
+    KeepTogether,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
+
+#: Paleta del sistema, apagada para papel. El dorado sobre blanco casi no se ve, así que en
+#: impresión el acento es una línea, nunca texto.
+TINTA = colors.HexColor("#111111")
+TINTA_MEDIA = colors.HexColor("#4a4a4a")
+TINTA_SUAVE = colors.HexColor("#767676")
+LINEA = colors.HexColor("#d8d8d8")
+LINEA_TENUE = colors.HexColor("#eeeeee")
+ACENTO = colors.HexColor("#c9a227")
+FONDO_AVISO = colors.HexColor("#f6f6f5")
+
+MARGEN_X = 16 * mm
+MARGEN_ARRIBA = 18 * mm
+MARGEN_ABAJO = 20 * mm
+
+ANCHO_UTIL = letter[0] - 2 * MARGEN_X
+
+
+def _estilo(nombre: str, **kw: Any) -> ParagraphStyle:
+    base = {"fontName": "Helvetica", "fontSize": 10, "leading": 15, "textColor": TINTA}
+    return ParagraphStyle(nombre, **{**base, **kw})
+
+
+TITULO = _estilo("titulo", fontName="Helvetica-Bold", fontSize=20, leading=24, spaceAfter=2)
+ETIQUETA = _estilo("etiqueta", fontSize=7.5, leading=11, textColor=TINTA_SUAVE)
+CIFRA_GRANDE = _estilo("cifra", fontName="Helvetica-Bold", fontSize=26, leading=30)
+SECCION = _estilo("seccion", fontName="Helvetica-Bold", fontSize=12, leading=16)
+CUERPO = _estilo("cuerpo")
+APOYO = _estilo("apoyo", fontSize=9, leading=13, textColor=TINTA_MEDIA)
+NOTA = _estilo("nota", fontSize=9, leading=13, textColor=TINTA_MEDIA, leftIndent=8)
+AVISO = _estilo("aviso", fontSize=8.5, leading=12, textColor=TINTA_MEDIA)
+PIE = _estilo("pie", fontSize=8, leading=11, textColor=TINTA_SUAVE)
+ENCABEZADO_TABLA = _estilo("th", fontSize=7.5, leading=10, textColor=TINTA_SUAVE)
+CELDA = _estilo("td", fontSize=9.5, leading=13)
+CELDA_DER = _estilo("td-der", fontSize=9.5, leading=13, alignment=TA_RIGHT)
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,42 +78,172 @@ class Documento:
     contenido: bytes
 
 
-class FaltanBibliotecasDePdf(RuntimeError):
-    """WeasyPrint está instalado pero le faltan las bibliotecas del sistema."""
+class Filete(Flowable):
+    """Una línea horizontal. Separa secciones sin gastar una tabla vacía."""
 
+    def __init__(self, grosor: float = 0.5, color: colors.Color = LINEA) -> None:
+        super().__init__()
+        self.grosor = grosor
+        self.color = color
+        self.width = ANCHO_UTIL
+        self.height = grosor
 
-def _a_pdf(html: str, nombre: str) -> Documento:
-    """Convierte a PDF.
-
-    WeasyPrint se importa aquí y no arriba: arrastra bibliotecas del sistema (cairo, pango)
-    y tarda en cargar.
-    """
-    try:
-        from weasyprint import HTML
-    except OSError as causa:
-        # Sin GTK, WeasyPrint muere al importarse con un error de ctypes que no dice qué
-        # instalar. Se traduce aquí para no dejar un 500 sin explicación.
-        raise FaltanBibliotecasDePdf(
-            "Faltan las bibliotecas de WeasyPrint. En Ubuntu: "
-            "apt install libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0. "
-            "En Windows: instalar el runtime de GTK3."
-        ) from causa
-
-    documento = "<!doctype html><html lang='es-MX'><head><meta charset='utf-8'>"
-    documento += f"<style>{ESTILO}</style></head><body>{html}</body></html>"
-    return Documento(nombre=nombre, contenido=HTML(string=documento).write_pdf())
+    def draw(self) -> None:
+        self.canv.setStrokeColor(self.color)
+        self.canv.setLineWidth(self.grosor)
+        self.canv.line(0, 0, self.width, 0)
 
 
 def _e(valor: Any) -> str:
-    return escape(str(valor if valor is not None else ""))
+    """Escapa para el mini-HTML de Paragraph, que interpreta `<b>`, `&` y compañía."""
+    texto = str(valor if valor is not None else "")
+    return texto.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def _pie(coach: str) -> str:
-    return (
-        f'<div class="pie">Generado por MyProgressPlan para {_e(coach)}. '
-        "Este documento es para tu uso personal; no sustituye la atención médica profesional."
-        "</div>"
+def _encabezado(titulo: str, subtitulo: str) -> list[Flowable]:
+    return [
+        Paragraph(_e(titulo), TITULO),
+        Paragraph(_e(subtitulo).upper(), ETIQUETA),
+        Spacer(1, 5),
+        Filete(1.5, TINTA),
+        Spacer(1, 12),
+    ]
+
+
+def _seccion(texto: str, derecha: str = "") -> list[Flowable]:
+    """Título de sección con su filete. `derecha` alinea un dato al margen opuesto."""
+    fila: Flowable
+    if derecha:
+        fila = Table(
+            [[Paragraph(_e(texto), SECCION), Paragraph(_e(derecha), CELDA_DER)]],
+            colWidths=[ANCHO_UTIL * 0.7, ANCHO_UTIL * 0.3],
+            style=TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]
+            ),
+        )
+    else:
+        fila = Paragraph(_e(texto), SECCION)
+    return [Spacer(1, 10), fila, Filete(), Spacer(1, 4)]
+
+
+#: Encabezado alineado a la derecha, para las columnas numéricas.
+ENCABEZADO_DER = _estilo(
+    "th-der", fontSize=7.5, leading=10, textColor=TINTA_SUAVE, alignment=TA_RIGHT
+)
+
+
+def _tabla(
+    encabezados: list[str] | None,
+    filas: list[list[Any]],
+    anchos: list[float],
+    alinear_derecha_desde: int = 1,
+) -> Table:
+    """Tabla de datos. Si lleva encabezado, se repite al cortarse entre páginas."""
+    datos: list[list[Any]] = []
+    if encabezados:
+        datos.append(
+            [
+                Paragraph(
+                    _e(h).upper(),
+                    ENCABEZADO_DER if i >= alinear_derecha_desde else ENCABEZADO_TABLA,
+                )
+                for i, h in enumerate(encabezados)
+            ]
+        )
+    for fila in filas:
+        datos.append(
+            [
+                celda
+                if isinstance(celda, Flowable)
+                else Paragraph(_e(celda), CELDA_DER if i >= alinear_derecha_desde else CELDA)
+                for i, celda in enumerate(fila)
+            ]
+        )
+
+    primera_fila = 1 if encabezados else 0
+    tabla = Table(datos, colWidths=anchos, repeatRows=primera_fila, hAlign="LEFT")
+    estilo: list[Any] = [
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LINEBELOW", (0, primera_fila), (-1, -2), 0.25, LINEA_TENUE),
+    ]
+    if encabezados:
+        estilo.append(("LINEBELOW", (0, 0), (-1, 0), 0.5, LINEA))
+    tabla.setStyle(TableStyle(estilo))
+    return tabla
+
+
+def _bloque_aviso(texto: str) -> Table:
+    """Recuadro gris. Se usa para lo que la alumna no debe pasar por alto."""
+    return Table(
+        [[Paragraph(texto, AVISO)]],
+        colWidths=[ANCHO_UTIL],
+        style=TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), FONDO_AVISO),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ]
+        ),
     )
+
+
+def _bloque_nota(texto: str) -> Table:
+    """Cita con filete dorado a la izquierda."""
+    return Table(
+        [[Paragraph(_e(texto), NOTA)]],
+        colWidths=[ANCHO_UTIL],
+        style=TableStyle(
+            [
+                ("LINEBEFORE", (0, 0), (0, -1), 1.5, ACENTO),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ]
+        ),
+    )
+
+
+def _construir(bloques: list[Flowable], nombre: str, coach: str) -> Documento:
+    """Arma el PDF en memoria. El pie va en cada página, no solo en la última."""
+    buffer = io.BytesIO()
+    documento = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=MARGEN_X,
+        rightMargin=MARGEN_X,
+        topMargin=MARGEN_ARRIBA,
+        bottomMargin=MARGEN_ABAJO,
+        title=nombre.replace(".pdf", "").replace("-", " ").capitalize(),
+        author="MyProgressPlan",
+    )
+
+    aviso = f"{coach} · MyProgressPlan — uso personal; no sustituye atención médica."
+
+    def pie(lienzo: Any, doc: Any) -> None:
+        lienzo.saveState()
+        y = MARGEN_ABAJO - 6 * mm
+        lienzo.setStrokeColor(LINEA)
+        lienzo.setLineWidth(0.5)
+        lienzo.line(MARGEN_X, y + 10, letter[0] - MARGEN_X, y + 10)
+        lienzo.setFont("Helvetica", 7.5)
+        lienzo.setFillColor(TINTA_SUAVE)
+        lienzo.drawString(MARGEN_X, y, aviso)
+        lienzo.drawRightString(letter[0] - MARGEN_X, y, f"Página {doc.page}")
+        lienzo.restoreState()
+
+    documento.build(bloques, onFirstPage=pie, onLaterPages=pie)
+    return Documento(nombre=nombre, contenido=buffer.getvalue())
 
 
 # ---------------------------------------------------------------------------
@@ -108,41 +264,46 @@ def plan_de_nutricion(
     notas: str | None,
     restricciones: str | None,
 ) -> Documento:
-    partes = [
-        '<div class="encabezado">',
-        "<h1>Plan de nutrición</h1>",
-        f'<p class="etiqueta">{_e(alumna)} · ciclo {ciclo} · {date.today():%d/%m/%Y}</p>',
-        "</div>",
-        f'<p class="grande cifra">{kcal} <span style="font-size:11pt;font-weight:400;'
-        f'color:#767676">kcal al día</span></p>',
-        f'<p class="cifra" style="color:#4a4a4a">Proteína {proteina_g} g · '
-        f"Carbohidratos {carbohidrato_g} g · Grasa {grasa_g} g</p>",
+    bloques: list[Flowable] = _encabezado(
+        "Plan de nutrición", f"{alumna} · ciclo {ciclo} · {date.today():%d/%m/%Y}"
+    )
+    bloques += [
+        Paragraph(f"{kcal:,}".replace(",", " ") + " kcal", CIFRA_GRANDE),
+        Paragraph(
+            f"Proteína {proteina_g} g · Carbohidratos {carbohidrato_g} g · Grasa {grasa_g} g",
+            APOYO,
+        ),
     ]
 
+    anchos = [ANCHO_UTIL * 0.56, ANCHO_UTIL * 0.24, ANCHO_UTIL * 0.20]
     for t in tiempos:
-        filas = "".join(
-            f"<tr><td>{_e(a.get('nombre'))}</td>"
-            f"<td class='num'>{_e(a.get('porcion'))}</td>"
-            f"<td class='num'>{_e(a.get('kcal'))} kcal</td></tr>"
+        filas = [
+            [a.get("nombre"), a.get("porcion"), f"{a.get('kcal')} kcal"]
             for a in t.get("alimentos", [])
-        )
-        partes.append(
-            f'<div class="dia"><h2>{_e(t.get("nombre"))} '
-            f'<span style="font-weight:400;color:#767676">{_e(t.get("hora"))}</span> '
-            f'<span class="cifra" style="float:right;font-weight:400">{_e(t.get("kcal"))} kcal</span></h2>'
-            f"<table><thead><tr><th>Alimento</th><th class='num'>Porción</th>"
-            f"<th class='num'>Calorías</th></tr></thead><tbody>{filas}</tbody></table></div>"
+        ]
+        # Cada tiempo de comida se mantiene junto: partir «Desayuno» a media tabla obliga a
+        # pasar la hoja para saber qué se come.
+        bloques.append(
+            KeepTogether(
+                [
+                    *_seccion(
+                        f"{t.get('nombre')}  {t.get('hora') or ''}".strip(),
+                        f"{t.get('kcal')} kcal",
+                    ),
+                    _tabla(["Alimento", "Porción", "Calorías"], filas, anchos),
+                ]
+            )
         )
 
     if notas:
-        partes.append(f'<h2>Notas de {_e(coach)}</h2><p class="nota">{_e(notas)}</p>')
+        bloques += [*_seccion(f"Notas de {coach}"), _bloque_nota(notas)]
     if restricciones:
-        partes.append(
-            f'<div class="aviso"><strong>Tus restricciones:</strong> {_e(restricciones)}</div>'
-        )
+        bloques += [
+            Spacer(1, 10),
+            _bloque_aviso(f"<b>Tus restricciones:</b> {_e(restricciones)}"),
+        ]
 
-    partes.append(_pie(coach))
-    return _a_pdf("".join(partes), f"plan-nutricion-ciclo-{ciclo}.pdf")
+    return _construir(bloques, f"plan-nutricion-ciclo-{ciclo}.pdf", coach)
 
 
 # ---------------------------------------------------------------------------
@@ -160,42 +321,53 @@ def rutina(
     notas: str | None,
     lesiones: str | None,
 ) -> Documento:
-    partes = [
-        '<div class="encabezado">',
-        "<h1>Rutina de entrenamiento</h1>",
-        f'<p class="etiqueta">{_e(alumna)} · ciclo {ciclo} · {date.today():%d/%m/%Y}</p>',
-        "</div>",
-    ]
+    bloques: list[Flowable] = _encabezado(
+        "Rutina de entrenamiento", f"{alumna} · ciclo {ciclo} · {date.today():%d/%m/%Y}"
+    )
     if plantilla:
-        partes.append(f'<p style="color:#4a4a4a">{_e(plantilla)} · {len(dias)} días por semana</p>')
+        bloques.append(Paragraph(f"{_e(plantilla)} · {len(dias)} días por semana", APOYO))
+
+    anchos = [
+        ANCHO_UTIL * 0.42,
+        ANCHO_UTIL * 0.12,
+        ANCHO_UTIL * 0.14,
+        ANCHO_UTIL * 0.16,
+        ANCHO_UTIL * 0.16,
+    ]
 
     for d in dias:
-        filas = "".join(
-            f"<tr><td>{_e(e.get('nombre'))}"
-            + (f'<p class="nota">{_e(e.get("nota"))}</p>' if e.get("nota") else "")
-            + f"</td><td class='num'>{_e(e.get('series'))}</td>"
-            f"<td class='num'>{_e(e.get('reps'))}</td>"
-            f"<td class='num'>{_e(e.get('carga'))}</td>"
-            # Columna en blanco a propósito: es para anotar a mano en el gimnasio.
-            f"<td class='num' style='width:60pt;border-bottom:0.25pt solid #999'>&nbsp;</td></tr>"
-            for e in d.get("ejercicios", [])
-        )
-        partes.append(
-            f'<div class="dia"><h2>{_e(d.get("nombre"))}</h2>'
-            f"<table><thead><tr><th>Ejercicio</th><th class='num'>Series</th>"
-            f"<th class='num'>Reps</th><th class='num'>Carga</th>"
-            f"<th class='num'>Hecho</th></tr></thead><tbody>{filas}</tbody></table></div>"
-        )
+        filas: list[list[Any]] = []
+        for e in d.get("ejercicios", []):
+            nombre: Any = Paragraph(_e(e.get("nombre")), CELDA)
+            if e.get("nota"):
+                nombre = Table(
+                    [[Paragraph(_e(e.get("nombre")), CELDA)], [Paragraph(_e(e.get("nota")), NOTA)]],
+                    colWidths=[anchos[0]],
+                    style=TableStyle(
+                        [
+                            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                            ("TOPPADDING", (0, 0), (-1, -1), 0),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                        ]
+                    ),
+                )
+            # La última columna va vacía a propósito: es para palomear a mano en el gimnasio.
+            filas.append([nombre, e.get("series"), e.get("reps"), e.get("carga"), ""])
+
+        tabla = _tabla(["Ejercicio", "Series", "Reps", "Carga", "Hecho"], filas, anchos)
+        tabla.setStyle(TableStyle([("LINEBELOW", (4, 1), (4, -1), 0.25, TINTA_SUAVE)]))
+        bloques.append(KeepTogether([*_seccion(str(d.get("nombre"))), tabla]))
 
     if notas:
-        partes.append(f'<h2>Notas de {_e(coach)}</h2><p class="nota">{_e(notas)}</p>')
+        bloques += [*_seccion(f"Notas de {coach}"), _bloque_nota(notas)]
     if lesiones:
-        partes.append(
-            f'<div class="aviso"><strong>Cuidado:</strong> {_e(lesiones)} Si duele, para.</div>'
-        )
+        bloques += [
+            Spacer(1, 10),
+            _bloque_aviso(f"<b>Cuidado:</b> {_e(lesiones)} Si duele, para."),
+        ]
 
-    partes.append(_pie(coach))
-    return _a_pdf("".join(partes), f"rutina-ciclo-{ciclo}.pdf")
+    return _construir(bloques, f"rutina-ciclo-{ciclo}.pdf", coach)
 
 
 # ---------------------------------------------------------------------------
@@ -220,27 +392,25 @@ def recibo(
     Decirlo en el propio documento evita que la alumna lo presente como CFDI y evita que la
     coach parezca estar emitiendo uno.
     """
-    filas = [
-        ("Alumna", alumna),
-        ("Concepto", f"Ciclo {ciclo} de acompañamiento"),
-        ("Vigencia", f"{vigencia_inicia:%d/%m/%Y} al {vigencia_termina:%d/%m/%Y}"),
-        ("Método de pago", metodo),
-        ("Fecha de pago", f"{pagado_el:%d/%m/%Y}"),
+    bloques: list[Flowable] = _encabezado("Recibo", f"Folio {folio} · {coach}")
+    bloques += [
+        Paragraph(f"${monto:,.2f} MXN", CIFRA_GRANDE),
+        Spacer(1, 12),
+        _tabla(
+            None,
+            [
+                ["Alumna", alumna],
+                ["Concepto", f"Ciclo {ciclo} de acompañamiento"],
+                ["Vigencia", f"{vigencia_inicia:%d/%m/%Y} al {vigencia_termina:%d/%m/%Y}"],
+                ["Método de pago", metodo],
+                ["Fecha de pago", f"{pagado_el:%d/%m/%Y}"],
+            ],
+            [ANCHO_UTIL * 0.35, ANCHO_UTIL * 0.65],
+        ),
+        Spacer(1, 14),
+        _bloque_aviso(
+            "<b>Este recibo no es un comprobante fiscal.</b> Es constancia de que tu pago fue "
+            "validado y de la vigencia de tu acceso. Si necesitas factura, pídesela a tu coach."
+        ),
     ]
-    cuerpo = "".join(
-        f"<tr><td style='color:#767676'>{_e(k)}</td><td class='num'>{_e(v)}</td></tr>"
-        for k, v in filas
-    )
-
-    html = (
-        '<div class="encabezado"><h1>Recibo</h1>'
-        f'<p class="etiqueta">Folio {_e(folio)} · {coach and _e(coach)}</p></div>'
-        f'<p class="grande cifra">${monto:,.2f} <span style="font-size:11pt;font-weight:400;'
-        'color:#767676">MXN</span></p>'
-        f"<table><tbody>{cuerpo}</tbody></table>"
-        '<div class="aviso"><strong>Este recibo no es un comprobante fiscal.</strong> '
-        "Es constancia de que tu pago fue validado y de la vigencia de tu acceso. Si "
-        "necesitas factura, pídesela a tu coach.</div>"
-        f"{_pie(coach)}"
-    )
-    return _a_pdf(html, f"recibo-{folio}.pdf")
+    return _construir(bloques, f"recibo-{folio}.pdf", coach)

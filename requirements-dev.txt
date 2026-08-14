@@ -29,8 +29,6 @@ ast-serialize==0.8.0
     # via mypy
 attrs==26.1.0
     # via aiohttp
-brotli==1.2.0
-    # via fonttools
 build==1.5.0
     # via pip-tools
 certifi==2026.7.22
@@ -42,9 +40,10 @@ cffi==2.1.1
     # via
     #   argon2-cffi-bindings
     #   cryptography
-    #   weasyprint
 charset-normalizer==3.5.0
-    # via requests
+    # via
+    #   reportlab
+    #   requests
 click==8.4.2
     # via
     #   pip-tools
@@ -60,12 +59,8 @@ cryptography==50.0.0
     #   http-ece
     #   py-vapid
     #   pywebpush
-cssselect2==0.9.0
-    # via weasyprint
 fastapi==0.141.1
     # via -r requirements.in
-fonttools==4.63.0
-    # via weasyprint
 frozenlist==1.8.0
     # via
     #   aiohttp
@@ -129,7 +124,7 @@ pillow==12.3.0
     # via
     #   -r requirements.in
     #   pytesseract
-    #   weasyprint
+    #   reportlab
 pip-tools==7.6.1
     # via -r requirements-dev.in
 pluggy==1.6.0
@@ -151,14 +146,12 @@ pydantic-core==2.46.4
     # via pydantic
 pydantic-settings==2.15.0
     # via -r requirements.in
-pydyf==0.12.1
-    # via weasyprint
 pygments==2.20.0
     # via pytest
 pymysql==1.2.0
     # via -r requirements.in
-pyphen==0.18.0
-    # via weasyprint
+pypdfium2==5.13.0
+    # via -r requirements-dev.in
 pyproject-hooks==1.2.0
     # via
     #   build
@@ -183,6 +176,8 @@ pywebpush==2.4.0
     # via -r requirements.in
 pyyaml==6.0.3
     # via uvicorn
+reportlab==5.0.0
+    # via -r requirements.in
 requests==2.34.2
     # via pywebpush
 ruff==0.16.3
@@ -193,13 +188,9 @@ sqlalchemy==2.0.52
     #   alembic
 starlette==1.6.0
     # via fastapi
-tinycss2==1.5.1
-    # via
-    #   cssselect2
-    #   weasyprint
-tinyhtml5==2.1.0
-    # via weasyprint
 types-pymysql==1.2.0.20260807
+    # via -r requirements-dev.in
+types-reportlab==4.5.1.20260807
     # via -r requirements-dev.in
 typing-extensions==4.16.0
     # via
@@ -228,21 +219,12 @@ uvicorn==0.52.3
     # via -r requirements.in
 watchfiles==1.2.0
     # via uvicorn
-weasyprint==69.0
-    # via -r requirements.in
-webencodings==0.5.1
-    # via
-    #   cssselect2
-    #   tinycss2
-    #   tinyhtml5
 websockets==17.0.1
     # via uvicorn
 wheel==0.48.0
     # via pip-tools
 yarl==1.24.5
     # via aiohttp
-zopfli==0.4.3
-    # via fonttools
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip

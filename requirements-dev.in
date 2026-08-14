@@ -7,3 +7,5 @@ mypy
 ruff
 pip-tools
 types-pymysql
+types-reportlab
+pypdfium2            # lee el texto de los PDF generados, para probar su contenido

@@ -26,17 +26,16 @@ argon2-cffi-bindings==25.1.0
     # via argon2-cffi
 attrs==26.1.0
     # via aiohttp
-brotli==1.2.0
-    # via fonttools
 certifi==2026.7.22
     # via requests
 cffi==2.1.1
     # via
     #   argon2-cffi-bindings
     #   cryptography
-    #   weasyprint
 charset-normalizer==3.5.0
-    # via requests
+    # via
+    #   reportlab
+    #   requests
 click==8.4.2
     # via uvicorn
 colorama==0.4.6
@@ -47,12 +46,8 @@ cryptography==50.0.0
     #   http-ece
     #   py-vapid
     #   pywebpush
-cssselect2==0.9.0
-    # via weasyprint
 fastapi==0.141.1
     # via -r requirements.in
-fonttools==4.63.0
-    # via weasyprint
 frozenlist==1.8.0
     # via
     #   aiohttp
@@ -96,7 +91,7 @@ pillow==12.3.0
     # via
     #   -r requirements.in
     #   pytesseract
-    #   weasyprint
+    #   reportlab
 propcache==0.5.2
     # via
     #   aiohttp
@@ -114,12 +109,8 @@ pydantic-core==2.46.4
     # via pydantic
 pydantic-settings==2.15.0
     # via -r requirements.in
-pydyf==0.12.1
-    # via weasyprint
 pymysql==1.2.0
     # via -r requirements.in
-pyphen==0.18.0
-    # via weasyprint
 pytesseract==0.3.13
     # via -r requirements.in
 python-dotenv==1.2.2
@@ -134,6 +125,8 @@ pywebpush==2.4.0
     # via -r requirements.in
 pyyaml==6.0.3
     # via uvicorn
+reportlab==5.0.0
+    # via -r requirements.in
 requests==2.34.2
     # via pywebpush
 sqlalchemy==2.0.52
@@ -142,12 +135,6 @@ sqlalchemy==2.0.52
     #   alembic
 starlette==1.6.0
     # via fastapi
-tinycss2==1.5.1
-    # via
-    #   cssselect2
-    #   weasyprint
-tinyhtml5==2.1.0
-    # via weasyprint
 typing-extensions==4.16.0
     # via
     #   aiohttp
@@ -173,16 +160,7 @@ uvicorn==0.52.3
     # via -r requirements.in
 watchfiles==1.2.0
     # via uvicorn
-weasyprint==69.0
-    # via -r requirements.in
-webencodings==0.5.1
-    # via
-    #   cssselect2
-    #   tinycss2
-    #   tinyhtml5
 websockets==17.0.1
     # via uvicorn
 yarl==1.24.5
     # via aiohttp
-zopfli==0.4.3
-    # via fonttools

@@ -29,7 +29,6 @@ from app.rutas import (
 )
 from app.rutas.plataforma import api as api_plataforma
 from app.rutas.traduccion import respuesta_para
-from app.servicios.pdf import FaltanBibliotecasDePdf
 
 RAIZ = Path(__file__).resolve().parent
 
@@ -56,16 +55,6 @@ async def traducir_error_de_dominio(_: Request, exc: ErrorDeDominio) -> JSONResp
     return JSONResponse(
         status_code=estado,
         content={"codigo": exc.codigo.value, "mensaje": mensaje, "detalle": exc.detalle},
-    )
-
-
-@app.exception_handler(FaltanBibliotecasDePdf)
-async def traducir_falta_de_pdf(_: Request, exc: FaltanBibliotecasDePdf) -> JSONResponse:
-    """503 y no 500: el servidor está bien, le falta una dependencia del sistema."""
-    _registro.error("%s", exc)
-    return JSONResponse(
-        status_code=503,
-        content={"mensaje": "La generación de PDF no está disponible en este servidor."},
     )
 
 

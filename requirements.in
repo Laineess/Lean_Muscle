@@ -20,7 +20,7 @@ itsdangerous          # cookie de sesion firmada
 pillow
 numpy
 pytesseract           # requiere el binario tesseract-ocr del sistema
-weasyprint
+reportlab            # PDF en Python puro: sin cairo ni pango del sistema
 pywebpush
 python-ulid
 tzdata                # zonas IANA: Windows no trae base de zonas horarias
