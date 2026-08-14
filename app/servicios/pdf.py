@@ -52,14 +52,26 @@ class Documento:
     contenido: bytes
 
 
+class FaltanBibliotecasDePdf(RuntimeError):
+    """WeasyPrint está instalado pero le faltan las bibliotecas del sistema."""
+
+
 def _a_pdf(html: str, nombre: str) -> Documento:
     """Convierte a PDF.
 
-    WeasyPrint se importa aquí y no arriba a propósito: arrastra bibliotecas del sistema
-    (cairo, pango) y tarda en cargar. Importarlo al inicio haría lento el arranque de la
-    API entera para una función que se usa poco.
+    WeasyPrint se importa aquí y no arriba: arrastra bibliotecas del sistema (cairo, pango)
+    y tarda en cargar.
     """
-    from weasyprint import HTML
+    try:
+        from weasyprint import HTML
+    except OSError as causa:
+        # Sin GTK, WeasyPrint muere al importarse con un error de ctypes que no dice qué
+        # instalar. Se traduce aquí para no dejar un 500 sin explicación.
+        raise FaltanBibliotecasDePdf(
+            "Faltan las bibliotecas de WeasyPrint. En Ubuntu: "
+            "apt install libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0. "
+            "En Windows: instalar el runtime de GTK3."
+        ) from causa
 
     documento = "<!doctype html><html lang='es-MX'><head><meta charset='utf-8'>"
     documento += f"<style>{ESTILO}</style></head><body>{html}</body></html>"

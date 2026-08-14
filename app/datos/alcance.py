@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from contextvars import ContextVar, Token
 from typing import Any
 
 from sqlalchemy import Engine, create_engine, event, text
@@ -30,22 +29,33 @@ from app.compartido.errores import SinAlcanceDeInquilino
 from app.config import ajustes
 from app.datos.base import BaseMultiInquilino
 
-#: Alcance de la peticion en curso. Es un ContextVar y no una global precisamente para que
-#: dos peticiones concurrentes no se pisen el inquilino.
-alcance_actual: ContextVar[int | None] = ContextVar("alcance_actual", default=None)
-
-#: Marca de ejecucion que exime del filtro. Solo la usan migraciones, trabajos programados
-#: y el panel de plataforma, siempre a traves de `app/datos/sin_alcance.py`.
+#: Exime del filtro **una sentencia suelta**. Solo para las consultas que por definicion
+#: preceden al inquilino: buscar el usuario al entrar, comprobar que un correo no este
+#: repetido en toda la plataforma.
 SIN_ALCANCE = "sin_alcance"
+
+#: Claves que cada sesion lleva en su `info`. El alcance vive en la sesion y no en un
+#: ContextVar: FastAPI abre las dependencias generadoras en un hilo distinto del endpoint,
+#: asi que lo fijado al abrir la sesion no se veria al usarla.
+ALCANCE = "alcance_de_inquilino"
+EXENTA = "sesion_sin_alcance"
 
 
 def crear_motor(url: str | None = None) -> Engine:
-    return create_engine(
+    maquina = create_engine(
         url or ajustes().bd_url,
         pool_pre_ping=True,
         pool_recycle=1800,
         future=True,
     )
+
+    @event.listens_for(maquina, "connect")
+    def _zona_utc(conexion: Any, _: Any) -> None:
+        """UTC también para los `DEFAULT now(3)` que calcula el servidor."""
+        with conexion.cursor() as cursor:
+            cursor.execute("SET time_zone = '+00:00'")
+
+    return maquina
 
 
 _motor: Engine | None = None
@@ -74,10 +84,10 @@ def _aplicar_alcance(estado: ORMExecuteState) -> None:
         if not estado.is_select:
             return
 
-    if estado.execution_options.get(SIN_ALCANCE):
+    if estado.execution_options.get(SIN_ALCANCE) or estado.session.info.get(EXENTA):
         return
 
-    coach_id = alcance_actual.get()
+    coach_id = estado.session.info.get(ALCANCE)
     if coach_id is None:
         # Falla ruidoso, nunca silencioso: preferimos un 500 a devolver la fila de otra coach.
         raise SinAlcanceDeInquilino(
@@ -85,10 +95,13 @@ def _aplicar_alcance(estado: ORMExecuteState) -> None:
             "verdad corresponde, app.datos.sin_alcance."
         )
 
+    # `coach_id` entra como variable de cierre y no se lee dentro de la lambda:
+    # `with_loader_criteria` la cachea por objeto de codigo y extrae los valores enlazados
+    # sin volver a ejecutarla. Llamar a una funcion dentro lanza `InvalidRequestError`.
     estado.statement = estado.statement.options(
         with_loader_criteria(
             BaseMultiInquilino,
-            lambda cls: cls.coach_id == alcance_actual.get(),
+            lambda cls: cls.coach_id == coach_id,
             include_aliases=True,
         )
     )
@@ -106,8 +119,8 @@ def sesion_con_alcance(coach_id: int) -> Iterator[Session]:
     if coach_id is None:  # pragma: no cover - defensivo
         raise SinAlcanceDeInquilino("coach_id no puede ser None")
 
-    ficha: Token[int | None] = alcance_actual.set(coach_id)
     sesion = FabricaDeSesion(bind=motor())
+    sesion.info[ALCANCE] = coach_id
     try:
         sesion.execute(text("SET @app_coach_id = :cid"), {"cid": coach_id})
         yield sesion
@@ -122,19 +135,18 @@ def sesion_con_alcance(coach_id: int) -> Iterator[Session]:
         except Exception:  # pragma: no cover - la conexion ya murio
             pass
         sesion.close()
-        alcance_actual.reset(ficha)
 
 
-def alcance_vigente() -> int:
-    """`coach_id` de la peticion en curso, o falla. Para repos que necesitan escribirlo."""
-    coach_id = alcance_actual.get()
+def alcance_de(sesion: Session) -> int:
+    """`coach_id` de esa sesion, o falla. Para repos que necesitan escribirlo."""
+    coach_id = sesion.info.get(ALCANCE)
     if coach_id is None:
-        raise SinAlcanceDeInquilino("No hay alcance de inquilino en este contexto")
-    return coach_id
+        raise SinAlcanceDeInquilino("Esta sesion no tiene alcance de inquilino")
+    return int(coach_id)
 
 
-def marcar_nuevo(entidad: Any) -> Any:
+def marcar_nuevo(sesion: Session, entidad: Any) -> Any:
     """Estampa el inquilino en una entidad nueva. El `coach_id` jamas viene del cliente."""
     if isinstance(entidad, BaseMultiInquilino):
-        entidad.coach_id = alcance_vigente()
+        entidad.coach_id = alcance_de(sesion)
     return entidad

@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo
 from app.compartido.fechas import ahora_utc
-from app.datos.alcance import alcance_actual, motor, sesion_con_alcance
+from app.datos.alcance import motor, sesion_con_alcance
 from app.datos.modelos import Sesion as FilaSesion
 from app.datos.modelos import Usuario
 from app.rutas.traduccion import respuesta_para
@@ -109,8 +109,3 @@ def solo_admin(actor: Annotated[Actor, Depends(actor_actual)]) -> Actor:
     if not actor.es_admin:
         raise _falla(Codigo.SIN_PERMISO)
     return actor
-
-
-def alcance_de_la_peticion() -> int | None:
-    """Para bitacora y depuracion. No se usa para filtrar: de eso se encarga `alcance.py`."""
-    return alcance_actual.get()

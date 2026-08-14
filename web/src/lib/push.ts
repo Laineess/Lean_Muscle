@@ -1,11 +1,7 @@
 /** Notificaciones push en el navegador.
  *
- *  Es el canal del día a día del método: no depende de que el correo llegue ni de la
- *  reputación de un dominio recién comprado.
- *
- *  **El permiso se pide cuando la usuaria toca el interruptor, nunca al cargar la app.** Un
- *  navegador que ve el diálogo de permisos sin contexto lo bloquea, y bloqueado no se puede
- *  volver a pedir: se acabó el canal para siempre en ese dispositivo.
+ *  El permiso se pide al tocar el interruptor, nunca al cargar la app: un navegador que ve el
+ *  diálogo sin contexto lo bloquea, y bloqueado no se puede volver a pedir.
  */
 
 import { api } from "@/lib/api";

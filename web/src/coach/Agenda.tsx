@@ -1,14 +1,9 @@
 /** Agenda de la coach: calendario con alta, edición y cancelación de citas.
  *
- *  Tres vistas —día, semana, mes— sobre la misma rejilla ([Calendario.tsx](./Calendario.tsx)),
- *  que no sabe nada de la API. Aquí vive lo que sí: qué rango se pide, qué reglas se avisan
- *  antes de enviar y qué hace cada botón.
+ *  Tres vistas sobre la rejilla de `Calendario.tsx`, que no sabe nada de la API.
  *
- *  Dos citas no pueden solaparse aunque una sea consulta y la otra un bloque propio: el
- *  tiempo de la coach es uno solo. Esa regla se evalúa aquí para avisar de inmediato, y se
- *  vuelve a evaluar en el servidor (`app/dominio/agenda.py`), que es donde manda.
- *
- *  Cancelar exige motivo porque la alumna lo va a leer.
+ *  El solape se avisa aquí y lo decide `app/dominio/agenda.py`. Cancelar exige motivo porque
+ *  la alumna lo va a leer.
  */
 
 import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";

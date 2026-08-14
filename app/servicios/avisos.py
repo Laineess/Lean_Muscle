@@ -1,17 +1,11 @@
-"""Encolado de avisos: el único sitio donde se pone una fila en la cola.
+"""Encolado de avisos: el unico sitio donde se pone una fila en la cola.
 
-Antes había tres implementaciones —el panel, el trabajo de recordatorios y el cambio de
-contraseña— y las tres tenían que acordarse de lo mismo: copiar el destinatario, copiar el
-contexto y no repetir el disparo. Una de ellas ya se había equivocado.
+**La llave lleva el canal.** `aviso_enviado` tiene UNIQUE (coach_id, llave), asi que un
+aviso que sale por correo y por push necesita dos llaves o la segunda revienta la
+transaccion. Era el caso de `PAGO_VENCIDO` y `PURGA_PROXIMA`, y tumbaba la corrida diaria
+entera de recordatorios.
 
-**La llave lleva el canal.** `aviso_enviado` tiene UNIQUE (coach_id, llave), así que un
-aviso que sale por correo y por push necesita dos llaves distintas o la segunda fila revienta
-la transacción entera. Ese era el error: `PAGO_VENCIDO` y `PURGA_PROXIMA` salen por los dos
-canales, y la corrida diaria de recordatorios fallaba al llegar al primero.
-
-Encolar no envía. Lo envía `app/trabajos/emisor_avisos.py`, aparte de la petición: si el
-servidor de correo tarda, la coach no debe quedarse mirando una pantalla congelada, y un
-alta no se pierde porque el SMTP estuviera caído.
+Encolar no envia: eso lo hace `app/trabajos/emisor_avisos.py`, fuera de la peticion.
 """
 
 from __future__ import annotations

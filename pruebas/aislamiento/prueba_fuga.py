@@ -19,7 +19,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.compartido.errores import SinAlcanceDeInquilino
-from app.datos.alcance import alcance_actual, crear_motor, motor, sesion_con_alcance
+from app.datos.alcance import crear_motor, motor, sesion_con_alcance
 from app.datos.base import Base
 from app.datos.modelos import Alumna, Coach, Usuario
 from app.servicios.seguridad import hash_contrasena
@@ -85,13 +85,9 @@ def test_pedir_por_id_una_alumna_ajena_no_devuelve_nada(base_lista: dict[str, in
 
 
 def test_leer_sin_alcance_falla_ruidoso() -> None:
-    ficha = alcance_actual.set(None)
-    try:
-        with pytest.raises(SinAlcanceDeInquilino):
-            with Session(motor()) as s:
-                s.scalars(select(Alumna)).all()
-    finally:
-        alcance_actual.reset(ficha)
+    """Una sesion cruda, sin pasar por el envoltorio, no lee nada."""
+    with pytest.raises(SinAlcanceDeInquilino), Session(motor()) as s:
+        s.scalars(select(Alumna)).all()
 
 
 def test_la_variable_del_inquilino_no_sobrevive_al_pool(base_lista: dict[str, int]) -> None:
@@ -109,3 +105,23 @@ def test_la_variable_del_inquilino_no_sobrevive_al_pool(base_lista: dict[str, in
     with crear_motor().connect() as conexion:
         heredado = conexion.execute(text("SELECT @app_coach_id")).scalar()
     assert heredado is None
+
+
+def test_el_alcance_viaja_con_la_sesion_no_con_el_hilo(base_lista: dict[str, int]) -> None:
+    """El alcance vive en `Session.info`, no en un ContextVar.
+
+    Con un ContextVar esto fallaba: FastAPI abre las dependencias generadoras en un hilo y
+    ejecuta el endpoint en otro, asi que lo fijado al abrir la sesion no se veia al usarla.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    with sesion_con_alcance(base_lista["a"]) as s:
+
+        def leer_en_otro_hilo() -> list[Alumna]:
+            return list(s.scalars(select(Alumna)).all())
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            filas = pool.submit(leer_en_otro_hilo).result()
+
+    assert filas, "la sesion perdio su alcance al cruzar de hilo"
+    assert all(f.coach_id == base_lista["a"] for f in filas)

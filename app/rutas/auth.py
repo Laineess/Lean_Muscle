@@ -69,10 +69,16 @@ def entrar(datos: Credenciales, peticion: Request, respuesta: Response) -> Actor
         token, token_hash = nuevo_token_de_sesion()
         vigencia = VIGENCIA_LARGA if datos.recordarme else VIGENCIA_CORTA
 
+        # Antes del commit: esta sesión conserva `expire_on_commit=True`, así que después
+        # tocar `usuario.rol` dispara una recarga sin la exención `sin_alcance` y falla.
+        rol = usuario.rol
+        coach_id = usuario.coach_id
+        usuario_id = usuario.id
+
         s.add(
             FilaSesion(
-                coach_id=usuario.coach_id,
-                usuario_id=usuario.id,
+                coach_id=coach_id,
+                usuario_id=usuario_id,
                 token_hash=token_hash,
                 vence_en=ahora_utc() + vigencia,
                 ip=peticion.client.host if peticion.client else None,
@@ -81,10 +87,6 @@ def entrar(datos: Credenciales, peticion: Request, respuesta: Response) -> Actor
         )
         usuario.ultimo_acceso_en = ahora_utc()
         s.commit()
-
-        rol = usuario.rol
-        coach_id = usuario.coach_id
-        usuario_id = usuario.id
 
     respuesta.set_cookie(
         NOMBRE_COOKIE,

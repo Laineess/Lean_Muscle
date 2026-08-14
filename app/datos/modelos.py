@@ -18,7 +18,6 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Date,
-    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -30,7 +29,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.mysql import JSON, TINYINT
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.datos.base import ARGS_DE_TABLA, Base, BaseMultiInquilino
+from app.datos.base import ARGS_DE_TABLA, MARCA_DE_TIEMPO, Base, BaseMultiInquilino
 
 # ---------------------------------------------------------------------------
 # 1. Identidad y estructura
@@ -74,7 +73,7 @@ class Usuario(BaseMultiInquilino):
     email: Mapped[str] = mapped_column(String(180), unique=True, nullable=False)
     hash_contrasena: Mapped[str] = mapped_column(String(255), nullable=False)
     estado: Mapped[str] = mapped_column(String(20), default="activo", nullable=False)
-    ultimo_acceso_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ultimo_acceso_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     debe_cambiar_contrasena: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
@@ -86,8 +85,8 @@ class Sesion(BaseMultiInquilino):
 
     usuario_id: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=False)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
-    vence_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    revocada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    vence_en: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
+    revocada_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     ip: Mapped[str | None] = mapped_column(String(45))
     user_agent: Mapped[str | None] = mapped_column(String(255))
 
@@ -157,7 +156,7 @@ class HistorialClinico(BaseMultiInquilino):
     condiciones: Mapped[str | None] = mapped_column(Text)
     medicacion: Mapped[str | None] = mapped_column(Text)
     restricciones: Mapped[str | None] = mapped_column(Text)
-    vigente_desde: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    vigente_desde: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
     registrado_por: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
 
 
@@ -183,8 +182,8 @@ class Consentimiento(BaseMultiInquilino):
     tipo: Mapped[str] = mapped_column(String(30), nullable=False)
     version_texto: Mapped[str] = mapped_column(String(20), nullable=False)
     texto_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    aceptado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    revocado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    aceptado_en: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
+    revocado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     ip: Mapped[str | None] = mapped_column(String(45))
     user_agent: Mapped[str | None] = mapped_column(String(255))
 
@@ -229,8 +228,8 @@ class Chequeo(BaseMultiInquilino):
     estado: Mapped[str] = mapped_column(String(30), default="borrador", nullable=False)
     ayuno_confirmado: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    enviado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    validado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    enviado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
+    validado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     validado_por: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
 
     feedback: Mapped[str | None] = mapped_column(Text)
@@ -372,9 +371,9 @@ class Foto(BaseMultiInquilino):
     estado_auto: Mapped[str] = mapped_column(String(20), default="pendiente", nullable=False)
 
     es_linea_base: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    tomada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    subida_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    purgada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    tomada_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
+    subida_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
+    purgada_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     motivo_purga: Mapped[str | None] = mapped_column(String(60))
 
 
@@ -399,7 +398,7 @@ class Plan(BaseMultiInquilino):
     ciclo_id: Mapped[int] = mapped_column(ForeignKey("ciclo.id"), nullable=False)
     tipo: Mapped[str] = mapped_column(String(20), nullable=False)
     estado: Mapped[str] = mapped_column(String(20), default="borrador", nullable=False)
-    publicado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    publicado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     contenido: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
     #: Desnormalizados fuera del JSON porque son las guardas de publicacion y se filtran.
@@ -483,7 +482,7 @@ class Pago(BaseMultiInquilino):
 
     estado: Mapped[str] = mapped_column(String(20), default="pendiente", nullable=False)
     validado_por: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
-    validado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    validado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
 
 
 class Cita(BaseMultiInquilino):
@@ -518,16 +517,16 @@ class Cita(BaseMultiInquilino):
     estado: Mapped[str] = mapped_column(String(20), default="agendada", nullable=False)
     modalidad: Mapped[str] = mapped_column(String(20), default="video", nullable=False)
 
-    inicia_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    termina_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    inicia_en: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
+    termina_en: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
 
     enlace: Mapped[str | None] = mapped_column(String(255))
     lugar: Mapped[str | None] = mapped_column(String(160))
     notas: Mapped[str | None] = mapped_column(Text)
 
     #: Se avisa a la alumna al agendar y un dia antes.
-    recordatorio_enviado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    cancelada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    recordatorio_enviado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
+    cancelada_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     motivo_cancelacion: Mapped[str | None] = mapped_column(String(255))
 
 
@@ -615,7 +614,7 @@ class AvisoEnviado(BaseMultiInquilino):
     contexto: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
     #: Nulo mientras esta pendiente. El trabajador toma los nulos.
-    enviado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    enviado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     error: Mapped[str | None] = mapped_column(Text)
     intentos: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
@@ -628,8 +627,8 @@ class Mensaje(BaseMultiInquilino):
     autor: Mapped[str] = mapped_column(String(10), nullable=False)  # alumna | coach
     cuerpo: Mapped[str] = mapped_column(Text, nullable=False)
     adjunto_key: Mapped[str | None] = mapped_column(String(255))
-    enviado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    leido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    enviado_en: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
+    leido_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
 
 
 class Notificacion(BaseMultiInquilino):
@@ -643,8 +642,8 @@ class Notificacion(BaseMultiInquilino):
     tipo: Mapped[str] = mapped_column(String(40), nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     canal: Mapped[str] = mapped_column(String(20), default="push", nullable=False)
-    enviada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    leida_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    enviada_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
+    leida_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
 
 
 class ClaveTemporal(BaseMultiInquilino):
@@ -657,8 +656,8 @@ class ClaveTemporal(BaseMultiInquilino):
     alumna_id: Mapped[int] = mapped_column(ForeignKey("alumna.id"), nullable=False)
     emitida_por: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=False)
     hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    vence_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    usada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    vence_en: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
+    usada_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     motivo_verificacion: Mapped[str | None] = mapped_column(String(255))
 
 
@@ -684,7 +683,7 @@ class SuscripcionPush(BaseMultiInquilino):
     p256dh: Mapped[str] = mapped_column(String(255), nullable=False)
     auth: Mapped[str] = mapped_column(String(255), nullable=False)
     user_agent: Mapped[str | None] = mapped_column(String(255))
-    ultimo_envio_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ultimo_envio_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     fallos: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
 
@@ -729,9 +728,9 @@ class SolicitudArco(BaseMultiInquilino):
 
     alumna_id: Mapped[int] = mapped_column(ForeignKey("alumna.id"), nullable=False)
     derecho: Mapped[str] = mapped_column(String(1), nullable=False)
-    recibida_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    respondida_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    resuelta_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    recibida_en: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
+    respondida_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
+    resuelta_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     estado: Mapped[str] = mapped_column(String(20), default="recibida", nullable=False)
     notas: Mapped[str | None] = mapped_column(Text)
 
@@ -743,11 +742,11 @@ class Vulneracion(Base):
     __tablename__ = "vulneracion"
     __table_args__ = (ARGS_DE_TABLA,)
 
-    detectada_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    detectada_en: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
     descripcion: Mapped[str] = mapped_column(Text, nullable=False)
     causa: Mapped[str | None] = mapped_column(Text)
     alcance: Mapped[str | None] = mapped_column(Text)
-    notificado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notificado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     acciones_correctivas: Mapped[str | None] = mapped_column(Text)
 
 
@@ -763,11 +762,11 @@ class Trabajo(Base):
     tipo: Mapped[str] = mapped_column(String(60), nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     estado: Mapped[str] = mapped_column(String(20), default="pendiente", nullable=False)
-    correr_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    correr_en: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
     intentos: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     max_intentos: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     ultimo_error: Mapped[str | None] = mapped_column(Text)
-    terminado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    terminado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
 
 
 # ---------------------------------------------------------------------------

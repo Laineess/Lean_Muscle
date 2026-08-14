@@ -1,21 +1,12 @@
 """Consultas del superadmin. **Solo agregados.**
 
-Esta es la única capa que cruza inquilinos por diseño, y por eso es la que más fácil se
-convierte en una puerta trasera. La regla es una y no admite matices:
+De las tablas con datos de alumnas aqui solo salen COUNT, SUM, MIN y MAX. Nunca una fila,
+nunca un nombre, nunca una fotografia: frente a la LFPDPPP la plataforma es Encargado, no
+Responsable, y esa posicion solo se sostiene si el acceso tecnico coincide con el contrato.
 
-    De las tablas con datos de alumnas aquí solo salen COUNT, SUM, MIN y MAX.
-    Nunca una fila, nunca un nombre, nunca un peso, nunca una fotografía.
+`pruebas/aislamiento/prueba_plataforma.py` lo comprueba leyendo el arbol sintactico.
 
-El superadmin administra coaches; no es médico de nadie ni parte de la relación entre la
-coach y su alumna. Frente a la LFPDPPP la plataforma es Encargado, no Responsable, y esa
-posición solo se sostiene si el acceso técnico coincide con lo que dicen los documentos.
-
-`pruebas/aislamiento/prueba_plataforma.py` lee el árbol sintáctico de este archivo y falla si
-alguien mete un `select(Alumna)` o pide una columna que identifique a una persona. Es la misma
-idea que la prueba de la bitácora: una convención escrita en un comentario se olvida.
-
-Todas las funciones reciben una sesión **sin alcance**. Es la excepción que `sin_alcance.py`
-contempla, y el motivo va por escrito en cada llamada.
+Todas reciben una sesion **sin alcance**, con su motivo por escrito en cada llamada.
 """
 
 from __future__ import annotations

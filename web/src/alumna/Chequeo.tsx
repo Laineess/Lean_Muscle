@@ -1,16 +1,9 @@
 /** El chequeo mensual: cinco pasos, a pantalla completa.
  *
- *  Va fuera del marco de pestañas a propósito. La alumna hace esto de pie, en ayunas, recién
- *  despierta: cualquier cosa que la distraiga de terminar sobra.
+ *  El borrador vive en el servidor y se guarda al cambiar de paso: cerrar la pestaña sin
+ *  querer no cuesta el chequeo del mes.
  *
- *  **El borrador vive en el servidor, no en esta pantalla.** Se guarda al cambiar de paso, así
- *  que cerrar la pestaña sin querer no cuesta el chequeo del mes: al volver, la captura sigue
- *  donde estaba. Guardar en el navegador habría sido más simple y habría perdido el dato en
- *  cuanto cambiara de teléfono.
- *
- *  Lo que se valida aquí es cortesía. Las mismas reglas se vuelven a evaluar en el servidor
- *  (`app/dominio/chequeo.py`) y ahí sí mandan: un cliente comprometido no debe poder saltarse
- *  ninguna.
+ *  Lo que se valida aquí es cortesía; las reglas que mandan están en `app/dominio/chequeo.py`.
  */
 
 import { ArrowLeft, Camera, Check, Loader2, RotateCcw } from "lucide-react";

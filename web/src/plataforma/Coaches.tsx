@@ -1,9 +1,7 @@
 /** Las coaches de la plataforma: alta, plan, límite, estado y suscripción.
  *
- *  Cada fila enseña cuántas alumnas, cuántos chequeos y cuánto disco. **Ningún dato llega a
- *  una alumna concreta**: son cuántas, no quiénes. Esa restricción no se sostiene aquí sino
- *  en `app/datos/repos/plataforma.py`, donde una prueba lee el árbol sintáctico para impedir
- *  que alguien meta un `select(Alumna)`.
+ *  Cuántas alumnas, no quiénes. La restricción se impone en `app/datos/repos/plataforma.py`,
+ *  no aquí.
  */
 
 import { AlertTriangle, Plus } from "lucide-react";

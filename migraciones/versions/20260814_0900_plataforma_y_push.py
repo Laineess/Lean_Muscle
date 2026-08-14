@@ -45,9 +45,10 @@ def _columnas_base() -> list[sa.Column]:
     return [
         sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
         sa.Column("ulid", mysql.CHAR(26), nullable=False),
+        # DATETIME(3): una columna sin precisión de fracción rechaza un DEFAULT now(3).
         sa.Column(
             "creado_en",
-            sa.DateTime(timezone=True),
+            mysql.DATETIME(fsp=3),
             server_default=sa.func.now(3),
             nullable=False,
         ),
@@ -131,7 +132,7 @@ def _crear_suscripcion_push() -> None:
         sa.Column("p256dh", sa.String(255), nullable=False),
         sa.Column("auth", sa.String(255), nullable=False),
         sa.Column("user_agent", sa.String(255), nullable=True),
-        sa.Column("ultimo_envio_en", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("ultimo_envio_en", mysql.DATETIME(fsp=3), nullable=True),
         sa.Column("fallos", sa.Integer(), server_default="0", nullable=False),
         sa.PrimaryKeyConstraint("id", name="pk_suscripcion_push"),
         sa.UniqueConstraint("ulid", name="uq_suscripcion_push_ulid"),

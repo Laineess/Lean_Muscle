@@ -137,7 +137,17 @@ node pruebas/clases.mjs        # que ningún color se pierda contra un tamaño
 node pruebas/calculadora.mjs   # que el motor de la interfaz coincida con la hoja
 ```
 
-28 pruebas se saltan sin MySQL: son las de aislamiento e integración.
+Sin MySQL se saltan las de aislamiento e integración. **Correrlas borra y recrea la base
+local**, así que después hay que volver a sembrar:
+
+```powershell
+.\.venv\Scriptslembic stamp base; .\.venv\Scriptslembic upgrade head
+.\.venv\Scripts\python -m app.semilla --reiniciar
+```
+
+Los PDF necesitan las bibliotecas de WeasyPrint. En Ubuntu:
+`apt install libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0`; en Windows hace falta el
+runtime de GTK3. Sin ellas la descarga responde 503 con el motivo, no un error genérico.
 [GitHub Actions](.github/workflows/ci.yml) sí las corre, y **si la prueba de fuga falla no
 se fusiona**.
 

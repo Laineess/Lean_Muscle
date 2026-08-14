@@ -1,12 +1,7 @@
 /** Marco del panel de plataforma.
  *
- *  Deliberadamente más sobrio que el de la coach: aquí no hay marca de nadie, no hay dorado
- *  de nadie y no hay nada que se parezca al producto que ve una alumna. Quien entra aquí
- *  administra cuentas, no acompaña a personas.
- *
- *  El aviso de la cabecera no es decorativo. Es el recordatorio de que este panel **no puede
- *  ver datos de alumnas**, que es la línea que sostiene que la plataforma sea Encargado y no
- *  Responsable frente a la LFPDPPP.
+ *  Más sobrio que el de la coach a propósito: aquí se administran cuentas, no se acompaña a
+ *  personas. El aviso de la cabecera recuerda que este panel no ve datos de alumnas.
  */
 
 import { ShieldAlert } from "lucide-react";

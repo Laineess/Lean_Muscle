@@ -1,12 +1,7 @@
-/** La conversación entre alumna y coach.
+/** La conversación entre alumna y coach. El mismo componente para los dos frentes.
  *
- *  El mismo componente sirve a los dos frentes: cambia quién es «yo» y de dónde salen los
- *  mensajes, no cómo se leen. Duplicarlo habría garantizado que uno de los dos se quedara
- *  atrás en la siguiente corrección.
- *
- *  **No hay tiempo real.** El hilo se recarga al abrirlo y al enviar. Un websocket para un
- *  puñado de mensajes al día costaría una conexión abierta por alumna, un proceso más en el
- *  VPS y un modo de fallo nuevo, a cambio de nada que se note.
+ *  Sin tiempo real: se recarga al abrir y al enviar. Un websocket para un puñado de mensajes
+ *  al día costaría una conexión abierta por alumna a cambio de nada que se note.
  */
 
 import { Loader2, Send } from "lucide-react";

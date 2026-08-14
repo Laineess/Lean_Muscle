@@ -7,6 +7,7 @@ equipo y un presupuesto cerrado, partir en servicios solo agrega despliegues y l
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
@@ -28,8 +29,11 @@ from app.rutas import (
 )
 from app.rutas.plataforma import api as api_plataforma
 from app.rutas.traduccion import respuesta_para
+from app.servicios.pdf import FaltanBibliotecasDePdf
 
 RAIZ = Path(__file__).resolve().parent
+
+_registro = logging.getLogger("myprogressplan")
 
 app = FastAPI(
     title="LeanMuscle",
@@ -55,13 +59,26 @@ async def traducir_error_de_dominio(_: Request, exc: ErrorDeDominio) -> JSONResp
     )
 
 
+@app.exception_handler(FaltanBibliotecasDePdf)
+async def traducir_falta_de_pdf(_: Request, exc: FaltanBibliotecasDePdf) -> JSONResponse:
+    """503 y no 500: el servidor está bien, le falta una dependencia del sistema."""
+    _registro.error("%s", exc)
+    return JSONResponse(
+        status_code=503,
+        content={"mensaje": "La generación de PDF no está disponible en este servidor."},
+    )
+
+
 @app.exception_handler(SinAlcanceDeInquilino)
-async def traducir_sin_alcance(_: Request, exc: SinAlcanceDeInquilino) -> JSONResponse:
+async def traducir_sin_alcance(peticion: Request, exc: SinAlcanceDeInquilino) -> JSONResponse:
     """Una consulta sin inquilino es un error del programador, no de la usuaria.
 
-    Se responde 500 sin detalle y se registra completo: preferimos caer ruidoso antes que
-    devolver la fila de otra coach.
+    Se responde 500 sin detalle y **se registra completo con su traza**: preferimos caer
+    ruidoso antes que devolver la fila de otra coach, pero caer en silencio no ayuda a nadie.
+    Sin la traza, este error se ve en el navegador como «Error interno» y en el servidor como
+    nada, que es la peor combinación posible para encontrarlo.
     """
+    _registro.exception("consulta sin alcance de inquilino en %s", peticion.url.path)
     estado, mensaje = respuesta_para(exc.codigo)
     return JSONResponse(status_code=estado, content={"mensaje": mensaje})
 

@@ -1,16 +1,9 @@
-"""El superadmin no puede ver datos de alumnas. Comprobado leyendo el código.
+"""El superadmin no puede ver datos de alumnas. Comprobado leyendo el codigo.
 
-`app/datos/repos/plataforma.py` es la única capa que cruza inquilinos por diseño, así que es
-la que con más facilidad se convierte en una puerta trasera: basta que alguien escriba
-`select(Alumna)` «solo para depurar» y se quede.
-
-Esta prueba lee el árbol sintáctico y falla si de una tabla con datos de alumnas sale algo
-que no sea un agregado o una columna declarada aquí abajo. Se comprueba estáticamente y no
-contra una base a propósito: así corre en cada cambio, sin MySQL, y bloquea el olvido antes
-de que llegue a producción.
-
-Frente a la LFPDPPP la plataforma es Encargado, no Responsable. Esa posición solo se sostiene
-si el acceso técnico coincide con lo que dicen los cuatro documentos legales.
+`app/datos/repos/plataforma.py` es la unica capa que cruza inquilinos por diseno, asi que es
+la que con mas facilidad se convierte en una puerta trasera. Esta prueba lee su arbol
+sintactico y falla si de una tabla con datos de alumnas sale algo que no sea un agregado o
+una columna declarada aqui abajo.
 """
 
 from __future__ import annotations

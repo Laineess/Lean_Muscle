@@ -1,12 +1,9 @@
-/** La rejilla del calendario: horas a la izquierda, días arriba, citas colocadas encima.
+/** La rejilla del calendario: horas a la izquierda, días arriba, citas encima.
  *
- *  Vive aparte de `Agenda.tsx` porque no sabe nada de la API ni de las reglas de negocio.
- *  Recibe citas, dice dónde se tocó y ya. Eso permite probar la colocación sin levantar nada
- *  y reutilizar la misma rejilla para el día y para la semana.
+ *  No sabe nada de la API: recibe citas y avisa dónde se tocó.
  *
- *  **Las citas que se solapan se reparten el ancho.** Un calendario que las apila una encima
- *  de otra esconde justo lo que hay que ver. El reparto se calcula por columnas dentro de
- *  cada grupo que se toca, que es como lo resuelven los calendarios que funcionan.
+ *  Las citas que se solapan se reparten el ancho en columnas; apilarlas escondería justo lo
+ *  que hay que ver.
  */
 
 import { useEffect, useRef } from "react";
