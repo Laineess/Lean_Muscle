@@ -25,6 +25,7 @@ from app.config import ajustes
 from app.datos.modelos import Alumna, Foto, Mensaje, Pago, SuscripcionPush
 from app.datos.repos import consultas as q
 from app.dominio.chequeo import Angulo
+from app.rutas import archivos
 from app.rutas.esquemas import (
     ComprobanteLeido,
     Esquema,
@@ -218,15 +219,7 @@ def servir_foto(
     )
 
     llave = fila.storage_key.replace(".webp", "-mini.webp") if mini else fila.storage_key
-    return Response(
-        status_code=200,
-        headers={
-            "X-Accel-Redirect": almacen().ruta_interna(llave),
-            "Content-Type": "image/webp",
-            # Privada y corta: es un dato sensible, no debe quedarse en cachés intermedias.
-            "Cache-Control": "private, max-age=300",
-        },
-    )
+    return archivos.servir(llave)
 
 
 # ---------------------------------------------------------------------------
@@ -327,14 +320,7 @@ def servir_logo(
     if coach is None or coach.logo_key is None:
         raise HTTPException(404, "Esta marca no tiene logo")
 
-    return Response(
-        status_code=200,
-        headers={
-            "X-Accel-Redirect": almacen().ruta_interna(coach.logo_key),
-            "Content-Type": "image/webp",
-            "Cache-Control": "private, max-age=300",
-        },
-    )
+    return archivos.servir(coach.logo_key)
 
 
 @ruteador.get("/push/llave", response_model=LlavePush)

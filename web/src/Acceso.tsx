@@ -15,9 +15,15 @@ import { useNavigate } from "react-router-dom";
 
 import { Apoyo, Aviso, Boton, Campo, Casilla, Entrada, Etiqueta, Portada, Regla } from "@/componentes/primitivas";
 import { ErrorApi, api, type ActorPublico } from "@/lib/api";
-import { correoRecordado, guardarActor, recordarCorreo, type Rol } from "@/lib/sesion";
+import { correoRecordado, guardarActor, recordarCorreo } from "@/lib/sesion";
 
-const ACENTO_POR_DEFECTO = "#c9a227";
+//: Cuentas que crea `app.semilla`. Solo se usan en desarrollo.
+const CLAVE_DEMO = "Demo1234!";
+const CUENTAS_DEMO: [string, string][] = [
+  ["Alumna", "andrea.saenz@ejemplo.mx"],
+  ["Coach", "mariana@leanmuscle.mx"],
+  ["Superadmin", "admin@myprogressplan.com"],
+];
 
 export function Acceso() {
   const navegar = useNavigate();
@@ -32,18 +38,32 @@ export function Acceso() {
   function abrir(actor: ActorPublico) {
     recordarCorreo(correo, recordar);
     guardarActor(actor);
-    navegar(actor.rol === "coach" ? "/coach" : "/inicio", { replace: true });
+    navegar(
+      actor.rol === "coach" ? "/coach" : actor.rol === "admin_plataforma" ? "/plataforma" : "/inicio",
+      { replace: true },
+    );
   }
 
-  /** Entrada directa sin servidor, para revisar las pantallas. Desaparece con la API en pie. */
-  function entrarDemostracion(rol: Rol) {
-    abrir({
-      rol,
-      nombre: rol === "coach" ? "Mariana Cervantes" : "Andrea Sáenz",
-      correo: correo || "demo@myprogressplan.com",
-      colorAcento: ACENTO_POR_DEFECTO,
-      marca: "LeanMuscle",
-    });
+  /** Entra con una cuenta de la semilla. **Hace login de verdad.**
+   *
+   *  Antes falseaba el actor en `sessionStorage` sin pedir cookie, y con la API en pie eso
+   *  dejaba una sesión que el servidor no reconocía: la primera petición devolvía 401 y
+   *  echaba de vuelta al acceso. Solo se compila en desarrollo.
+   */
+  async function entrarDemostracion(cuenta: string) {
+    setError(null);
+    setEnviando(true);
+    try {
+      abrir(await api.acceso.entrar(cuenta, CLAVE_DEMO, false));
+    } catch (causa) {
+      setError(
+        causa instanceof ErrorApi
+          ? `${causa.message} ¿Sembraste la base con \`app.semilla\`?`
+          : "No se pudo entrar con la cuenta de ejemplo.",
+      );
+    } finally {
+      setEnviando(false);
+    }
   }
 
   async function enviar(e: FormEvent) {
@@ -127,23 +147,28 @@ export function Acceso() {
         una clave temporal desde su panel, después de verificar que eres tú.
       </Aviso>
 
-      {/* Bloque de demostración: desaparece cuando exista `/api/auth/login`. */}
-      <div className="flex flex-col gap-3">
-        <Regla />
-        <Etiqueta>Para revisar sin servidor</Etiqueta>
-        <Apoyo>
-          Si la API no está corriendo, entra directo a cualquiera de los dos frentes con datos
-          de ejemplo. Con el servidor en pie, usa el formulario de arriba.
-        </Apoyo>
-        <div className="flex flex-wrap gap-2">
-          <Boton tono="contorno" medida="chica" onClick={() => entrarDemostracion("alumna")}>
-            Ver como alumna
-          </Boton>
-          <Boton tono="contorno" medida="chica" onClick={() => entrarDemostracion("coach")}>
-            Ver como coach
-          </Boton>
+      {/* Solo en desarrollo: `import.meta.env.DEV` es falso al compilar, así que este bloque
+          ni siquiera llega al paquete que se despliega. */}
+      {import.meta.env.DEV ? (
+        <div className="flex flex-col gap-3">
+          <Regla />
+          <Etiqueta>Cuentas de la semilla</Etiqueta>
+          <Apoyo>Entra con un toque. Solo aparece en desarrollo.</Apoyo>
+          <div className="flex flex-wrap gap-2">
+            {CUENTAS_DEMO.map(([rotulo, cuenta]) => (
+              <Boton
+                key={cuenta}
+                tono="contorno"
+                medida="chica"
+                disabled={enviando}
+                onClick={() => void entrarDemostracion(cuenta)}
+              >
+                {rotulo}
+              </Boton>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <p className="text-micro text-tinta-suave">
         Al entrar aceptas los Términos y el{" "}

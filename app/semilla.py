@@ -49,6 +49,34 @@ CLAVE_DEMO = "Demo1234!"
 HOY = date(2026, 8, 13)
 
 
+def _marcador_de_foto(llave: str, angulo: str, cuando: str) -> None:
+    """Escribe una imagen de relleno donde iria la fotografia de chequeo.
+
+    Sin esto la fila apunta a un archivo que no existe y la pantalla de validacion sale con
+    las imagenes rotas. Es un marcador evidente —fondo liso con su rotulo—, no una silueta
+    que pueda confundirse con la foto de alguien.
+    """
+    from io import BytesIO
+
+    from PIL import Image, ImageDraw
+
+    from app.servicios.almacenamiento import almacen
+
+    for ancho, alto, sufijo in ((1200, 1600, ""), (320, 427, "-mini")):
+        lienzo = Image.new("RGB", (ancho, alto), (238, 238, 236))
+        pincel = ImageDraw.Draw(lienzo)
+        margen = ancho // 12
+        pincel.rectangle(
+            [margen, margen, ancho - margen, alto - margen], outline=(200, 200, 196), width=3
+        )
+        pincel.text((margen + 12, margen + 12), f"ejemplo · {angulo}", fill=(120, 120, 118))
+        pincel.text((margen + 12, margen + 30), cuando, fill=(150, 150, 148))
+
+        salida = BytesIO()
+        lienzo.save(salida, format="WEBP", quality=70, method=4)
+        almacen().guardar(llave.replace(".webp", f"{sufijo}.webp"), salida.getvalue())
+
+
 def _momento(dia: date, hora: int = 12) -> datetime:
     return datetime(dia.year, dia.month, dia.day, hora, tzinfo=UTC)
 
@@ -712,12 +740,14 @@ def _sembrar_historial_de_andrea(
             )
 
         for angulo in ("frontal", "perfil", "espalda"):
+            llave = f"coach/{coach_id}/alumna/{alumna_id}/chequeo/{chequeo.id}/{angulo}.webp"
+            _marcador_de_foto(llave, angulo, str(datos["fecha"]))
             sesion.add(
                 Foto(
                     coach_id=coach_id,
                     chequeo_id=chequeo.id,
                     angulo=angulo,
-                    storage_key=f"coach/{coach_id}/alumna/{alumna_id}/chequeo/{chequeo.id}/{angulo}.webp",
+                    storage_key=llave,
                     ancho=1200,
                     alto=1600,
                     bytes=380_000,
@@ -949,8 +979,13 @@ def sembrar(reiniciar: bool = False) -> None:
         if existentes:
             from app.datos.base import Base
 
-            Base.metadata.drop_all(bind=s.get_bind())
-            Base.metadata.create_all(bind=s.get_bind())
+            # Sobre `s.connection()` y no sobre el motor: el SELECT de arriba dejo una
+            # transaccion abierta en esta conexion, y un DROP lanzado por otra del pool se
+            # queda esperando su metadata lock contra la propia semilla.
+            conexion = s.connection()
+            Base.metadata.drop_all(bind=conexion)
+            Base.metadata.create_all(bind=conexion)
+            s.commit()
             print("Base reiniciada.")
 
         sembrar_catalogos(s)
