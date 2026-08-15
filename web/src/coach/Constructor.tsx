@@ -770,7 +770,9 @@ function FotosDeSusComidas({ alumnaUlid }: { alumnaUlid: string }) {
   const [texto, setTexto] = useState("");
 
   const fotos = carga.datos ?? [];
-  if (carga.cargando || fotos.length === 0) return null;
+  if (carga.cargando) return null;
+  // Se muestra aunque esté vacío: si desaparece, la coach no sabe dónde mirar ni si su
+  // alumna mandó algo. Vacío es una respuesta, no la ausencia de la pantalla.
 
   async function guardar(ulid: string) {
     try {
@@ -789,6 +791,10 @@ function FotosDeSusComidas({ alumnaUlid }: { alumnaUlid: string }) {
         <Chip>{fotos.length}</Chip>
       </div>
       <Apoyo>Se borran solas a las 36 horas de que las manda.</Apoyo>
+
+      {fotos.length === 0 ? (
+        <Apoyo>Ahora mismo no tiene ninguna vigente.</Apoyo>
+      ) : null}
 
       <ul className="grid grid-cols-2 gap-2">
         {fotos.map((f) => (

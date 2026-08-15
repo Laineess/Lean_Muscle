@@ -430,6 +430,23 @@ export interface AgendaApi {
   cobros: MarcaDeCobroApi[];
 }
 
+export interface ServicioApi {
+  ulid: string;
+  nombre: string;
+  descripcion: string | null;
+  motivo: MotivoDeCobro;
+  precio: number;
+  activo: boolean;
+}
+
+export interface ServicioNuevoApi {
+  nombre: string;
+  descripcion?: string | null;
+  motivo: MotivoDeCobro;
+  precio: number;
+  activo: boolean;
+}
+
 export interface PlanApi {
   tipo: "nutricion" | "entrenamiento";
   ciclo: number;
@@ -1122,6 +1139,15 @@ export const api = {
         metodo: "POST",
         cuerpo: { motivoVerificacion },
       }),
+
+    servicios: (senal?: AbortSignal) =>
+      pedir<ServicioApi[]>("/coach/servicios", senal ? { senal } : {}),
+    crearServicio: (x: ServicioNuevoApi) =>
+      pedir<ServicioApi>("/coach/servicios", { metodo: "POST", cuerpo: x }),
+    editarServicio: (ulid: string, x: ServicioNuevoApi) =>
+      pedir<ServicioApi>(`/coach/servicios/${ulid}`, { metodo: "PUT", cuerpo: x }),
+    borrarServicio: (ulid: string) =>
+      pedir<void>(`/coach/servicios/${ulid}`, { metodo: "DELETE" }),
 
     planes: (senal?: AbortSignal) =>
       pedir<PlanComercialApi[]>("/coach/tarifas", senal ? { senal } : {}),

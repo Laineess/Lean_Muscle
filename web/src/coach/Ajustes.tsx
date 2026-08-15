@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Planes } from "@/coach/Planes";
+import { Servicios } from "@/coach/Servicios";
 import { Presentacion } from "@/coach/Presentacion";
 import { Notificaciones } from "@/componentes/Notificaciones";
 import { InterruptorDeTema } from "@/componentes/Tema";
@@ -208,6 +209,10 @@ export function Ajustes() {
 
       {/* ---- Planes ---- */}
       <Planes />
+
+      <Regla />
+
+      <Servicios />
 
       <Regla />
 

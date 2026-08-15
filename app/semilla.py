@@ -42,6 +42,7 @@ from app.datos.modelos import (
     Plan,
     PreguntaCuestionario,
     PresentacionCoach,
+    Servicio,
     SuscripcionCoach,
     Tarifa,
     Usuario,
@@ -646,6 +647,25 @@ def sembrar_coach(
         )
         sesion.add(plan_comercial)
         planes.append(plan_comercial)
+
+    # Precios sueltos: lo que cobra aparte del plan. Sin esto el formulario de cobro no
+    # tiene nada que ofrecer y hay que teclear el importe cada vez.
+    for nombre_servicio, motivo_servicio, precio_servicio, descripcion_servicio in (
+        ("Consulta de seguimiento", "cita", Decimal("450.00"), "45 minutos por video."),
+        ("Consulta presencial", "cita", Decimal("650.00"), "Una hora en el estudio."),
+        ("Inscripcion", "inscripcion", Decimal("500.00"), "Se cobra una sola vez, al entrar."),
+        ("Banda de resistencia", "material", Decimal("280.00"), None),
+    ):
+        sesion.add(
+            Servicio(
+                coach_id=coach.id,
+                nombre=nombre_servicio,
+                descripcion=descripcion_servicio,
+                motivo=motivo_servicio,
+                precio=precio_servicio,
+                activo=True,
+            )
+        )
     sesion.flush()
 
     for i, ficha in enumerate(cartera):

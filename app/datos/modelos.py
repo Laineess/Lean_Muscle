@@ -597,6 +597,38 @@ class Tarifa(BaseMultiInquilino):
     activa: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
+class Servicio(BaseMultiInquilino):
+    """Precio de algo que la coach cobra aparte del plan: una consulta suelta, material,
+    una inscripcion.
+
+    Los planes viven en `Tarifa` porque son una suscripcion —tienen duracion e intensidad, y
+    una alumna pertenece a uno—. Esto es lo contrario: un cargo puntual con su precio, y por
+    eso es otra tabla en vez de una `Tarifa` con campos vacios.
+
+    El precio se **copia** al cobro al programarlo, igual que el de la tarifa: subirlo no
+    reescribe lo que ya se pacto con alguien.
+    """
+
+    __tablename__ = "servicio"
+    __table_args__ = (
+        CheckConstraint("precio > 0", name="precio_servicio_positivo"),
+        CheckConstraint(
+            "motivo in ('inscripcion','mensualidad','cita','material','otro')",
+            name="motivo_servicio_valido",
+        ),
+        Index("ix_servicio_coach_motivo", "coach_id", "motivo"),
+        ARGS_DE_TABLA,
+    )
+
+    nombre: Mapped[str] = mapped_column(String(120), nullable=False)
+    descripcion: Mapped[str | None] = mapped_column(Text)
+    #: Con que motivo de cobro se programa. Es lo que permite que el formulario de cobro
+    #: ofrezca los servicios que corresponden al motivo elegido.
+    motivo: Mapped[str] = mapped_column(String(20), default="cita", nullable=False)
+    precio: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
 class MovimientoFinanciero(BaseMultiInquilino):
     """Contabilidad de gestion de la coach: sirve para saber si su negocio gana dinero, no
     para declarar impuestos. Por eso no hay IVA desglosado ni folios fiscales."""

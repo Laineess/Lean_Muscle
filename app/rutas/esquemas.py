@@ -1032,6 +1032,26 @@ class DocumentoLegal(Esquema):
 # ---------------------------------------------------------------------------
 
 
+class ServicioPublico(Esquema):
+    """Un precio suelto del catálogo de la coach: una consulta, material, una inscripción."""
+
+    ulid: str
+    nombre: str
+    descripcion: str | None
+    #: Con qué motivo de cobro se programa: `cita`, `material`, `inscripcion`, `otro`.
+    motivo: str
+    precio: Numero
+    activo: bool
+
+
+class ServicioNuevo(Esquema):
+    nombre: str
+    descripcion: str | None = None
+    motivo: str = "cita"
+    precio: Numero
+    activo: bool = True
+
+
 class PlanComercial(Esquema):
     """Lo que la coach vende. `Tarifa` en la base; se llama plan hacia afuera porque `Plan`
     ya es el de nutrición y entrenamiento."""

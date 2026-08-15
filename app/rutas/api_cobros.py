@@ -19,11 +19,12 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc
-from app.datos.modelos import CobroProgramado, Tarifa
+from app.datos.modelos import CobroProgramado, Servicio, Tarifa
 from app.datos.repos import consultas as q
 from app.rutas.esquemas import (
     AlumnaConCobros,
@@ -32,6 +33,8 @@ from app.rutas.esquemas import (
     CobroNuevoProgramado,
     PlanComercial,
     PlanComercialNuevo,
+    ServicioNuevo,
+    ServicioPublico,
 )
 from app.rutas.sesion import Actor, datos, solo_coach
 
@@ -160,6 +163,100 @@ def desactivar_plan(
     if plan is None:
         raise HTTPException(404, "No existe ese plan")
     plan.activa = False
+
+
+# ---------------------------------------------------------------------------
+# Catálogo de precios sueltos
+# ---------------------------------------------------------------------------
+
+
+def _servicio_publico(x: Servicio) -> ServicioPublico:
+    return ServicioPublico(
+        ulid=x.ulid,
+        nombre=x.nombre,
+        descripcion=x.descripcion,
+        motivo=x.motivo,
+        precio=x.precio,
+        activo=x.activo,
+    )
+
+
+@ruteador.get("/servicios", response_model=list[ServicioPublico])
+def servicios(
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> list[ServicioPublico]:
+    """Su lista de precios. Incluye los apagados: se pueden volver a encender."""
+    _ = actor
+    filas = s.scalars(select(Servicio).order_by(Servicio.motivo, Servicio.nombre))
+    return [_servicio_publico(x) for x in filas]
+
+
+@ruteador.post("/servicios", response_model=ServicioPublico, status_code=201)
+def crear_servicio(
+    cuerpo: ServicioNuevo,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> ServicioPublico:
+    _validar_servicio(cuerpo)
+    servicio = Servicio(
+        coach_id=actor.coach_id,
+        nombre=cuerpo.nombre.strip()[:120],
+        descripcion=(cuerpo.descripcion or "").strip()[:1000] or None,
+        motivo=cuerpo.motivo,
+        precio=cuerpo.precio,
+        activo=cuerpo.activo,
+    )
+    s.add(servicio)
+    s.flush()
+    return _servicio_publico(servicio)
+
+
+@ruteador.put("/servicios/{ulid}", response_model=ServicioPublico)
+def editar_servicio(
+    ulid: str,
+    cuerpo: ServicioNuevo,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> ServicioPublico:
+    """Cambiar el precio no reescribe los cobros ya programados: ahí el importe se copió."""
+    _ = actor
+    _validar_servicio(cuerpo)
+    servicio = s.scalars(select(Servicio).where(Servicio.ulid == ulid)).first()
+    if servicio is None:
+        raise HTTPException(404, "No existe ese servicio")
+
+    servicio.nombre = cuerpo.nombre.strip()[:120]
+    servicio.descripcion = (cuerpo.descripcion or "").strip()[:1000] or None
+    servicio.motivo = cuerpo.motivo
+    servicio.precio = cuerpo.precio
+    servicio.activo = cuerpo.activo
+    s.flush()
+    return _servicio_publico(servicio)
+
+
+@ruteador.delete("/servicios/{ulid}", status_code=204)
+def borrar_servicio(
+    ulid: str,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> None:
+    """Este sí se borra. A diferencia del plan, no explica por qué nadie paga lo que paga:
+    el importe ya quedó copiado en cada cobro que se programó con él."""
+    _ = actor
+    servicio = s.scalars(select(Servicio).where(Servicio.ulid == ulid)).first()
+    if servicio is None:
+        raise HTTPException(404, "No existe ese servicio")
+    s.delete(servicio)
+
+
+def _validar_servicio(cuerpo: ServicioNuevo) -> None:
+    if not cuerpo.nombre.strip():
+        raise ErrorDeDominio(Codigo.CONCEPTO_REQUERIDO)
+    if cuerpo.precio <= 0:
+        raise ErrorDeDominio(Codigo.MONTO_INVALIDO, monto=str(cuerpo.precio))
+    if cuerpo.motivo not in MOTIVOS:
+        raise ErrorDeDominio(Codigo.CATEGORIA_INVALIDA, categoria=cuerpo.motivo, tipo="cobro")
 
 
 # ---------------------------------------------------------------------------

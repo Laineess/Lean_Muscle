@@ -26,6 +26,7 @@ import {
   type CitaDeAlumnaApi,
   type CobroApi2,
   type MotivoDeCobro,
+  type ServicioApi,
 } from "@/lib/api";
 import { fecha, num } from "@/lib/formato";
 import { usarApi } from "@/lib/usarApi";
@@ -78,6 +79,7 @@ export function CalendarioDeCobros({
   for (const c of citas.datos ?? []) {
     if (c.estado !== "cancelada") consultas.set(c.iniciaEn.slice(0, 10), c);
   }
+  const proximasConsultas = [...consultas.values()].slice(-4);
 
   const adeudo = cobros.filter((c) => c.vencido).reduce((s, c) => s + c.monto, 0);
 
@@ -155,6 +157,30 @@ export function CalendarioDeCobros({
         </div>
       </div>
 
+      {proximasConsultas.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <Etiqueta>Consultas agendadas</Etiqueta>
+          <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+            {proximasConsultas.map((c) => (
+              <li key={c.ulid} className="flex items-baseline justify-between gap-2 py-2">
+                <span className="text-micro">{c.titulo}</span>
+                <span className="cifra text-micro text-tinta-media">
+                  {fecha(c.iniciaEn.slice(0, 10))} · {c.iniciaEn.slice(11, 16)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <Apoyo>
+            Su chequeo se abre tres días antes de cada una y se cierra tres después.
+          </Apoyo>
+        </div>
+      ) : (
+        <Apoyo>
+          Sin consultas agendadas. Hasta que le agendes una desde tu agenda, no puede
+          capturar su chequeo.
+        </Apoyo>
+      )}
+
       {cobros.length > 0 ? (
         <ul className="flex flex-col divide-y divide-linea border-y border-linea">
           {cobros.slice(-4).map((c) => (
@@ -211,6 +237,9 @@ function FormularioDeCobro({
   const [motivo, setMotivo] = useState<MotivoDeCobro>("mensualidad");
   const [monto, setMonto] = useState(precioSugerido ?? 0);
   const [concepto, setConcepto] = useState("");
+  // Su lista de precios. Elegir uno rellena importe y concepto en lugar de teclearlos.
+  const servicios = usarApi<ServicioApi[]>((s) => api.coach.servicios(s));
+  const delMotivo = (servicios.datos ?? []).filter((x) => x.activo && x.motivo === motivo);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -296,6 +325,32 @@ function FormularioDeCobro({
           ))}
         </Selector>
       </Campo>
+
+      {delMotivo.length > 0 ? (
+        <Campo
+          id="cb-servicio"
+          etiqueta="De tu lista de precios"
+          ayuda="Al elegir uno se llenan el importe y el concepto. Puedes cambiarlos después."
+        >
+          <Selector
+            id="cb-servicio"
+            value=""
+            onChange={(e) => {
+              const elegido = delMotivo.find((x) => x.ulid === e.target.value);
+              if (!elegido) return;
+              setMonto(elegido.precio);
+              setConcepto(elegido.nombre);
+            }}
+          >
+            <option value="">Elige uno…</option>
+            {delMotivo.map((x) => (
+              <option key={x.ulid} value={x.ulid}>
+                {x.nombre} · ${num(x.precio)}
+              </option>
+            ))}
+          </Selector>
+        </Campo>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo id="cb-monto" etiqueta="Monto" sufijo="MXN">
