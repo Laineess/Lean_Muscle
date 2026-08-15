@@ -100,8 +100,11 @@ export function Validacion() {
   if (!ficha || !actual) {
     return (
       <div className="flex flex-col gap-6">
-        <Link to="/coach" className="flex w-fit items-center gap-2 text-menor text-tinta-media hover:text-tinta">
-          <ArrowLeft className="size-4" /> Panel
+        <Link
+          to={`/coach/plan/${alumnaUlid}`}
+          className="flex w-fit items-center gap-2 text-menor text-tinta-media hover:text-tinta"
+        >
+          <ArrowLeft className="size-4" /> Expediente
         </Link>
         <Aviso tono="info" titulo="No hay nada que validar">
           {ficha?.alumna ?? "Esta alumna"} todavía no ha enviado ningún chequeo.
@@ -113,8 +116,11 @@ export function Validacion() {
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-4">
-        <Link to="/coach" className="flex w-fit items-center gap-2 text-menor text-tinta-media hover:text-tinta">
-          <ArrowLeft className="size-4" /> Panel
+        <Link
+          to={`/coach/plan/${alumnaUlid}`}
+          className="flex w-fit items-center gap-2 text-menor text-tinta-media hover:text-tinta"
+        >
+          <ArrowLeft className="size-4" /> Expediente
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-3">
@@ -394,7 +400,9 @@ export function Validacion() {
               await api.coach.rechazarChequeo(actual.ulid, motivo);
             }
             setAccion(null);
-            void navegar("/coach");
+            // Al expediente, no al panel: validar un chequeo es el paso previo a armar su
+            // plan, y volver al listado obliga a buscarla otra vez para seguir.
+            void navegar(`/coach/plan/${alumnaUlid}`);
           } catch (causa) {
             setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo guardar.");
           }

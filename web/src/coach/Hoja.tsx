@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 
-import { Apoyo, Aviso, Boton, Chip, Etiqueta, Titulo, Vacio } from "@/componentes/primitivas";
+import { Aviso, Boton, Chip, Etiqueta, Titulo, Vacio } from "@/componentes/primitivas";
 import { api, type BloqueDeHojaApi, type HojaDeCalculoApi } from "@/lib/api";
 import { usarApi } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
@@ -42,10 +42,6 @@ export function Hoja({ alumnaUlid }: { alumnaUlid: string }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1">
           <Titulo>Calculadora</Titulo>
-          <Apoyo>
-            Los mismos bloques de tu hoja, con la celda de la que sale cada número. Lo
-            calcula el servidor, no esta pantalla.
-          </Apoyo>
         </div>
         <div className="flex flex-wrap gap-2">
           <Boton tono="contorno" medida="chica" onClick={() => setFormulas((v) => !v)}>
@@ -100,11 +96,6 @@ export function Hoja({ alumnaUlid }: { alumnaUlid: string }) {
           ))}
         </div>
       ) : null}
-
-      <Apoyo>
-        Una prueba lee tu archivo y compara estos números contra los suyos, celda por celda,
-        cada vez que se toca el código.
-      </Apoyo>
     </section>
   );
 }
