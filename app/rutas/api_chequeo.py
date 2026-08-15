@@ -175,6 +175,23 @@ def abrir_chequeo(
 
     chequeo = q.borrador_de(s, alumna.id, ciclo.id)
     if chequeo is None:
+        # Un chequeo por ciclo. Sin esta comprobación, volver a esta pantalla después de
+        # enviar creaba un borrador vacío que se convertía en «el último» de la alumna: la
+        # coach veía «borrador» en su cartera, el chequeo enviado desaparecía de la bandeja
+        # de pendientes y no había forma de llegar a validarlo.
+        for ya in q.chequeos_de(s, alumna.id):
+            if ya.ciclo_id != ciclo.id:
+                continue
+            if ya.estado == EstadoChequeo.PENDIENTE_EVALUACION.value:
+                raise HTTPException(
+                    409, "Ya enviaste el chequeo de este ciclo. Tu coach lo está revisando."
+                )
+            if ya.estado == EstadoChequeo.VALIDADO.value:
+                raise HTTPException(
+                    409,
+                    "El chequeo de este ciclo ya está validado. El siguiente toca el mes que entra.",
+                )
+
         chequeo = Chequeo(
             coach_id=actor.coach_id,
             alumna_id=alumna.id,

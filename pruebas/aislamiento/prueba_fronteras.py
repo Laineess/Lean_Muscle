@@ -115,3 +115,21 @@ def test_toda_entidad_con_datos_de_alumnas_lleva_coach_id() -> None:
         f"{huerfanas} hereda de Base y no de BaseMultiInquilino. Si es a proposito, "
         "declararlo en `sin_inquilino_a_proposito` con el motivo."
     )
+
+
+def test_el_modelo_y_las_migraciones_declaran_los_mismos_estados() -> None:
+    """Un CHECK que diverge no se nota hasta que alguien recrea la base desde los modelos.
+
+    Pasó con `cobro_programado`: la migración agregó `en_revision` y el modelo se quedó con
+    los tres estados viejos, así que cualquier base creada con `--reiniciar` rechazaba los
+    comprobantes con un 500 del motor.
+    """
+    modelos = (APP / "datos" / "modelos.py").read_text(encoding="utf-8")
+    migraciones = chr(10).join(
+        a.read_text(encoding="utf-8")
+        for a in (APP.parent / "migraciones" / "versions").glob("*.py")
+    )
+
+    for estado in ("en_revision",):
+        assert estado in modelos, f"«{estado}» está en una migración y no en los modelos"
+        assert estado in migraciones

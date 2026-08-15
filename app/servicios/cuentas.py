@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc, edad_en
-from app.datos.modelos import Alumna, Ciclo, Coach, Usuario
+from app.datos.modelos import Alumna, Ciclo, Coach, CobroProgramado, Usuario
 from app.servicios.seguridad import (
     CONTRASENA_INICIAL,
     VIGENCIA_CLAVE_TEMPORAL,
@@ -151,6 +151,7 @@ def dar_de_alta(
     s.flush()
 
     hoy = ahora_utc().date()
+    precio = plan.precio if plan is not None else coach.precio_ciclo
     s.add(
         Ciclo(
             coach_id=coach_id,
@@ -159,9 +160,26 @@ def dar_de_alta(
             inicia_en=hoy,
             termina_en=hoy + timedelta(days=30),
             estado="pendiente_pago",
-            precio=plan.precio if plan is not None else coach.precio_ciclo,
+            precio=precio,
         )
     )
+
+    # El primer cobro nace con ella. El ciclo ya dice `pendiente_pago`, y sin una fila en
+    # `cobro_programado` la alumna veía que debía pagar sin tener contra qué subir su
+    # comprobante: el flujo de pagos cuelga del cobro, no del ciclo. La coach lo puede
+    # cancelar o cambiar desde el calendario de su expediente.
+    if precio > 0:
+        s.add(
+            CobroProgramado(
+                coach_id=coach_id,
+                alumna_id=alumna.id,
+                fecha=hoy,
+                motivo="inscripcion",
+                concepto=f"Inscripción · {plan.nombre}" if plan is not None else "Inscripción",
+                monto=precio,
+                estado="pendiente",
+            )
+        )
 
     return AltaHecha(alumna_ulid=alumna.ulid, correo=correo, clave_temporal=clave)
 

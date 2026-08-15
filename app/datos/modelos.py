@@ -984,7 +984,14 @@ class CobroProgramado(BaseMultiInquilino):
             "motivo in ('inscripcion','mensualidad','cita','material','otro')",
             name="motivo_valido",
         ),
-        CheckConstraint("estado in ('pendiente','pagado','cancelado')", name="estado_cobro_valido"),
+        # `en_revision` es el hueco entre que la alumna sube su comprobante y la coach lo
+        # confirma. La migracion 0005 ya lo agrego; sin ponerlo tambien aqui, una base creada
+        # desde los modelos —lo que hace la semilla con --reiniciar— nace con el CHECK viejo
+        # y rechaza cualquier comprobante.
+        CheckConstraint(
+            "estado in ('pendiente','en_revision','pagado','cancelado')",
+            name="estado_cobro_valido",
+        ),
         CheckConstraint("monto > 0", name="monto_positivo"),
         Index("ix_cobro_alumna_fecha", "alumna_id", "fecha"),
         ARGS_DE_TABLA,

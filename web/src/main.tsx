@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
 import { App } from "./App";
-import { cuandoCaduqueLaSesion } from "./lib/api";
+import { cuandoCaduqueLaSesion, cuandoFalteCambiarLaContrasena } from "./lib/api";
 import { cerrarSesion } from "./lib/sesion";
 import "./index.css";
 
@@ -17,6 +17,14 @@ cuandoCaduqueLaSesion(() => {
   cerrarSesion();
   if (!window.location.pathname.startsWith("/acceso")) {
     window.location.replace("/acceso?caducada=1");
+  }
+});
+
+// El servidor cierra la aplicación entera mientras la contraseña inicial siga puesta. Sin
+// atenderlo aquí, cada pantalla dispara sus peticiones y todas devuelven 403.
+cuandoFalteCambiarLaContrasena(() => {
+  if (!window.location.pathname.startsWith("/primer-acceso")) {
+    window.location.replace("/primer-acceso");
   }
 });
 

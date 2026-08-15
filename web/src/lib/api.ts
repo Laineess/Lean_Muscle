@@ -18,13 +18,36 @@ const BASE = "/api";
  */
 let alCaducarLaSesion: (() => void) | null = null;
 
+/** Qué hacer cuando el servidor cierra todo por tener la contraseña inicial sin cambiar. */
+let alFaltarLaContrasena: (() => void) | null = null;
+
 export function cuandoCaduqueLaSesion(accion: () => void): void {
   alCaducarLaSesion = accion;
 }
 
-function revisarSesion(estado: number): void {
-  // 403 no: ese es «no te toca», y la sesión sigue siendo válida.
+export function cuandoFalteCambiarLaContrasena(accion: () => void): void {
+  alFaltarLaContrasena = accion;
+}
+
+/** Código que devuelve el servidor mientras la contraseña inicial siga puesta. */
+const SIN_CAMBIAR = "CONTRASENA_INICIAL_SIN_CAMBIAR";
+
+/** El código del error. FastAPI lo envuelve en `detail` cuando lo levanta una dependencia,
+ *  y lo deja suelto cuando pasa por el manejador de `ErrorDeDominio`. */
+function codigoDe(d: { codigo?: string; detail?: unknown }): string | null {
+  if (d.codigo) return d.codigo;
+  if (d.detail && typeof d.detail === "object" && "codigo" in d.detail) {
+    return String((d.detail).codigo);
+  }
+  return null;
+}
+
+function revisarSesion(estado: number, codigo?: string | null): void {
+  // 403 a secas es «no te toca», y la sesión sigue siendo válida. Pero uno con este código
+  // significa que el servidor tiene cerrada la aplicación entera hasta que ponga la suya:
+  // sin atenderlo aquí, cada pantalla dispara sus peticiones y todas fallan igual.
   if (estado === 401) alCaducarLaSesion?.();
+  else if (estado === 403 && codigo === SIN_CAMBIAR) alFaltarLaContrasena?.();
 }
 
 export class ErrorApi extends Error {
@@ -78,8 +101,8 @@ async function pedir<T>(ruta: string, opciones: Opciones = {}): Promise<T> {
   const datos: unknown = texto ? JSON.parse(texto) : null;
 
   if (!respuesta.ok) {
-    revisarSesion(respuesta.status);
     const d = (datos ?? {}) as { codigo?: string; mensaje?: string; detail?: unknown; detalle?: Record<string, unknown> };
+    revisarSesion(respuesta.status, codigoDe(d));
     const mensaje =
       d.mensaje ??
       (typeof d.detail === "string" ? d.detail : null) ??
@@ -117,8 +140,8 @@ async function subir<T>(
   const datos: unknown = texto ? JSON.parse(texto) : null;
 
   if (!respuesta.ok) {
-    revisarSesion(respuesta.status);
     const d = (datos ?? {}) as { codigo?: string; mensaje?: string; detail?: unknown };
+    revisarSesion(respuesta.status, codigoDe(d));
     const mensaje =
       d.mensaje ??
       (typeof d.detail === "string" ? d.detail : null) ??
@@ -156,8 +179,8 @@ async function subirConCampos<T>(
   const datos: unknown = texto ? JSON.parse(texto) : null;
 
   if (!respuesta.ok) {
-    revisarSesion(respuesta.status);
     const d = (datos ?? {}) as { codigo?: string; mensaje?: string; detail?: unknown };
+    revisarSesion(respuesta.status, codigoDe(d));
     const mensaje =
       d.mensaje ??
       (typeof d.detail === "string" ? d.detail : null) ??
@@ -1236,12 +1259,14 @@ export function urlDeFotoDeCoach(version = 0): string {
 export async function descargarPdf(ruta: string, nombreSugerido: string): Promise<void> {
   const respuesta = await fetch(`${BASE}${ruta}`, { credentials: "include" });
   if (!respuesta.ok) {
-    revisarSesion(respuesta.status);
     const texto = await respuesta.text();
     let mensaje = "No se pudo generar el documento.";
     try {
-      mensaje = (JSON.parse(texto) as { mensaje?: string; detail?: string }).mensaje ?? mensaje;
+      const d = JSON.parse(texto) as { codigo?: string; mensaje?: string; detail?: unknown };
+      revisarSesion(respuesta.status, codigoDe(d));
+      mensaje = d.mensaje ?? mensaje;
     } catch {
+      revisarSesion(respuesta.status);
       /* respuesta no JSON: se queda el mensaje genérico */
     }
     throw new ErrorApi(respuesta.status, null, mensaje);

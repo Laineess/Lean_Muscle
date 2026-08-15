@@ -134,7 +134,12 @@ def ultimo_acceso_de(s: Session, usuario_ids: list[int]) -> dict[int, datetime |
 
 
 def ultimo_chequeo_por_alumna(s: Session, alumna_ids: list[int]) -> dict[int, Chequeo]:
-    """El chequeo más reciente de cada alumna. Es lo que ordena la bandeja de validación."""
+    """El chequeo que le toca mirar a la coach. Es lo que ordena la bandeja de validación.
+
+    Uno pendiente gana sobre uno más reciente. La diferencia importa cuando conviven un
+    borrador vacío y un envío de verdad: quedarse con el más nuevo escondía el que había que
+    validar y dejaba a la alumna marcada como «borrador» en la cartera.
+    """
     if not alumna_ids:
         return {}
     ultimos: dict[int, Chequeo] = {}
@@ -143,6 +148,9 @@ def ultimo_chequeo_por_alumna(s: Session, alumna_ids: list[int]) -> dict[int, Ch
         .where(Chequeo.alumna_id.in_(alumna_ids), Chequeo.estado != "descartado")
         .order_by(Chequeo.fecha)
     ):
+        anterior = ultimos.get(c.alumna_id)
+        if anterior is not None and anterior.estado == "pendiente_evaluacion":
+            continue
         ultimos[c.alumna_id] = c  # el orden ascendente deja el más nuevo al final
     return ultimos
 
