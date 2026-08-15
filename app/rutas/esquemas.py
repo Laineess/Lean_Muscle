@@ -121,6 +121,19 @@ class CitaDeAlumna(Esquema):
     termina_en: datetime
 
 
+class ResumenDePlan(Esquema):
+    """Lo justo para decirle si ya tiene plan y qué le toca hoy.
+
+    Sin esto la pantalla de inicio pintaba una rutina de ejemplo: una alumna recién dada de
+    alta veía ejercicios y calorías que nadie le había asignado.
+    """
+
+    publicado: bool
+    kcal_objetivo: int | None
+    dias_entrenamiento: int
+    primer_dia: str | None
+
+
 class InicioAlumna(Esquema):
     """Todo lo que pinta la pantalla de inicio, en una sola llamada.
 
@@ -136,6 +149,8 @@ class InicioAlumna(Esquema):
     coach: str
     #: Lo que viene: sirve para el cuadro de próximas fechas del inicio.
     proximas_citas: list[CitaDeAlumna]
+    #: Nulo mientras su coach no le haya publicado nada.
+    plan: ResumenDePlan | None = None
 
 
 class PlanPublico(Esquema):

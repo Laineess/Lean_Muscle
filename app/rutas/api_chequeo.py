@@ -69,8 +69,12 @@ def _hoy_de(alumna: Alumna) -> date:
 
 
 def _numero_de(s: Session, alumna_id: int, chequeo: Chequeo) -> int:
-    """Cuántos chequeos van, contando este. Es lo que la alumna ve como «Chequeo #5»."""
-    historial = q.chequeos_de(s, alumna_id)
+    """Cuántos chequeos van, contando este. Es lo que la alumna ve como «Chequeo #5».
+
+    Solo cuentan los enviados. Un borrador es el que está haciendo ahora, así que lleva el
+    número siguiente: contarlo como uno más le inventaba un chequeo que no existe.
+    """
+    historial = q.chequeos_enviados(s, alumna_id)
     for i, c in enumerate(historial, start=1):
         if c.id == chequeo.id:
             return i

@@ -242,6 +242,13 @@ export interface InicioAlumnaApi {
   avisosSinLeer: number;
   coach: string;
   proximasCitas: CitaDeAlumnaApi[];
+  /** Nulo mientras su coach no le haya publicado nada. */
+  plan: {
+    publicado: boolean;
+    kcalObjetivo: number | null;
+    diasEntrenamiento: number;
+    primerDia: string | null;
+  } | null;
 }
 
 export interface AlimentoApi {

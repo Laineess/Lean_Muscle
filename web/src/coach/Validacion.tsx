@@ -67,6 +67,18 @@ export function Validacion() {
 
   const grasaNum = Number.parseFloat(grasa) / 100;
 
+  /** Por qué no se puede derivar la composición. El mensaje anterior decía «entre 3 % y
+   *  70 %» pasara lo que pasara, y con un chequeo sin peso rechazaba todos los valores. */
+  const problemaDeGrasa = !grasa
+    ? null
+    : Number.isNaN(grasaNum) || grasaNum < 0.03 || grasaNum > 0.7
+      ? "Entre 3 % y 70 %."
+      : actual?.pesoKg == null
+        ? "Este chequeo no trae peso, así que no hay con qué calcular."
+        : !ficha?.estaturaCm
+          ? "Falta su estatura en la ficha: sin ella no sale el IMC."
+          : null;
+
   const derivados = useMemo(() => {
     if (!actual || !ficha?.estaturaCm) return null;
     if (!grasaNum || grasaNum < 0.03 || grasaNum > 0.7 || actual.pesoKg === null) return null;
@@ -263,7 +275,7 @@ export function Validacion() {
               etiqueta="% de grasa corporal"
               sufijo="%"
               ayuda={`Mes pasado: ${previo?.porcentajeGrasa ? porcentaje(previo.porcentajeGrasa) : "—"}`}
-              {...(grasa && !derivados ? { error: "Entre 3 % y 70 %." } : {})}
+              {...(problemaDeGrasa ? { error: problemaDeGrasa } : {})}
             >
               <Entrada
                 id="v-grasa"

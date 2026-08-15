@@ -20,7 +20,7 @@ import {
   type CobroApi2,
   type InicioAlumnaApi,
 } from "@/lib/api";
-import { chequeos, ciclo, mensajes, notificaciones, planEntrenamiento, planNutricion, alumna } from "@/lib/datos";
+import { chequeos, ciclo, mensajes, notificaciones, alumna } from "@/lib/datos";
 import { delta, diaSemana, fecha, num } from "@/lib/formato";
 import { usarApi, usarApiConRespaldo } from "@/lib/usarApi";
 import { ROTULO_ESTADO, type EstadoChequeo } from "@/lib/tipos";
@@ -51,6 +51,7 @@ const RESPALDO: InicioAlumnaApi = {
   avisosSinLeer: notificaciones.filter((n) => !n.leida).length,
   coach: "Mariana Cervantes",
   proximasCitas: [],
+  plan: null,
 };
 
 export function Inicio() {
@@ -115,11 +116,22 @@ export function Inicio() {
 
       {/* ---- Lo que toca hoy ---- */}
       <section className="filete flex flex-col gap-4">
-        <Etiqueta>Hoy te toca</Etiqueta>
+        <Etiqueta>{datos.plan ? "Hoy te toca" : "Tu plan"}</Etiqueta>
         <div className="flex flex-col gap-1">
-          <Titulo>{planEntrenamiento.dias[0]!.nombre}</Titulo>
+          {/* Sin plan publicado no se inventa uno: antes salía una rutina de ejemplo y una
+              alumna recién dada de alta creía tener ejercicios asignados. */}
+          <Titulo>{datos.plan?.primerDia ?? "Todavía no tienes plan"}</Titulo>
           <Apoyo>
-            {planEntrenamiento.dias[0]!.ejercicios.length} ejercicios · {planNutricion.kcal} kcal
+            {datos.plan
+              ? [
+                  datos.plan.diasEntrenamiento > 0
+                    ? `${datos.plan.diasEntrenamiento} días de entrenamiento`
+                    : null,
+                  datos.plan.kcalObjetivo ? `${datos.plan.kcalObjetivo} kcal` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : `${nombreCoach} lo está armando. Te avisamos en cuanto lo publique.`}
           </Apoyo>
         </div>
         <div>

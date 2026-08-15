@@ -877,7 +877,9 @@ def expediente_de_validacion(
     if alumna is None:
         raise HTTPException(404, "No existe esa alumna")
 
-    historia = q.chequeos_de(s, alumna.id)
+    # Sin borradores: uno vacío se colaba como «el actual» y la pantalla pedía estimar la
+    # grasa de un chequeo sin peso, rechazando cualquier valor que la coach escribiera.
+    historia = q.chequeos_enviados(s, alumna.id)
     ids = [c.id for c in historia]
     pesos = q.peso_de_chequeo(s, ids)
     medidas = q.medidas_de(s, ids)

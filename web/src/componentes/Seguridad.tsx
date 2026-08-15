@@ -79,7 +79,7 @@ export function CambiarContrasena() {
       <Campo
         id="c-nueva"
         etiqueta="Nueva contraseña"
-        ayuda={`Al menos ${LONGITUD_MINIMA} caracteres, con letras y números.`}
+        ayuda={`Al menos ${LONGITUD_MINIMA} caracteres, debe incluir números y 1 caracter especial.`}
       >
         <Entrada
           id="c-nueva"

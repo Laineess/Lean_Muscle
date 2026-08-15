@@ -26,6 +26,7 @@ from app.rutas.esquemas import (
     PerfilAlumna,
     PlanesDeAlumna,
     PlanPublico,
+    ResumenDePlan,
 )
 from app.rutas.sesion import Actor, datos, solo_alumna
 
@@ -40,7 +41,8 @@ def _mi_alumna(s: Session, actor: Actor) -> Alumna:
 
 
 def _chequeos_publicos(s: Session, alumna_id: int) -> list[ChequeoPublico]:
-    chequeos = q.chequeos_de(s, alumna_id)
+    """Solo los enviados: el borrador es lo que está capturando, no parte de su historia."""
+    chequeos = q.chequeos_enviados(s, alumna_id)
     ids = [c.id for c in chequeos]
     medidas = q.medidas_de(s, ids)
     pesos = q.peso_de_chequeo(s, ids)
@@ -64,6 +66,39 @@ def _chequeos_publicos(s: Session, alumna_id: int) -> list[ChequeoPublico]:
     ]
 
 
+def _resumen_de_plan(s: Session, alumna_id: int, ciclo: object) -> ResumenDePlan | None:
+    """Qué plan tiene publicado. Nulo si su coach todavía no le publica ninguno.
+
+    Solo cuentan los publicados: un borrador es trabajo de la coach y la alumna no debe
+    verlo hasta que ella lo suelte.
+    """
+    if ciclo is None:
+        return None
+
+    planes = q.planes_del_ciclo(s, alumna_id, ciclo.id)  # type: ignore[attr-defined]
+    nutricion = planes.get("nutricion")
+    entrenamiento = planes.get("entrenamiento")
+
+    publicados = [
+        p for p in (nutricion, entrenamiento) if p is not None and p.estado == "publicado"
+    ]
+    if not publicados:
+        return None
+
+    dias = []
+    if entrenamiento is not None and entrenamiento.estado == "publicado":
+        dias = (entrenamiento.contenido or {}).get("dias", [])
+
+    return ResumenDePlan(
+        publicado=True,
+        kcal_objetivo=nutricion.kcal_objetivo
+        if nutricion and nutricion.estado == "publicado"
+        else None,
+        dias_entrenamiento=len(dias),
+        primer_dia=str(dias[0].get("nombre")) if dias else None,
+    )
+
+
 @ruteador.get("/inicio", response_model=InicioAlumna)
 def inicio(
     actor: Annotated[Actor, Depends(solo_alumna)],
@@ -78,6 +113,8 @@ def inicio(
         (c.feedback for c in reversed(chequeos) if c.feedback),
         None,
     )
+
+    resumen = _resumen_de_plan(s, alumna.id, ciclo)
 
     return InicioAlumna(
         perfil=PerfilAlumna(
@@ -105,6 +142,7 @@ def inicio(
         ultimo_feedback=ultimo_feedback,
         avisos_sin_leer=q.avisos_sin_leer(s, actor.usuario_id),
         coach=nombre_de_coach(s, actor),
+        plan=resumen,
         proximas_citas=[
             CitaDeAlumna(
                 ulid=c.ulid,

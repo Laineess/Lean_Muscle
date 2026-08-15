@@ -62,6 +62,17 @@ def chequeos_de(s: Session, alumna_id: int, limite: int = 24) -> list[Chequeo]:
     return list(reversed(filas))
 
 
+#: Lo que ya salió de las manos de la alumna. Un borrador no es un chequeo suyo todavía: es
+#: una captura a medias, y contarlo en su historial le inventaba un «chequeo #2» que nadie
+#: había hecho.
+ENVIADOS = ("pendiente_evaluacion", "validado", "rechazado_calidad")
+
+
+def chequeos_enviados(s: Session, alumna_id: int, limite: int = 24) -> list[Chequeo]:
+    """El historial de verdad. Es lo que se numera, se grafica y se compara."""
+    return [c for c in chequeos_de(s, alumna_id, limite) if c.estado in ENVIADOS]
+
+
 def medidas_de(s: Session, chequeo_ids: list[int]) -> dict[int, dict[str, Decimal]]:
     if not chequeo_ids:
         return {}
