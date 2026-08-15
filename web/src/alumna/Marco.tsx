@@ -9,8 +9,9 @@
 
 import { LineChart, ListChecks, Sun } from "lucide-react";
 import type { ComponentType } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 
+import { Limite } from "@/componentes/Limite";
 import { actorGuardado } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ const PESTANAS: Pestana[] = [
 export function MarcoAlumna() {
   // La alumna ve la marca de su coach, no la de la plataforma: la relación es con ella.
   const marca = actorGuardado()?.marca ?? "MyProgressPlan";
+  const { pathname } = useLocation();
 
   return (
     <div className="flex min-h-full flex-col">
@@ -61,7 +63,9 @@ export function MarcoAlumna() {
       </header>
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-5 pt-8 pb-28 sm:px-6 sm:pb-16">
-        <Outlet />
+        <Limite clave={pathname}>
+          <Outlet />
+        </Limite>
       </main>
 
       {/* Teléfono: barra inferior fija, con área segura para el notch inferior. */}

@@ -9,6 +9,7 @@ import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
+import { Limite } from "@/componentes/Limite";
 import { Buscador, DisparadorBuscador, useBuscador } from "@/coach/Buscador";
 import { urlDeLogo } from "@/lib/api";
 import { coach } from "@/lib/datos";
@@ -130,7 +131,11 @@ export function MarcoCoach() {
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-5 pt-8 pb-16 sm:px-6">
+        <Limite clave={pathname}>
+          <Limite clave={pathname}>
         <Outlet />
+      </Limite>
+        </Limite>
       </main>
 
       <Buscador abierto={abierto} onCerrar={() => setAbierto(false)} />

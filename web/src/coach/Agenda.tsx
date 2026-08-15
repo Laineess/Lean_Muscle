@@ -195,9 +195,16 @@ export function Agenda() {
   // Sin servidor se trabaja sobre los datos de ejemplo, en memoria. Con servidor, la
   // escritura va a la API y se recarga: el solape lo decide el dominio, no el navegador.
   const [enMemoria, setEnMemoria] = useState<Cita[]>(CITAS_INICIALES);
-  const citas = carga.sinServidor ? enMemoria : carga.datos.citas.map(deApi);
+  // Se lee a la defensiva: durante un despliegue el navegador puede tener el paquete nuevo
+  // y el servidor todavía el viejo, que devolvía la lista pelada. Reventar aquí dejaba la
+  // pantalla en negro y sin barra para salir.
+  const respuesta = carga.datos as AgendaApi | CitaApi[] | null;
+  const citasApi = Array.isArray(respuesta) ? respuesta : (respuesta?.citas ?? []);
+  const cobrosApi = Array.isArray(respuesta) ? [] : (respuesta?.cobros ?? []);
+
+  const citas = carga.sinServidor ? enMemoria : citasApi.map(deApi);
   // Los cobros del rango. No son citas: no tienen hora ni ocupan hueco, solo marcan el día.
-  const cobros = carga.sinServidor ? [] : carga.datos.cobros;
+  const cobros = carga.sinServidor ? [] : cobrosApi;
 
   const nombreAlumna = (ulid: string | null) =>
     ulid ? (alumnas.datos.find((a) => a.ulid === ulid)?.nombre ?? null) : null;
