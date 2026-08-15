@@ -8,10 +8,11 @@
  */
 
 import { LineChart, ListChecks, Sun } from "lucide-react";
-import type { ComponentType } from "react";
+import { useState, type ComponentType } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { Limite } from "@/componentes/Limite";
+import { urlDeLogo } from "@/lib/api";
 import { actorGuardado } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,7 @@ const PESTANAS: Pestana[] = [
 export function MarcoAlumna() {
   // La alumna ve la marca de su coach, no la de la plataforma: la relación es con ella.
   const marca = actorGuardado()?.marca ?? "MyProgressPlan";
+  const [logoRoto, setLogoRoto] = useState(false);
   const { pathname } = useLocation();
 
   return (
@@ -40,6 +42,15 @@ export function MarcoAlumna() {
           aria-label="Secciones"
           className="mx-auto flex h-16 w-full max-w-5xl items-center gap-8 px-6"
         >
+          {/* El logo de su coach, si lo subió. La alumna ve su marca, no la nuestra. */}
+          {logoRoto ? null : (
+            <img
+              src={urlDeLogo()}
+              alt=""
+              onError={() => setLogoRoto(true)}
+              className="size-6 rounded-marco border border-linea object-cover"
+            />
+          )}
           <span className="text-menor font-semibold tracking-[-0.01em]">{marca}</span>
           <div className="flex items-center gap-6">
             {PESTANAS.map(({ a, rotulo }) => (

@@ -29,6 +29,7 @@ import { coach } from "@/lib/datos";
 import { iniciales } from "@/lib/formato";
 import { ErrorApi, api, urlDeLogo, type MarcaApi } from "@/lib/api";
 import { actorGuardado, guardarActor } from "@/lib/sesion";
+import { marcaCambiada } from "@/lib/marca";
 import { usarApi } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
 
@@ -93,8 +94,10 @@ export function Ajustes() {
     try {
       await api.coach.subirLogo(archivo);
       setTieneLogo(true);
-      // Cambia la versión para que el navegador no siga sirviendo el logo anterior.
+      // Cambia la versión para que el navegador no siga sirviendo el logo anterior, y se
+      // avisa a la barra superior, que vive fuera de esta pantalla y no se enteraría.
       setVersionLogo((v) => v + 1);
+      marcaCambiada();
     } catch (causa) {
       setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo subir el logo.");
     } finally {

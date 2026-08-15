@@ -11,7 +11,8 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { Limite } from "@/componentes/Limite";
 import { Buscador, DisparadorBuscador, useBuscador } from "@/coach/Buscador";
-import { urlDeLogo } from "@/lib/api";
+import { urlDeFotoDeCoach, urlDeLogo } from "@/lib/api";
+import { usarVersionDeMarca } from "@/lib/marca";
 import { coach } from "@/lib/datos";
 import { actorGuardado } from "@/lib/sesion";
 import { iniciales } from "@/lib/formato";
@@ -28,7 +29,17 @@ export function MarcoCoach() {
   const { abierto, setAbierto } = useBuscador();
   const [menu, setMenu] = useState(false);
   const [logoRoto, setLogoRoto] = useState(false);
-  const marca = actorGuardado()?.marca ?? coach.marca;
+  const [retratoRoto, setRetratoRoto] = useState(false);
+  const version = usarVersionDeMarca();
+  const actor = actorGuardado();
+  const nombre = actor?.nombre ?? coach.nombre;
+
+  // Al subir una imagen se vuelve a intentar: si antes falló por no existir, ahora existe.
+  useEffect(() => {
+    setLogoRoto(false);
+    setRetratoRoto(false);
+  }, [version]);
+  const marca = actor?.marca ?? coach.marca;
   const { pathname } = useLocation();
   // El menú de teléfono se cierra al navegar; si no, queda tapando la pantalla nueva.
   useEffect(() => setMenu(false), [pathname]);
@@ -38,14 +49,17 @@ export function MarcoCoach() {
       <header className="sticky top-0 z-30 border-b border-linea bg-fondo/90 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-4 px-5 sm:px-6">
           <div className="flex items-center gap-2">
-            {/* El logo se pide siempre; si no hay, `onError` deja las iniciales. */}
+            {/* El logo se pide siempre; si no hay, `onError` deja las iniciales. La clave
+                lleva la versión: al subir uno nuevo el elemento se remonta y se vuelve a
+                intentar, en vez de quedarse con las iniciales para siempre. */}
             {logoRoto ? (
               <span className="grid size-6 place-items-center rounded-marco border border-linea-fuerte text-[10px] font-bold">
                 {iniciales(marca)}
               </span>
             ) : (
               <img
-                src={urlDeLogo()}
+                key={version}
+                src={urlDeLogo(version)}
                 alt=""
                 onError={() => setLogoRoto(true)}
                 className="size-6 rounded-marco border border-linea object-cover"
@@ -79,13 +93,25 @@ export function MarcoCoach() {
             <DisparadorBuscador onClick={() => setAbierto(true)} />
           </div>
 
+          {/* Su retrato, el de la presentación. Si todavía no sube ninguno, sus iniciales
+              —las suyas de verdad, no las de los datos de ejemplo—. */}
           <NavLink
             to="/coach/ajustes"
-            title={`${coach.nombre} · ajustes y seguridad`}
-            aria-label={`${coach.nombre}. Ajustes`}
-            className="ml-auto grid size-8 shrink-0 place-items-center rounded-full border border-linea-fuerte text-micro font-semibold transition-colors hover:bg-fondo-sutil lg:ml-3"
+            title={`${nombre} · ajustes y seguridad`}
+            aria-label={`${nombre}. Ajustes`}
+            className="ml-auto grid size-8 shrink-0 place-items-center overflow-hidden rounded-full border border-linea-fuerte text-micro font-semibold transition-colors hover:bg-fondo-sutil lg:ml-3"
           >
-            {iniciales(coach.nombre)}
+            {retratoRoto ? (
+              iniciales(nombre)
+            ) : (
+              <img
+                key={version}
+                src={urlDeFotoDeCoach(version)}
+                alt=""
+                onError={() => setRetratoRoto(true)}
+                className="size-full object-cover"
+              />
+            )}
           </NavLink>
 
           {/* Teléfono: hamburguesa */}

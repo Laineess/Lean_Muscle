@@ -32,6 +32,7 @@ import {
   type PresentacionApi,
   type TipoDePregunta,
 } from "@/lib/api";
+import { marcaCambiada } from "@/lib/marca";
 import { usarApi } from "@/lib/usarApi";
 
 const TIPOS: [TipoDePregunta, string][] = [
@@ -93,6 +94,8 @@ export function Presentacion() {
       await api.coach.subirFotoDePresentacion(archivo);
       setTieneFoto(true);
       setVersion((v) => v + 1);
+      // El avatar de la barra es esta misma foto: sin avisar, seguiría con las iniciales.
+      marcaCambiada();
     } catch (causa) {
       setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo subir la foto.");
     } finally {
