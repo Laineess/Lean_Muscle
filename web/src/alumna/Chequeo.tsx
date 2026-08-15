@@ -57,7 +57,9 @@ export function Chequeo() {
   const [peso, setPeso] = useState("");
   const [varianzaConfirmada, setVarianzaConfirmada] = useState(false);
   const [entorno, setEntorno] = useState({ bascula: true, lugar: true, hora: true });
-  const [medidas, setMedidas] = useState<Partial<Record<TipoMedida, number>>>({});
+  // Se guarda lo que teclea, no el número: descartar el valor mientras está fuera de rango
+  // hace imposible escribir «75», porque el «7» de en medio cae bajo el mínimo y se borra.
+  const [textoMedidas, setTextoMedidas] = useState<Partial<Record<TipoMedida, string>>>({});
   const [nota, setNota] = useState("");
 
   const [guardando, setGuardando] = useState(false);
@@ -75,7 +77,9 @@ export function Chequeo() {
         if (!vivo) return;
         setBorrador(b);
         setPeso(b.pesoKg !== null ? String(b.pesoKg) : "");
-        setMedidas(b.medidas);
+        setTextoMedidas(
+          Object.fromEntries(Object.entries(b.medidas).map(([k, v]) => [k, String(v)])),
+        );
         setNota(b.notaAlumna ?? "");
         setVarianzaConfirmada(b.varianzaConfirmada);
         if (b.ayunoConfirmado) setCondiciones(new Set(CONDICIONES.map((c) => c.id)));
@@ -97,6 +101,18 @@ export function Chequeo() {
   const pesoNum = Number.parseFloat(peso);
   const varianza = pesoNum && previoPeso ? (pesoNum - previoPeso) / previoPeso : 0;
   const magnitud = Math.abs(varianza);
+
+  // Solo las que ya son un número dentro de rango. Es lo que se guarda y lo que se cuenta.
+  const medidas: Partial<Record<TipoMedida, number>> = {};
+  const fueraDeRango: string[] = [];
+  for (const m of MEDIDAS) {
+    const crudo = (textoMedidas[m.tipo] ?? "").trim();
+    if (!crudo) continue;
+    const v = Number.parseFloat(crudo);
+    if (Number.isNaN(v)) continue;
+    if (v < m.min || v > m.max) fueraDeRango.push(m.rotulo);
+    else medidas[m.tipo] = v;
+  }
 
   const medidasListas = Object.keys(medidas).length;
   const fotos = borrador?.fotos ?? [];
@@ -468,22 +484,23 @@ export function Chequeo() {
                     max={m.max}
                     inputMode="decimal"
                     placeholder="0.0"
-                    value={valor ?? ""}
-                    onChange={(e) => {
-                      const v = Number.parseFloat(e.target.value);
-                      setMedidas((prev) => {
-                        const n = { ...prev };
-                        if (!e.target.value || v < m.min || v > m.max) delete n[m.tipo];
-                        else n[m.tipo] = v;
-                        return n;
-                      });
-                    }}
+                    value={textoMedidas[m.tipo] ?? ""}
+                    onChange={(e) =>
+                      setTextoMedidas((prev) => ({ ...prev, [m.tipo]: e.target.value }))
+                    }
                     className="rounded-r-none"
                   />
                 </Campo>
               );
             })}
           </div>
+
+          {fueraDeRango.length > 0 ? (
+            <Aviso tono="error" titulo="Revisa estas medidas">
+              {fueraDeRango.join(", ")}: el valor está fuera de lo que aceptamos. Casi
+              siempre es un dígito de más o de menos.
+            </Aviso>
+          ) : null}
 
           <Apoyo>
             <strong className="cifra font-semibold text-tinta">{medidasListas}</strong> de{" "}
