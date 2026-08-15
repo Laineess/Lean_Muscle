@@ -20,7 +20,13 @@ import {
   Selector,
   Titulo,
 } from "@/componentes/primitivas";
-import { ErrorApi, api, type CobroApi2, type MotivoDeCobro } from "@/lib/api";
+import {
+  ErrorApi,
+  api,
+  type CitaDeAlumnaApi,
+  type CobroApi2,
+  type MotivoDeCobro,
+} from "@/lib/api";
 import { fecha, num } from "@/lib/formato";
 import { usarApi } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
@@ -45,6 +51,12 @@ export function CalendarioDeCobros({
   precioSugerido: number | null;
 }) {
   const carga = usarApi<CobroApi2[]>((senal) => api.coach.cobros(alumnaUlid, senal), [alumnaUlid]);
+  // Las consultas que su coach le agendó. Es la misma cita que sale en la agenda, vista
+  // desde su expediente: sin esto, la coach tendría que recordar de memoria qué agendó.
+  const citas = usarApi<CitaDeAlumnaApi[]>(
+    (senal) => api.coach.citasDeAlumna(alumnaUlid, senal),
+    [alumnaUlid],
+  );
   const [ancla, setAncla] = useState(() => new Date());
   const [dia, setDia] = useState<string | null>(null);
 
@@ -62,6 +74,11 @@ export function CalendarioDeCobros({
   const porDia = new Map<string, CobroApi2[]>();
   for (const c of cobros) porDia.set(c.fecha, [...(porDia.get(c.fecha) ?? []), c]);
 
+  const consultas = new Map<string, CitaDeAlumnaApi>();
+  for (const c of citas.datos ?? []) {
+    if (c.estado !== "cancelada") consultas.set(c.iniciaEn.slice(0, 10), c);
+  }
+
   const adeudo = cobros.filter((c) => c.vencido).reduce((s, c) => s + c.monto, 0);
 
   function mover(d: -1 | 1) {
@@ -76,7 +93,10 @@ export function CalendarioDeCobros({
         <Titulo>Cobros</Titulo>
         {adeudo > 0 ? <Chip tono="error">debe ${num(adeudo)}</Chip> : null}
       </div>
-      <Apoyo>Toca un día para programar un cobro. Uno vencido le pausa el plan.</Apoyo>
+      <Apoyo>
+        Toca un día para programar un cobro. Uno vencido le pausa el plan. El cuadrito marca
+        una consulta agendada.
+      </Apoyo>
 
       <div className="flex items-center justify-between gap-2">
         <Boton tono="discreto" medida="icono" onClick={() => mover(-1)} aria-label="Mes anterior">
@@ -103,6 +123,7 @@ export function CalendarioDeCobros({
             const delDia = porDia.get(celda.clave) ?? [];
             const hayVencido = delDia.some((c) => c.vencido);
             const hayPagado = delDia.some((c) => c.estado === "pagado");
+            const consulta = consultas.get(celda.clave);
             return (
               <button
                 key={celda.clave}
@@ -115,14 +136,19 @@ export function CalendarioDeCobros({
                 )}
               >
                 <span className="cifra text-micro">{celda.numero}</span>
-                {delDia.length > 0 ? (
-                  <span
-                    className={cn(
-                      "size-1.5 rounded-full",
-                      hayVencido ? "bg-peligro" : hayPagado ? "bg-exito" : "bg-acento",
-                    )}
-                  />
-                ) : null}
+                <span className="flex items-center gap-0.5">
+                  {delDia.length > 0 ? (
+                    <span
+                      className={cn(
+                        "size-1.5 rounded-full",
+                        hayVencido ? "bg-peligro" : hayPagado ? "bg-exito" : "bg-acento",
+                      )}
+                    />
+                  ) : null}
+                  {/* La consulta va con otra forma, no otro color: el color ya significa
+                      el estado del cobro y dos escalas en el mismo punto no se leen. */}
+                  {consulta ? <span className="size-1.5 rounded-[1px] bg-tinta-media" /> : null}
+                </span>
               </button>
             );
           })}

@@ -10,7 +10,7 @@ Módulo puro: recibe lo que ya hay en la agenda y responde. No consulta la base.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from enum import StrEnum
 
 from app.compartido.errores import Codigo, ErrorDeDominio
@@ -165,3 +165,41 @@ def toca_recordatorio(franja: Franja, ahora: datetime, ya_enviado: bool) -> bool
     if ya_enviado or not franja.ocupa:
         return False
     return a_utc(franja.inicia_en) - a_utc(ahora) <= ANTICIPACION_RECORDATORIO
+
+
+# ---------------------------------------------------------------------------
+# Ventana de captura del chequeo
+# ---------------------------------------------------------------------------
+
+#: Días antes y después de la consulta en los que la alumna puede capturar su chequeo.
+#:
+#: El chequeo se ata a la consulta porque es el momento en que la coach la revisa. Solo el
+#: mismo día sería cruel —quien se enferma pierde su mes— y sin límite las medidas dejan de
+#: corresponder al ciclo que describen. Una semana centrada en la cita es el punto medio.
+DIAS_ANTES_DEL_CHEQUEO = 3
+DIAS_DESPUES_DEL_CHEQUEO = 3
+
+
+@dataclass(frozen=True, slots=True)
+class VentanaDeChequeo:
+    """Cuándo puede capturar. `consulta` es el día de la cita que la abre."""
+
+    consulta: date
+    desde: date
+    hasta: date
+
+    def abierta(self, hoy: date) -> bool:
+        return self.desde <= hoy <= self.hasta
+
+    def ya_paso(self, hoy: date) -> bool:
+        return hoy > self.hasta
+
+
+def ventana_de_chequeo(inicia_en: datetime) -> VentanaDeChequeo:
+    """La ventana que abre una consulta agendada."""
+    dia = inicia_en.date()
+    return VentanaDeChequeo(
+        consulta=dia,
+        desde=dia - timedelta(days=DIAS_ANTES_DEL_CHEQUEO),
+        hasta=dia + timedelta(days=DIAS_DESPUES_DEL_CHEQUEO),
+    )

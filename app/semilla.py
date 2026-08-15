@@ -767,28 +767,28 @@ def sembrar_coach(
                 )
             )
 
-        # Un par de consultas por delante para las tres primeras: sin ellas, el cuadro de
-        # proximas fechas de la alumna sale vacio y la agenda de la coach no ensena nada.
+        # Todas llevan consulta agendada: es lo que abre su ventana de chequeo. Sin cita no
+        # hay chequeo que capturar, asi que una semilla sin citas dejaria la app sin flujo.
+        # La primera cae hoy para que la ventana este abierta al entrar a probar.
+        consultas = [(0, "Consulta de este ciclo", "video")]
         if i < 3:
-            for dias, titulo, modalidad in (
-                (2 + i, "Consulta de seguimiento", "video"),
-                (16 + i, "Revision de medio ciclo", "presencial"),
-            ):
-                arranque = datetime.combine(
-                    date.today() + timedelta(days=dias), time(hour=9 + i)
-                ).replace(tzinfo=UTC)
-                sesion.add(
-                    Cita(
-                        coach_id=coach.id,
-                        alumna_id=alumna.id,
-                        titulo=titulo,
-                        tipo="consulta",
-                        modalidad=modalidad,
-                        estado="confirmada" if dias < 7 else "agendada",
-                        inicia_en=arranque,
-                        termina_en=arranque + timedelta(minutes=45),
-                    )
+            consultas.append((16 + i, "Revision de medio ciclo", "presencial"))
+        for dias, titulo, modalidad in consultas:
+            arranque = datetime.combine(
+                date.today() + timedelta(days=dias), time(hour=9 + i)
+            ).replace(tzinfo=UTC)
+            sesion.add(
+                Cita(
+                    coach_id=coach.id,
+                    alumna_id=alumna.id,
+                    titulo=titulo,
+                    tipo="consulta",
+                    modalidad=modalidad,
+                    estado="confirmada" if dias < 7 else "agendada",
+                    inicia_en=arranque,
+                    termina_en=arranque + timedelta(minutes=45),
                 )
+            )
 
         sesion.add(
             Pago(

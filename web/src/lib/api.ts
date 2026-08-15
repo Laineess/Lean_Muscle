@@ -413,6 +413,23 @@ export interface FotosDeComidaApi {
   fotos: FotoDeComidaApi[];
 }
 
+/** Un cobro visto desde la agenda. No es una cita: no tiene hora. */
+export interface MarcaDeCobroApi {
+  ulid: string;
+  fecha: string;
+  alumnaUlid: string;
+  alumna: string;
+  concepto: string;
+  monto: number;
+  estado: string;
+  vencido: boolean;
+}
+
+export interface AgendaApi {
+  citas: CitaApi[];
+  cobros: MarcaDeCobroApi[];
+}
+
 export interface PlanApi {
   tipo: "nutricion" | "entrenamiento";
   ciclo: number;
@@ -1066,7 +1083,12 @@ export const api = {
       pedir<FilaCarteraApi[]>("/coach/alumnas", senal ? { senal } : {}),
 
     agenda: (desde: string, dias = 7, senal?: AbortSignal) =>
-      pedir<CitaApi[]>(`/coach/agenda?desde=${encodeURIComponent(desde)}&dias=${dias}`, senal ? { senal } : {}),
+      pedir<AgendaApi>(
+        `/coach/agenda?desde=${encodeURIComponent(desde)}&dias=${dias}`,
+        senal ? { senal } : {},
+      ),
+    citasDeAlumna: (alumnaUlid: string, senal?: AbortSignal) =>
+      pedir<CitaDeAlumnaApi[]>(`/coach/alumnas/${alumnaUlid}/citas`, senal ? { senal } : {}),
     agendar: (cita: CitaNuevaApi) => pedir<CitaApi>("/coach/agenda", { metodo: "POST", cuerpo: cita }),
     editarCita: (ulid: string, cita: CitaNuevaApi) =>
       pedir<CitaApi>(`/coach/agenda/${ulid}`, { metodo: "PUT", cuerpo: cita }),

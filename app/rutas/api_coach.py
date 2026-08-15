@@ -18,11 +18,12 @@ from sqlalchemy.orm import Session
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc
 from app.config import ajustes
-from app.datos.modelos import Chequeo, Cita, Coach, Usuario
+from app.datos.modelos import Alumna, Chequeo, Cita, Coach, Usuario
 from app.datos.repos import consultas as q
 from app.dominio.agenda import EstadoCita, Franja, agendar, transicionar
 from app.dominio.avisos import Aviso
 from app.rutas.esquemas import (
+    AgendaDeCoach,
     AltaDeAlumna,
     AlumnaDadaDeAlta,
     CancelacionCita,
@@ -38,6 +39,7 @@ from app.rutas.esquemas import (
     FilaCartera,
     FotoPublica,
     HistorialPublico,
+    MarcaDeCobro,
     MarcaPublica,
     RechazoChequeo,
     ResumenPanel,
@@ -607,12 +609,7 @@ def rechazar(
 
 
 def _cita_publica(s: Session, c: Cita) -> CitaPublica:
-    nombre = None
-    if c.alumna_id is not None:
-        from app.datos.modelos import Alumna
-
-        alumna = s.get(Alumna, c.alumna_id)
-        nombre = alumna.nombre if alumna else None
+    alumna = s.get(Alumna, c.alumna_id) if c.alumna_id is not None else None
 
     return CitaPublica(
         ulid=c.ulid,
@@ -620,8 +617,10 @@ def _cita_publica(s: Session, c: Cita) -> CitaPublica:
         tipo=c.tipo,
         estado=c.estado,
         modalidad=c.modalidad,
-        alumna_ulid=None,
-        alumna_nombre=nombre,
+        # El ULID viaja: sin él la pantalla no puede volver a abrir la cita en el
+        # expediente de quien es, y el selector de alumna salía siempre vacío al editar.
+        alumna_ulid=alumna.ulid if alumna else None,
+        alumna_nombre=alumna.nombre if alumna else None,
         inicia_en=c.inicia_en,
         termina_en=c.termina_en,
         notas=c.notas,
@@ -629,15 +628,40 @@ def _cita_publica(s: Session, c: Cita) -> CitaPublica:
     )
 
 
-@ruteador.get("/agenda", response_model=list[CitaPublica])
+@ruteador.get("/agenda", response_model=AgendaDeCoach)
 def agenda(
     actor: Annotated[Actor, Depends(solo_coach)],
     s: Annotated[Session, Depends(datos)],
     desde: Annotated[datetime, Query()],
     dias: Annotated[int, Query(ge=1, le=62)] = 7,
-) -> list[CitaPublica]:
-    citas = q.citas_entre(s, desde, desde + timedelta(days=dias))
-    return [_cita_publica(s, c) for c in citas]
+) -> AgendaDeCoach:
+    """Las consultas y, como marca aparte, los cobros programados de esos días.
+
+    Un cobro no es una cita: no tiene hora, no ocupa hueco y no se puede solapar con nada.
+    Pero sí es algo que le toca ese día, así que sale en su semana.
+    """
+    _ = actor
+    hasta = desde + timedelta(days=dias)
+    citas = [_cita_publica(s, c) for c in q.citas_entre(s, desde, hasta)]
+
+    alumnas = {a.id: a for a in q.cartera(s)}
+    hoy = ahora_utc().date()
+    cobros = [
+        MarcaDeCobro(
+            ulid=c.ulid,
+            fecha=c.fecha,
+            alumna_ulid=alumnas[c.alumna_id].ulid,
+            alumna=alumnas[c.alumna_id].nombre,
+            concepto=c.concepto or c.motivo,
+            monto=c.monto,
+            estado=c.estado,
+            vencido=c.estado == "pendiente" and c.fecha < hoy,
+        )
+        for c in q.cobros_entre(s, desde.date(), hasta.date())
+        if c.alumna_id in alumnas
+    ]
+
+    return AgendaDeCoach(citas=citas, cobros=cobros)
 
 
 def _franjas_de(s: Session, alrededor: datetime) -> list[Franja]:
@@ -649,18 +673,53 @@ def _franjas_de(s: Session, alrededor: datetime) -> list[Franja]:
     ]
 
 
+def _avisar_de_cita(
+    s: Session, actor: Actor, cita: Cita, alumna: Alumna, aviso: Aviso, motivo: str = ""
+) -> None:
+    """Le avisa a la alumna. Una consulta que se agenda y no se comunica no existe para ella.
+
+    La llave lleva el instante de la cita: mover la misma consulta dos veces manda dos
+    avisos, que es justo lo que se quiere, y reintentar el mismo cambio no manda dos.
+    """
+    usuario = s.get(Usuario, alumna.usuario_id)
+    if usuario is None:  # pragma: no cover - defensivo
+        return
+
+    coach = s.get(Coach, actor.coach_id)
+    cola.encolar(
+        s,
+        aviso,
+        coach_id=actor.coach_id,
+        llave=f"cita:{cita.ulid}:{aviso.value}:{cita.inicia_en.isoformat()}",
+        para=usuario.email,
+        contexto={
+            "nombre": alumna.nombre.split(" ")[0],
+            "coach": (coach.marca or coach.nombre) if coach else "tu coach",
+            "fecha": f"{cita.inicia_en:%d/%m/%Y}",
+            "hora_inicio": f"{cita.inicia_en:%H:%M}",
+            "hora_fin": f"{cita.termina_en:%H:%M}",
+            "modalidad": cita.modalidad,
+            "detalle": cita.titulo,
+            "motivo": motivo,
+        },
+        destinatario_id=alumna.usuario_id,
+    )
+
+
 @ruteador.post("/agenda", response_model=CitaPublica, status_code=201)
 def agendar_cita(
     cuerpo: CitaNueva,
     actor: Annotated[Actor, Depends(solo_coach)],
     s: Annotated[Session, Depends(datos)],
 ) -> CitaPublica:
-    alumna_id = None
-    if cuerpo.alumna_ulid:
-        alumna = q.alumna_por_ulid(s, cuerpo.alumna_ulid)
-        if alumna is None:
-            raise HTTPException(404, "No existe esa alumna")
-        alumna_id = alumna.id
+    # Toda cita es de alguien: la agenda de la coach y el expediente de la alumna son la
+    # misma cosa vista desde dos lados, y una cita sin dueña no cabe en el segundo.
+    if not cuerpo.alumna_ulid:
+        raise HTTPException(422, "Elige de quién es la consulta")
+    alumna = q.alumna_por_ulid(s, cuerpo.alumna_ulid)
+    if alumna is None:
+        raise HTTPException(404, "No existe esa alumna")
+    alumna_id = alumna.id
 
     # Dos citas no pueden solaparse aunque una sea consulta y la otra bloque de trabajo: el
     # tiempo de la coach es uno solo.
@@ -682,6 +741,7 @@ def agendar_cita(
     )
     s.add(cita)
     s.flush()
+    _avisar_de_cita(s, actor, cita, alumna, Aviso.CITA_AGENDADA)
     return _cita_publica(s, cita)
 
 
@@ -704,18 +764,27 @@ def editar_cita(
         permitir_pasado=True,
     )
 
-    if cuerpo.alumna_ulid:
-        alumna = q.alumna_por_ulid(s, cuerpo.alumna_ulid)
-        cita.alumna_id = alumna.id if alumna else None
-    else:
-        cita.alumna_id = None
+    if not cuerpo.alumna_ulid:
+        raise HTTPException(422, "Elige de quién es la consulta")
+    alumna = q.alumna_por_ulid(s, cuerpo.alumna_ulid)
+    if alumna is None:
+        raise HTTPException(404, "No existe esa alumna")
 
+    # Se mira antes de tocar la fila: es lo que decide si esto es un cambio de horario que
+    # hay que comunicarle o un ajuste de título que no le importa.
+    se_movio = cita.inicia_en != cuerpo.inicia_en or cita.alumna_id != alumna.id
+
+    cita.alumna_id = alumna.id
     cita.titulo = cuerpo.titulo
     cita.tipo = cuerpo.tipo
     cita.modalidad = cuerpo.modalidad
     cita.inicia_en = cuerpo.inicia_en
     cita.termina_en = cuerpo.termina_en
     cita.notas = cuerpo.notas
+    s.flush()
+
+    if se_movio:
+        _avisar_de_cita(s, actor, cita, alumna, Aviso.CITA_REAGENDADA)
     return _cita_publica(s, cita)
 
 
@@ -735,6 +804,11 @@ def cancelar_cita(
     ).value
     cita.motivo_cancelacion = cuerpo.motivo
     cita.cancelada_en = ahora_utc()
+    s.flush()
+
+    alumna = s.get(Alumna, cita.alumna_id) if cita.alumna_id else None
+    if alumna is not None:
+        _avisar_de_cita(s, actor, cita, alumna, Aviso.CITA_CANCELADA, motivo=cuerpo.motivo)
     return _cita_publica(s, cita)
 
 

@@ -275,17 +275,30 @@ export function Calendario({
  *  No lleva horas. Un mes con rejilla horaria no cabe en ninguna pantalla y se vuelve
  *  ilegible; lo que se quiere del mes es «qué días tengo cargados», no a qué hora.
  */
+/** Un cobro programado en la rejilla. No es una cita: no tiene hora ni ocupa hueco. */
+export interface CobroEnRejilla {
+  ulid: string;
+  fecha: string;
+  alumna: string;
+  monto: number;
+  vencido: boolean;
+}
+
 export function CalendarioMes({
   ancla,
   citas,
+  cobros = [],
   onTocarDia,
   onTocarCita,
+  onTocarCobro,
 }: {
   /** Cualquier día del mes que se pinta. */
   ancla: Date;
   citas: CitaEnRejilla[];
+  cobros?: CobroEnRejilla[];
   onTocarDia: (dia: string) => void;
   onTocarCita: (id: string) => void;
+  onTocarCobro?: (ulid: string) => void;
 }) {
   const hoy = new Date().toISOString().slice(0, 10);
   const primero = new Date(ancla.getFullYear(), ancla.getMonth(), 1);
@@ -320,6 +333,7 @@ export function CalendarioMes({
           const delDia = citas
             .filter((c) => c.iniciaEn.slice(0, 10) === celda.clave)
             .sort((a, b) => minutosDe(a.iniciaEn) - minutosDe(b.iniciaEn));
+          const cobrosDelDia = cobros.filter((c) => c.fecha === celda.clave);
 
           return (
             <div
@@ -344,6 +358,23 @@ export function CalendarioMes({
                   {celda.numero}
                 </span>
               </button>
+
+              {/* El dinero primero y sin hora: no compite con las consultas por el hueco. */}
+              {cobrosDelDia.map((c) => (
+                <button
+                  key={c.ulid}
+                  type="button"
+                  onClick={() => onTocarCobro?.(c.ulid)}
+                  className={cn(
+                    "truncate rounded-[4px] border border-dashed px-1 py-0.5 text-left text-micro leading-tight",
+                    c.vencido
+                      ? "border-peligro text-peligro"
+                      : "border-linea-fuerte text-tinta-media",
+                  )}
+                >
+                  <span className="cifra font-semibold">${c.monto}</span> {c.alumna}
+                </button>
+              ))}
 
               {delDia.slice(0, 3).map((c) => (
                 <button

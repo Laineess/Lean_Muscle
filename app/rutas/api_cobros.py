@@ -27,6 +27,7 @@ from app.datos.modelos import CobroProgramado, Tarifa
 from app.datos.repos import consultas as q
 from app.rutas.esquemas import (
     AlumnaConCobros,
+    CitaDeAlumna,
     CobroDeAlumna,
     CobroNuevoProgramado,
     PlanComercial,
@@ -197,6 +198,35 @@ def cobros_de_alumna(
         raise HTTPException(404, "No existe esa alumna")
     hoy = ahora_utc().date()
     return [cobro_publico(c, hoy) for c in q.cobros_de(s, alumna.id)]
+
+
+@ruteador.get("/alumnas/{ulid}/citas", response_model=list[CitaDeAlumna])
+def citas_de_alumna(
+    ulid: str,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> list[CitaDeAlumna]:
+    """Sus consultas, para que el calendario del expediente muestre lo mismo que la agenda.
+
+    Son la misma cita vista desde dos lados: si solo apareciera en la agenda, la coach
+    tendría que recordar de memoria a quién le agendó qué al abrir su expediente.
+    """
+    _ = actor
+    alumna = q.alumna_por_ulid(s, ulid)
+    if alumna is None:
+        raise HTTPException(404, "No existe esa alumna")
+
+    return [
+        CitaDeAlumna(
+            ulid=c.ulid,
+            titulo=c.titulo,
+            modalidad=c.modalidad,
+            estado=c.estado,
+            inicia_en=c.inicia_en,
+            termina_en=c.termina_en,
+        )
+        for c in q.citas_de_alumna(s, alumna.id)
+    ]
 
 
 @ruteador.post("/alumnas/{ulid}/cobros", response_model=CobroDeAlumna, status_code=201)

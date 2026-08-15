@@ -23,8 +23,9 @@ from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc, dia_calendario
-from app.datos.modelos import Alumna, Chequeo, Medida, Pesaje
+from app.datos.modelos import Alumna, Chequeo, Ciclo, Medida, Pesaje
 from app.datos.repos import consultas as q
+from app.dominio.agenda import TipoCita, ventana_de_chequeo
 from app.dominio.avisos import Aviso
 from app.dominio.chequeo import (
     Angulo,
@@ -160,6 +161,46 @@ def _chequeo_editable(s: Session, alumna: Alumna, ulid: str) -> Chequeo:
 # ---------------------------------------------------------------------------
 
 
+def _exigir_ventana_de_consulta(s: Session, alumna: Alumna, ciclo: Ciclo) -> None:
+    """El chequeo se captura alrededor de la consulta que la coach agendó.
+
+    Es lo que ata la medición a la revisión: la coach mira las fotos y las medidas cuando
+    hablan. Sin consulta agendada no hay chequeo que abrir, y fuera de la ventana tampoco,
+    porque unas medidas de hace tres semanas ya no describen el ciclo que dicen describir.
+    """
+    consultas = [
+        c
+        for c in q.citas_de_alumna(s, alumna.id)
+        if c.inicia_en.date() >= ciclo.inicia_en and c.tipo == TipoCita.CONSULTA.value
+    ]
+    if not consultas:
+        raise HTTPException(
+            409,
+            "Tu coach todavía no agenda tu consulta de este ciclo. En cuanto lo haga, aquí "
+            "aparece tu chequeo.",
+        )
+
+    hoy = _hoy_de(alumna)
+    ventanas = [ventana_de_chequeo(c.inicia_en) for c in consultas]
+    if any(v.abierta(hoy) for v in ventanas):
+        return
+
+    proxima = next((v for v in ventanas if hoy < v.desde), None)
+    if proxima is not None:
+        raise HTTPException(
+            409,
+            f"Tu chequeo se abre el {proxima.desde:%d/%m/%Y}, tres días antes de tu consulta "
+            f"del {proxima.consulta:%d/%m/%Y}.",
+        )
+
+    ultima = ventanas[-1]
+    raise HTTPException(
+        409,
+        f"El plazo para el chequeo de tu consulta del {ultima.consulta:%d/%m/%Y} cerró el "
+        f"{ultima.hasta:%d/%m/%Y}. Pídele a tu coach otra fecha.",
+    )
+
+
 @ruteador.post("/chequeo", response_model=BorradorChequeo)
 def abrir_chequeo(
     actor: Annotated[Actor, Depends(solo_alumna)],
@@ -179,6 +220,7 @@ def abrir_chequeo(
 
     chequeo = q.borrador_de(s, alumna.id, ciclo.id)
     if chequeo is None:
+        _exigir_ventana_de_consulta(s, alumna, ciclo)
         # Un chequeo por ciclo. Sin esta comprobación, volver a esta pantalla después de
         # enviar creaba un borrador vacío que se convertía en «el último» de la alumna: la
         # coach veía «borrador» en su cartera, el chequeo enviado desaparecía de la bandeja

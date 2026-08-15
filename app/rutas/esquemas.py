@@ -228,6 +228,26 @@ class CitaPublica(Esquema):
     motivo_cancelacion: str | None
 
 
+class MarcaDeCobro(Esquema):
+    """Un cobro visto desde la agenda. No es una cita: no tiene hora ni ocupa hueco."""
+
+    ulid: str
+    fecha: date
+    alumna_ulid: str
+    alumna: str
+    concepto: str
+    monto: Numero
+    estado: str
+    vencido: bool
+
+
+class AgendaDeCoach(Esquema):
+    """Su semana completa: lo que atiende y lo que cobra, en una sola llamada."""
+
+    citas: list[CitaPublica]
+    cobros: list[MarcaDeCobro]
+
+
 class CitaNueva(Esquema):
     titulo: str
     tipo: str = "consulta"

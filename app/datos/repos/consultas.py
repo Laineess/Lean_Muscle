@@ -213,6 +213,17 @@ def proximas_citas_de(s: Session, alumna_id: int, desde: datetime, limite: int =
     )
 
 
+def citas_de_alumna(s: Session, alumna_id: int) -> list[Cita]:
+    """Todas sus consultas, de la más vieja a la más nueva. Las canceladas no cuentan."""
+    return list(
+        s.scalars(
+            select(Cita)
+            .where(Cita.alumna_id == alumna_id, Cita.estado != "cancelada")
+            .order_by(Cita.inicia_en)
+        ).all()
+    )
+
+
 def cita_por_ulid(s: Session, ulid: str) -> Cita | None:
     return s.scalars(select(Cita).where(Cita.ulid == ulid)).first()
 
@@ -275,6 +286,21 @@ def tarifas_de_coach(s: Session, solo_activas: bool = False) -> list[Tarifa]:
 
 def tarifa_por_ulid(s: Session, ulid: str) -> Tarifa | None:
     return s.scalars(select(Tarifa).where(Tarifa.ulid == ulid)).first()
+
+
+def cobros_entre(s: Session, desde: date, hasta: date) -> list[CobroProgramado]:
+    """Los cobros de toda la cartera en un rango. Es lo que pinta la agenda de la coach."""
+    return list(
+        s.scalars(
+            select(CobroProgramado)
+            .where(
+                CobroProgramado.fecha >= desde,
+                CobroProgramado.fecha < hasta,
+                CobroProgramado.estado != "cancelado",
+            )
+            .order_by(CobroProgramado.fecha)
+        ).all()
+    )
 
 
 def cobros_de(s: Session, alumna_id: int) -> list[CobroProgramado]:

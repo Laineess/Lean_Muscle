@@ -22,7 +22,9 @@ import {
   Portada,
   Selector,
 } from "@/componentes/primitivas";
-import { ErrorApi, api, type CitaApi, type FilaCarteraApi } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
+
+import { ErrorApi, api, type AgendaApi, type CitaApi, type FilaCarteraApi } from "@/lib/api";
 import { cartera as carteraDeEjemplo } from "@/lib/datos";
 import { usarApiConRespaldo } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
@@ -176,10 +178,11 @@ export function Agenda() {
     return { inicio: lunesDe(primero), dias: 42 };
   }, [vista, ancla]);
 
+  const navegar = useNavigate();
   const desde = rango.inicio.toISOString();
-  const carga = usarApiConRespaldo<CitaApi[]>(
+  const carga = usarApiConRespaldo<AgendaApi>(
     (senal) => api.coach.agenda(desde, rango.dias, senal),
-    [],
+    { citas: [], cobros: [] },
     [desde, rango.dias],
   );
 
@@ -192,7 +195,9 @@ export function Agenda() {
   // Sin servidor se trabaja sobre los datos de ejemplo, en memoria. Con servidor, la
   // escritura va a la API y se recarga: el solape lo decide el dominio, no el navegador.
   const [enMemoria, setEnMemoria] = useState<Cita[]>(CITAS_INICIALES);
-  const citas = carga.sinServidor ? enMemoria : carga.datos.map(deApi);
+  const citas = carga.sinServidor ? enMemoria : carga.datos.citas.map(deApi);
+  // Los cobros del rango. No son citas: no tienen hora ni ocupan hueco, solo marcan el día.
+  const cobros = carga.sinServidor ? [] : carga.datos.cobros;
 
   const nombreAlumna = (ulid: string | null) =>
     ulid ? (alumnas.datos.find((a) => a.ulid === ulid)?.nombre ?? null) : null;
@@ -359,6 +364,17 @@ export function Agenda() {
         <CalendarioMes
           ancla={ancla}
           citas={enRejilla}
+          cobros={cobros.map((c) => ({
+            ulid: c.ulid,
+            fecha: c.fecha,
+            alumna: c.alumna.split(" ")[0] ?? c.alumna,
+            monto: c.monto,
+            vencido: c.vencido,
+          }))}
+          onTocarCobro={(ulid) => {
+            const cobro = cobros.find((c) => c.ulid === ulid);
+            if (cobro) void navegar(`/coach/plan/${cobro.alumnaUlid}`);
+          }}
           onTocarDia={(dia) => {
             setAncla(new Date(`${dia}T12:00:00`));
             setVista("dia");
@@ -454,8 +470,8 @@ function FormularioCita({
           ? `Muy corta. El mínimo son ${DURACION_MINIMA_MIN} minutos.`
           : duracion > DURACION_MAXIMA_MIN
             ? "Más de 8 horas: revisa que la fecha de fin sea la correcta."
-            : borrador.tipo === "consulta" && !borrador.alumnaUlid
-              ? "Una consulta necesita alumna. Si es tiempo tuyo, cámbialo a bloque de trabajo."
+            : !borrador.alumnaUlid
+              ? "Elige de quién es: toda cita va también al expediente de su alumna."
               : null;
 
   return (
@@ -504,8 +520,9 @@ function FormularioCita({
             id="cita-tipo"
             value={borrador.tipo}
             onChange={(e) => {
-              const tipo = e.target.value as TipoCita;
-              setBorrador((b) => ({ ...b, tipo, alumnaUlid: tipo === "bloqueo" ? null : b.alumnaUlid }));
+              // La alumna no se limpia al cambiar de tipo: toda cita es de alguien, y un
+              // bloque de trabajo también se le agenda a una persona concreta.
+              setBorrador((b) => ({ ...b, tipo: e.target.value as TipoCita }));
             }}
           >
             <option value="consulta">Consulta con alumna</option>
@@ -528,8 +545,7 @@ function FormularioCita({
         </Campo>
       </div>
 
-      {borrador.tipo === "consulta" ? (
-        <Campo id="cita-alumna" etiqueta="Alumna">
+      <Campo id="cita-alumna" etiqueta="Alumna">
           <Selector
             id="cita-alumna"
             value={borrador.alumnaUlid ?? ""}
@@ -541,9 +557,8 @@ function FormularioCita({
                 {a.nombre}
               </option>
             ))}
-          </Selector>
-        </Campo>
-      ) : null}
+        </Selector>
+      </Campo>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo id="cita-inicia" etiqueta="Empieza">
