@@ -293,6 +293,9 @@ export interface ExpedienteDeConstructorApi {
   parametros: ParametrosDeCicloApi;
   nutricion: PlanApi | null;
   entrenamiento: PlanApi | null;
+  /** El plan comercial que contrató y su precio: es lo que se cobra de mensualidad. */
+  planNombre: string | null;
+  planPrecio: number | null;
 }
 
 /* ------------------------------------------- Presentación y cuestionario --- */

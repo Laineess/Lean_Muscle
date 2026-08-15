@@ -6,7 +6,7 @@
  */
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Dialogo } from "@/componentes/Dialogo";
 import {
@@ -46,10 +46,13 @@ const claveDe = (d: Date) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.
 export function CalendarioDeCobros({
   alumnaUlid,
   precioSugerido,
+  nombreDelPlan = null,
 }: {
   alumnaUlid: string;
   /** El precio de su plan. Es el monto que se propone al programar una mensualidad. */
   precioSugerido: number | null;
+  /** Su nombre, para explicar de dónde salió el importe. */
+  nombreDelPlan?: string | null;
 }) {
   const carga = usarApi<CobroApi2[]>((senal) => api.coach.cobros(alumnaUlid, senal), [alumnaUlid]);
   // Las consultas que su coach le agendó. Es la misma cita que sale en la agenda, vista
@@ -208,6 +211,7 @@ export function CalendarioDeCobros({
           dia={dia}
           existentes={porDia.get(dia) ?? []}
           precioSugerido={precioSugerido}
+          nombreDelPlan={nombreDelPlan}
           onCerrar={() => setDia(null)}
           onCambio={() => {
             setDia(null);
@@ -224,6 +228,7 @@ function FormularioDeCobro({
   dia,
   existentes,
   precioSugerido,
+  nombreDelPlan,
   onCerrar,
   onCambio,
 }: {
@@ -231,15 +236,40 @@ function FormularioDeCobro({
   dia: string;
   existentes: CobroApi2[];
   precioSugerido: number | null;
+  nombreDelPlan: string | null;
   onCerrar: () => void;
   onCambio: () => void;
 }) {
   const [motivo, setMotivo] = useState<MotivoDeCobro>("mensualidad");
   const [monto, setMonto] = useState(precioSugerido ?? 0);
   const [concepto, setConcepto] = useState("");
-  // Su lista de precios. Elegir uno rellena importe y concepto en lugar de teclearlos.
   const servicios = usarApi<ServicioApi[]>((s) => api.coach.servicios(s));
   const delMotivo = (servicios.datos ?? []).filter((x) => x.activo && x.motivo === motivo);
+
+  /** El precio que corresponde solo, si no hay ambigüedad.
+   *
+   *  La mensualidad sale del plan que contrató la alumna. Los demás motivos, de su lista de
+   *  precios, y únicamente cuando hay uno: con dos o más hay que elegir, y con ninguno se
+   *  teclea a mano. Es lo que evita preguntar cuando la respuesta es una sola.
+   */
+  const unico =
+    motivo === "mensualidad"
+      ? precioSugerido !== null
+        ? { precio: precioSugerido, nombre: nombreDelPlan ?? "" }
+        : null
+      : delMotivo.length === 1
+        ? { precio: delMotivo[0]!.precio, nombre: delMotivo[0]!.nombre }
+        : null;
+
+  // Se aplica al cambiar de motivo, no en cada render: si no, la coach no podría corregir
+  // el importe sin que se le revirtiera al instante.
+  useEffect(() => {
+    if (!unico) return;
+    setMonto(unico.precio);
+    setConcepto(unico.nombre);
+    // El efecto depende solo del motivo a propósito: es el gesto que dispara el relleno.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [motivo, servicios.datos, precioSugerido]);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -326,7 +356,7 @@ function FormularioDeCobro({
         </Selector>
       </Campo>
 
-      {delMotivo.length > 0 ? (
+      {delMotivo.length > 1 ? (
         <Campo
           id="cb-servicio"
           etiqueta="De tu lista de precios"
@@ -350,6 +380,12 @@ function FormularioDeCobro({
             ))}
           </Selector>
         </Campo>
+      ) : unico ? (
+        <Apoyo>
+          Importe tomado de {motivo === "mensualidad" ? "su plan" : "tu lista de precios"}:{" "}
+          <strong className="font-semibold">{unico.nombre}</strong>. Cámbialo si esta vez es
+          distinto.
+        </Apoyo>
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">

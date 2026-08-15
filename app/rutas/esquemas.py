@@ -501,6 +501,10 @@ class ExpedienteDeConstructor(Esquema):
     parametros: ParametrosDeCiclo
     nutricion: PlanPublico | None
     entrenamiento: PlanPublico | None
+    #: El plan comercial que contrató y su precio. Es lo que se cobra de mensualidad, así
+    #: que el calendario de cobros lo propone solo en vez de hacerla teclearlo cada mes.
+    plan_nombre: str | None = None
+    plan_precio: Numero | None = None
 
 
 class FotoPublica(Esquema):

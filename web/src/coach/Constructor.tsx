@@ -726,7 +726,11 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
 
           <Regla />
 
-          <CalendarioDeCobros alumnaUlid={exp.alumnaUlid} precioSugerido={null} />
+          <CalendarioDeCobros
+            alumnaUlid={exp.alumnaUlid}
+            precioSugerido={exp.planPrecio}
+            nombreDelPlan={exp.planNombre}
+          />
         </aside>
       </div>
     </div>

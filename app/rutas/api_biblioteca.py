@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc
-from app.datos.modelos import Alimento, Chequeo, Ejercicio, ParametrosCiclo, Plan
+from app.datos.modelos import Alimento, Chequeo, Ejercicio, ParametrosCiclo, Plan, Tarifa
 from app.datos.repos import consultas as q
 from app.dominio.fotos_de_comida import Frecuencia
 from app.rutas.esquemas import (
@@ -236,6 +236,7 @@ def expediente_de_constructor(
         else PARAMETROS_INICIALES
     )
 
+    tarifa = s.get(Tarifa, alumna.tarifa_id) if alumna.tarifa_id else None
     planes = q.planes_del_ciclo(s, alumna.id, ciclo.id)
     return ExpedienteDeConstructor(
         alumna_ulid=alumna.ulid,
@@ -258,6 +259,8 @@ def expediente_de_constructor(
         parametros=parametros,
         nutricion=_plan_publico(planes.get("nutricion"), ciclo.numero),
         entrenamiento=_plan_publico(planes.get("entrenamiento"), ciclo.numero),
+        plan_nombre=tarifa.nombre if tarifa else None,
+        plan_precio=tarifa.precio if tarifa else None,
     )
 
 
