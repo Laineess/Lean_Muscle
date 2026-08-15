@@ -11,6 +11,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { Limite } from "@/componentes/Limite";
 import { Buscador, DisparadorBuscador, useBuscador } from "@/coach/Buscador";
+import { MenuDeCuenta } from "@/coach/MenuDeCuenta";
 import { urlDeFotoDeCoach, urlDeLogo } from "@/lib/api";
 import { usarVersionDeMarca } from "@/lib/marca";
 import { coach } from "@/lib/datos";
@@ -28,6 +29,7 @@ const SECCIONES = [
 export function MarcoCoach() {
   const { abierto, setAbierto } = useBuscador();
   const [menu, setMenu] = useState(false);
+  const [cuenta, setCuenta] = useState(false);
   const [logoRoto, setLogoRoto] = useState(false);
   const [retratoRoto, setRetratoRoto] = useState(false);
   const version = usarVersionDeMarca();
@@ -95,24 +97,29 @@ export function MarcoCoach() {
 
           {/* Su retrato, el de la presentación. Si todavía no sube ninguno, sus iniciales
               —las suyas de verdad, no las de los datos de ejemplo—. */}
-          <NavLink
-            to="/coach/ajustes"
-            title={`${nombre} · ajustes y seguridad`}
-            aria-label={`${nombre}. Ajustes`}
-            className="ml-auto grid size-8 shrink-0 place-items-center overflow-hidden rounded-full border border-linea-fuerte text-micro font-semibold transition-colors hover:bg-fondo-sutil lg:ml-3"
-          >
-            {retratoRoto ? (
-              iniciales(nombre)
-            ) : (
-              <img
-                key={version}
-                src={urlDeFotoDeCoach(version)}
-                alt=""
-                onError={() => setRetratoRoto(true)}
-                className="size-full object-cover"
-              />
-            )}
-          </NavLink>
+          <MenuDeCuenta abierto={cuenta} onCerrar={() => setCuenta(false)}>
+            <button
+              type="button"
+              onClick={() => setCuenta((v) => !v)}
+              aria-expanded={cuenta}
+              aria-haspopup="menu"
+              title={`${nombre} · tu cuenta`}
+              aria-label={`${nombre}. Tu cuenta`}
+              className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full border border-linea-fuerte text-micro font-semibold transition-colors hover:bg-fondo-sutil"
+            >
+              {retratoRoto ? (
+                iniciales(nombre)
+              ) : (
+                <img
+                  key={version}
+                  src={urlDeFotoDeCoach(version)}
+                  alt=""
+                  onError={() => setRetratoRoto(true)}
+                  className="size-full object-cover"
+                />
+              )}
+            </button>
+          </MenuDeCuenta>
 
           {/* Teléfono: hamburguesa */}
           <button

@@ -18,7 +18,6 @@ import {
   Chip,
   Entrada,
   Etiqueta,
-  Regla,
   Selector,
   Titulo,
   Vacio,
@@ -105,8 +104,7 @@ export function Presentacion() {
   }
 
   return (
-    <>
-      <section className="flex flex-col gap-5">
+    <section className="flex flex-col gap-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
             <Titulo>Tu presentación</Titulo>
@@ -249,19 +247,14 @@ export function Presentacion() {
               {fallo}
             </Aviso>
           ) : null}
-        </div>
-      </section>
-
-      <Regla />
-
-      <Preguntas />
-    </>
+      </div>
+    </section>
   );
 }
 
 /* ------------------------------------------------------------ Cuestionario --- */
 
-function Preguntas() {
+export function Preguntas() {
   const carga = usarApi<PreguntaApi[]>((s) => api.coach.preguntas(s));
   const [fallo, setFallo] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
