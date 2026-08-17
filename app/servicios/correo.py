@@ -117,10 +117,18 @@ _emisor: Emisor | None = None
 
 
 def emisor() -> Emisor:
-    """El emisor de la aplicación. En cualquier entorno que no sea producción, en memoria."""
+    """El emisor de la aplicación.
+
+    En producción manda de verdad. Fuera de producción guarda en memoria, salvo que se pida
+    lo contrario con `LM_CORREO_REAL=true`: es la única forma de probar el envío en local
+    sin declararse en producción, que además marca la cookie de sesión como `secure` y la
+    rompe sobre `http://localhost`.
+    """
     global _emisor
     if _emisor is None:
-        _emisor = EmisorSmtp() if ajustes().es_produccion else EmisorEnMemoria()
+        cfg = ajustes()
+        real = cfg.es_produccion or cfg.correo_real
+        _emisor = EmisorSmtp() if real else EmisorEnMemoria()
     return _emisor
 
 

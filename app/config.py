@@ -32,6 +32,14 @@ class Ajustes(BaseSettings):
 
     zona_horaria: str = "America/Mexico_City"
 
+    #: Manda correo de verdad aunque el entorno no sea produccion.
+    #:
+    #: Sin esto, en local el emisor solo guarda en memoria —un `pytest` que dispare correos
+    #: a direcciones reales es un accidente esperando a ocurrir— y no habia forma de probar
+    #: el envio sin poner `entorno=produccion`, que ademas marca la cookie de sesion como
+    #: `secure` y deja de funcionar sobre http://localhost.
+    correo_real: bool = False
+
     smtp_host: str = ""
     smtp_puerto: int = 587
     smtp_usuario: str = ""
