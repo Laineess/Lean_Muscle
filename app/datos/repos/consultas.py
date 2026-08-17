@@ -22,6 +22,7 @@ from app.datos.modelos import (
     Chequeo,
     Ciclo,
     Cita,
+    ClaveTemporal,
     CobroProgramado,
     Consentimiento,
     Foto,
@@ -222,6 +223,15 @@ def citas_de_alumna(s: Session, alumna_id: int) -> list[Cita]:
             .order_by(Cita.inicia_en)
         ).all()
     )
+
+
+def ultima_clave_temporal(s: Session, alumna_id: int) -> ClaveTemporal | None:
+    """La última que le emitieron. Es la que fija hasta cuándo puede entrar con ella."""
+    return s.scalars(
+        select(ClaveTemporal)
+        .where(ClaveTemporal.alumna_id == alumna_id)
+        .order_by(ClaveTemporal.vence_en.desc())
+    ).first()
 
 
 def cita_por_ulid(s: Session, ulid: str) -> Cita | None:

@@ -6,14 +6,23 @@ consulta. El conteo contra MySQL vive en las pruebas de integración.
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pytest
 from fastapi import HTTPException
 
 from app.compartido.errores import Codigo, ErrorDeDominio
+from app.compartido.fechas import ahora_utc
 from app.rutas.sesion import Actor, actor_establecido
 from app.servicios import limites
 from app.servicios.cuentas import validar_contrasena
-from app.servicios.seguridad import CONTRASENA_INICIAL, hash_contrasena, verificar_contrasena
+from app.servicios.seguridad import (
+    CONTRASENA_INICIAL,
+    VIGENCIA_CLAVE_TEMPORAL,
+    clave_temporal_vigente,
+    hash_contrasena,
+    verificar_contrasena,
+)
 
 
 class TestContrasenaInicial:
@@ -61,6 +70,25 @@ class TestReglasDeContrasena:
         correcto: la conoce la coach, y nadie debería poder dejarla puesta."""
         with pytest.raises(ErrorDeDominio):
             validar_contrasena(CONTRASENA_INICIAL)
+
+
+class TestClaveInicialCaduca:
+    """La contraseña de alta y la de restablecimiento son públicas: la coach las dicta.
+
+    Por eso llevan plazo. Sin él, quien conociera el correo de una alumna que todavía no ha
+    entrado podría tomarle la cuenta el día que quisiera, y `ClaveTemporal.vence_en` existía
+    sin que nadie lo mirara.
+    """
+
+    def test_dentro_del_plazo_vale(self) -> None:
+        assert clave_temporal_vigente(ahora_utc() + timedelta(hours=1))
+
+    def test_pasado_el_plazo_no(self) -> None:
+        assert not clave_temporal_vigente(ahora_utc() - timedelta(minutes=1))
+
+    def test_el_plazo_es_de_un_dia(self) -> None:
+        """Suficiente para que la alumna la use, corto para que no quede abierta."""
+        assert VIGENCIA_CLAVE_TEMPORAL == timedelta(hours=24)
 
 
 class TestGuardaDeSesion:

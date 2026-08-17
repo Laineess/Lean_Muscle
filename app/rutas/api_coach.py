@@ -190,6 +190,7 @@ def dar_de_alta_alumna(
         estatura_cm=cuerpo.estatura_cm,
         tarifa_id=plan.id if plan else None,
         nivel_experiencia=cuerpo.nivel_experiencia,
+        emitida_por=actor.usuario_id,
     )
 
     coach = s.get(Coach, actor.coach_id)

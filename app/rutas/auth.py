@@ -21,7 +21,7 @@ from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc
 from app.config import ajustes
 from app.datos.alcance import motor, sesion_con_alcance
-from app.datos.modelos import Alumna, Coach, Usuario
+from app.datos.modelos import Alumna, ClaveTemporal, Coach, Usuario
 from app.datos.modelos import Sesion as FilaSesion
 from app.dominio.avisos import Aviso as AvisoDominio
 from app.rutas.esquemas import ActorPublico, CambioDeContrasena, Credenciales
@@ -29,6 +29,7 @@ from app.rutas.sesion import NOMBRE_COOKIE, Actor, actor_actual
 from app.servicios import avisos as cola
 from app.servicios import cuentas, limites
 from app.servicios.seguridad import (
+    clave_temporal_vigente,
     hash_contrasena,
     hash_de_token,
     nuevo_token_de_sesion,
@@ -41,6 +42,33 @@ ruteador = APIRouter(prefix="/api/auth", tags=["acceso"])
 #: Sesión corta por defecto; «recordarme» la lleva a 30 días.
 VIGENCIA_CORTA = timedelta(hours=12)
 VIGENCIA_LARGA = timedelta(days=30)
+
+
+def _clave_inicial_vigente(s: Session, usuario_id: int) -> bool:
+    """Si la contraseña de alta o de restablecimiento sigue dentro de su plazo.
+
+    Solo aplica a quien no ha puesto la suya. La coach vuelve a emitirla desde la ficha de la
+    alumna, que es el mismo gesto de siempre.
+    """
+    # Sin alcance a propósito, como el resto del login: todavía no se sabe de qué coach es
+    # quien escribe, y esto corre antes de abrir la sesión con inquilino.
+    alumna = s.scalars(
+        select(Alumna).where(Alumna.usuario_id == usuario_id).execution_options(sin_alcance=True)
+    ).first()
+    if alumna is None:
+        # Una coach o el superadmin: su contraseña no la dicta nadie, así que no caduca.
+        return True
+
+    ultima = s.scalars(
+        select(ClaveTemporal)
+        .where(ClaveTemporal.alumna_id == alumna.id)
+        .order_by(ClaveTemporal.vence_en.desc())
+        .execution_options(sin_alcance=True)
+    ).first()
+    if ultima is None:
+        # Cuenta anterior a que se llevara constancia. No se le cierra la puerta por eso.
+        return True
+    return clave_temporal_vigente(ultima.vence_en)
 
 
 @ruteador.post("/login", response_model=ActorPublico)
@@ -72,6 +100,14 @@ def entrar(datos: Credenciales, peticion: Request, respuesta: Response) -> Actor
             raise ErrorDeDominio(Codigo.CREDENCIALES_INVALIDAS)
 
         limites.registrar(s, correo, ip, exitoso=True)
+
+        # La contraseña con la que se da de alta —y la que se restablece— es pública: la
+        # coach la dicta. Por eso caduca. Sin esta comprobación, quien conociera el correo de
+        # una alumna que aún no ha entrado podría tomarle la cuenta cuando quisiera.
+        if usuario.debe_cambiar_contrasena and not _clave_inicial_vigente(s, usuario.id):
+            limites.registrar(s, correo, ip, exitoso=False)
+            s.commit()
+            raise ErrorDeDominio(Codigo.CLAVE_INICIAL_VENCIDA)
 
         # Los parámetros de Argon2 suben con el tiempo; al entrar se re-cifra si hace falta.
         if requiere_rehash(usuario.hash_contrasena):

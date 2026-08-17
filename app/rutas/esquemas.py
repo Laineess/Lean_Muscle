@@ -14,12 +14,34 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, PlainSerializer
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
 from pydantic.alias_generators import to_camel
 
 #: Un `Decimal` sale de Pydantic como cadena, y del otro lado TypeScript los declara
 #: `number`: sumar dos importes concatenaba en vez de sumar. Se serializan como número.
 Numero = Annotated[Decimal, PlainSerializer(float, return_type=float, when_used="json")]
+
+# Los límites de lo que entra. Sin ellos el valor llega crudo al motor y lo que devuelve la
+# API es un 500: MySQL corta con «Data too long» o «Out of range» y el traductor de errores
+# no tiene nada que traducir. Aquí cada tope coincide con el ancho de su columna, así que lo
+# que no cabe se rechaza con un 422 que dice cuál es el campo.
+Texto20 = Annotated[str, Field(max_length=20)]
+Texto30 = Annotated[str, Field(max_length=30)]
+Texto60 = Annotated[str, Field(max_length=60)]
+Texto120 = Annotated[str, Field(max_length=120)]
+Texto160 = Annotated[str, Field(max_length=160)]
+Texto180 = Annotated[str, Field(max_length=180)]
+Texto200 = Annotated[str, Field(max_length=200)]
+Texto255 = Annotated[str, Field(max_length=255)]
+Texto300 = Annotated[str, Field(max_length=300)]
+#: Para columnas TEXT. El tope no es del motor sino del sentido común: nadie escribe una
+#: nota de veinte mil caracteres, y aceptarla es regalar disco a quien quiera llenarlo.
+TextoLargo = Annotated[str, Field(max_length=4000)]
+
+#: Dinero en `Numeric(10, 2)`: ocho enteros y dos decimales. Un peso más y el motor corta.
+Dinero = Annotated[Decimal, Field(gt=0, le=Decimal("99999999.99"))]
+#: Igual, pero admite cero y negativos: los movimientos de finanzas pueden ser gasto.
+Importe = Annotated[Decimal, Field(ge=Decimal("-99999999.99"), le=Decimal("99999999.99"))]
 
 
 class Esquema(BaseModel):
@@ -249,13 +271,13 @@ class AgendaDeCoach(Esquema):
 
 
 class CitaNueva(Esquema):
-    titulo: str
-    tipo: str = "consulta"
-    modalidad: str = "video"
-    alumna_ulid: str | None = None
+    titulo: Texto160
+    tipo: Texto20 = "consulta"
+    modalidad: Texto20 = "video"
+    alumna_ulid: Texto30 | None = None
     inicia_en: datetime
     termina_en: datetime
-    notas: str | None = None
+    notas: TextoLargo | None = None
 
 
 class CancelacionCita(Esquema):
@@ -270,14 +292,15 @@ class AltaDeAlumna(Esquema):
     consentimiento, que la ley exige expreso y personal para datos sensibles.
     """
 
-    nombre: str
-    correo: str
-    whatsapp: str | None = None
+    nombre: Texto120
+    correo: Texto180
+    whatsapp: Texto30 | None = None
     fecha_nacimiento: date
-    estatura_cm: int | None = None
+    #: El rango es el del CHECK de la tabla: fuera de él, el motor cortaba con un 500.
+    estatura_cm: Annotated[int, Field(ge=100, le=250)] | None = None
     #: ULID del plan comercial. Es lo que determina cuánto se le cobra.
-    tarifa_ulid: str | None = None
-    nivel_experiencia: str | None = None
+    tarifa_ulid: Texto30 | None = None
+    nivel_experiencia: Texto20 | None = None
 
 
 class AlumnaDadaDeAlta(Esquema):
@@ -288,25 +311,25 @@ class AlumnaDadaDeAlta(Esquema):
 
 
 class EdicionDeAlumna(Esquema):
-    nombre: str
-    whatsapp: str | None = None
-    estatura_cm: int | None = None
-    tarifa_ulid: str | None = None
-    nivel_experiencia: str | None = None
-    equipo: str | None = None
-    ocupacion: str | None = None
-    bascula_ref: str | None = None
-    lugar_ref: str | None = None
-    hora_ref: str | None = None
-    zona_horaria: str | None = None
-    porcentaje_grasa_objetivo: Numero | None = None
-    estado: str | None = None
+    nombre: Texto120
+    whatsapp: Texto30 | None = None
+    estatura_cm: Annotated[int, Field(ge=100, le=250)] | None = None
+    tarifa_ulid: Texto30 | None = None
+    nivel_experiencia: Texto20 | None = None
+    equipo: Texto30 | None = None
+    ocupacion: Texto180 | None = None
+    bascula_ref: Texto120 | None = None
+    lugar_ref: Texto120 | None = None
+    hora_ref: Texto20 | None = None
+    zona_horaria: Texto60 | None = None
+    porcentaje_grasa_objetivo: Annotated[Decimal, Field(gt=0, lt=1)] | None = None
+    estado: Texto20 | None = None
 
 
 class ClaveTemporalPedida(Esquema):
     #: Cómo verificó la coach que era ella. Sin este registro, entregar una clave por
     #: WhatsApp es indistinguible de entregársela a quien se hizo pasar por la alumna.
-    motivo_verificacion: str
+    motivo_verificacion: Texto255
 
 
 class ClaveTemporalEmitida(Esquema):
@@ -339,13 +362,13 @@ class MovimientoPublico(Esquema):
 
 
 class MovimientoNuevo(Esquema):
-    tipo: str
-    categoria: str
-    monto: Numero
+    tipo: Texto20
+    categoria: Texto30
+    monto: Importe
     fecha: date
-    concepto: str
-    alumna_ulid: str | None = None
-    nota: str | None = None
+    concepto: Texto180
+    alumna_ulid: Texto30 | None = None
+    nota: TextoLargo | None = None
     #: Cobro programado que salda este ingreso. Al registrarlo, ese cobro pasa a pagado.
     cobro_ulid: str | None = None
 
@@ -621,13 +644,18 @@ class GuardadoDeChequeo(Esquema):
     """Lo que la pantalla guarda entre pasos. Todo opcional: es un borrador."""
 
     ayuno_confirmado: bool | None = None
-    peso_kg: Numero | None = None
+    #: El dominio vuelve a comprobar el rango con su tabla; esto solo evita que un número
+    #: absurdo llegue a una columna `Numeric(5, 2)` y el motor conteste con un 500.
+    peso_kg: Annotated[Decimal, Field(gt=0, lt=1000)] | None = None
     varianza_confirmada: bool | None = None
-    medidas: dict[str, Numero] | None = None
-    nota_alumna: str | None = None
-    bascula_usada: str | None = None
-    lugar_usado: str | None = None
-    hora_usada: str | None = None
+    medidas: (
+        Annotated[dict[Texto30, Annotated[Decimal, Field(gt=0, lt=1000)]], Field(max_length=20)]
+        | None
+    ) = None
+    nota_alumna: TextoLargo | None = None
+    bascula_usada: Texto120 | None = None
+    lugar_usado: Texto120 | None = None
+    hora_usada: Texto20 | None = None
 
 
 class EnvioRechazado(Esquema):
@@ -806,16 +834,17 @@ class MarcaPublica(Esquema):
 
 
 class EdicionDeMarca(Esquema):
-    nombre: str
-    marca: str
-    color_acento: str
+    nombre: Texto120
+    marca: Texto120
+    #: Hexadecimal, con o sin canal alfa. La columna son nueve caracteres.
+    color_acento: Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")]
 
 
 class DatoDeFicha(Esquema):
     """Un renglón de la ficha. La coach nombra el rótulo: no hay campos impuestos."""
 
-    rotulo: str
-    valor: str
+    rotulo: Texto60
+    valor: Texto200
 
 
 class PresentacionPublica(Esquema):
@@ -832,9 +861,9 @@ class PresentacionPublica(Esquema):
 
 
 class EdicionDePresentacion(Esquema):
-    titulo: str
-    texto: str
-    ficha: list[DatoDeFicha]
+    titulo: Texto160
+    texto: TextoLargo
+    ficha: Annotated[list[DatoDeFicha], Field(max_length=8)]
     activa: bool = True
 
 
@@ -856,12 +885,13 @@ class PreguntaPublica(Esquema):
 
 
 class PreguntaNueva(Esquema):
-    texto: str
-    ayuda: str | None = None
-    tipo: str = "texto"
-    opciones: list[str] = []
+    texto: Texto300
+    ayuda: Texto300 | None = None
+    tipo: Texto20 = "texto"
+    #: Una lista sin tope permite mandar cien mil opciones en un JSON de un campo.
+    opciones: Annotated[list[Texto200], Field(max_length=30)] = []
     obligatoria: bool = False
-    orden: int = 0
+    orden: Annotated[int, Field(ge=0, le=9999)] = 0
     activa: bool = True
 
 
@@ -1049,10 +1079,10 @@ class ServicioPublico(Esquema):
 
 
 class ServicioNuevo(Esquema):
-    nombre: str
-    descripcion: str | None = None
-    motivo: str = "cita"
-    precio: Numero
+    nombre: Texto120
+    descripcion: TextoLargo | None = None
+    motivo: Texto20 = "cita"
+    precio: Dinero
     activo: bool = True
 
 
@@ -1074,12 +1104,12 @@ class PlanComercial(Esquema):
 
 
 class PlanComercialNuevo(Esquema):
-    codigo: str
-    nombre: str
-    descripcion: str | None = None
-    precio: Numero
-    dias: int = 30
-    intensidad: str = "media"
+    codigo: Texto30
+    nombre: Texto120
+    descripcion: TextoLargo | None = None
+    precio: Dinero
+    dias: Annotated[int, Field(ge=1, le=365)] = 30
+    intensidad: Texto20 = "media"
     activa: bool = True
 
 
@@ -1102,10 +1132,10 @@ class CobroDeAlumna(Esquema):
 
 class CobroNuevoProgramado(Esquema):
     fecha: date
-    motivo: str = "mensualidad"
-    concepto: str | None = None
-    monto: Numero
-    nota: str | None = None
+    motivo: Texto20 = "mensualidad"
+    concepto: Texto180 | None = None
+    monto: Dinero
+    nota: TextoLargo | None = None
 
 
 class AlumnaConCobros(Esquema):

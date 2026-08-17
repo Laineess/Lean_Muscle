@@ -77,6 +77,7 @@ def dar_de_alta(
     estatura_cm: int | None,
     tarifa_id: int | None,
     nivel_experiencia: str | None,
+    emitida_por: int,
 ) -> AltaHecha:
     """Da de alta una alumna con su ciclo inicial y su clave temporal.
 
@@ -181,6 +182,10 @@ def dar_de_alta(
             )
         )
 
+    # La misma constancia que un restablecimiento: la contraseña inicial es pública, así que
+    # tiene que caducar. Sin esta fila el login no sabría desde cuándo cuenta el plazo.
+    _anotar_clave(s, coach_id, alumna.id, emitida_por, clave, "alta de la alumna")
+
     return AltaHecha(alumna_ulid=alumna.ulid, correo=correo, clave_temporal=clave)
 
 
@@ -191,12 +196,12 @@ def emitir_clave_temporal(s: Session, alumna: Alumna, emitida_por: int, motivo: 
     entregar una clave por WhatsApp es indistinguible de entregársela a quien se hizo pasar
     por la alumna.
     """
-    from app.datos.modelos import ClaveTemporal
-
     if not motivo.strip():
         raise ErrorDeDominio(Codigo.CONCEPTO_REQUERIDO)
 
-    clave = nueva_clave_temporal()
+    # La misma con la que nace toda cuenta: la coach la dicta sin leer una cadena aleatoria,
+    # y solo sirve para entrar una vez porque el servidor obliga a cambiarla.
+    clave = CONTRASENA_INICIAL
     usuario = s.get(Usuario, alumna.usuario_id)
     if usuario is None:  # pragma: no cover - defensivo
         raise ErrorDeDominio(Codigo.SIN_PERMISO)
@@ -204,17 +209,26 @@ def emitir_clave_temporal(s: Session, alumna: Alumna, emitida_por: int, motivo: 
     usuario.hash_contrasena = hash_contrasena(clave)
     usuario.debe_cambiar_contrasena = True
 
+    _anotar_clave(s, alumna.coach_id, alumna.id, emitida_por, clave, motivo.strip()[:255])
+    return clave
+
+
+def _anotar_clave(
+    s: Session, coach_id: int, alumna_id: int, emitida_por: int, clave: str, motivo: str
+) -> None:
+    """Deja la constancia con su plazo. Es lo que hace que la clave caduque de verdad."""
+    from app.datos.modelos import ClaveTemporal
+
     s.add(
         ClaveTemporal(
-            coach_id=alumna.coach_id,
-            alumna_id=alumna.id,
+            coach_id=coach_id,
+            alumna_id=alumna_id,
             emitida_por=emitida_por,
             hash=hash_contrasena(clave),
             vence_en=ahora_utc() + VIGENCIA_CLAVE_TEMPORAL,
-            motivo_verificacion=motivo.strip()[:255],
+            motivo_verificacion=motivo,
         )
     )
-    return clave
 
 
 def cambiar_contrasena(s: Session, usuario_id: int, actual: str, nueva: str) -> None:

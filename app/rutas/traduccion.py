@@ -151,6 +151,10 @@ RESPUESTAS: dict[Codigo, tuple[int, str]] = {
         403,
         "Antes de nada, cambia la contraseña con la que te dieron de alta.",
     ),
+    Codigo.CLAVE_INICIAL_VENCIDA: (
+        401,
+        "Esa contraseña ya venció. Pídele a tu coach que te la vuelva a generar.",
+    ),
     Codigo.DEMASIADOS_INTENTOS: (
         429,
         "Demasiados intentos fallidos. Espera unos minutos antes de volver a probar.",
