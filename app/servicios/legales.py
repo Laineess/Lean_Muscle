@@ -22,8 +22,8 @@ RAIZ = Path(__file__).resolve().parents[2] / "docs"
 
 #: Qué documento es cada cual. La clave es lo que viaja en la URL.
 DOCUMENTOS: dict[str, tuple[str, str]] = {
-    "privacidad": ("Aviso de Privacidad", "Aviso_de_Privacidad_Alumnos_MyProgressPlan_v2.md"),
-    "terminos": ("Términos y Condiciones", "Terminos_y_Condiciones_Alumnos_MyProgressPlan_v2.md"),
+    "privacidad": ("Aviso de Privacidad", "Aviso_de_Privacidad_Alumnos_MyFittPlan_v2.md"),
+    "terminos": ("Términos y Condiciones", "Terminos_y_Condiciones_Alumnos_MyFittPlan_v2.md"),
 }
 
 #: Un hueco por rellenar. En mayúsculas para no confundirlo con un enlace de Markdown.

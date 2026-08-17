@@ -15,7 +15,7 @@ class Ajustes(BaseSettings):
         # Se aceptan los dos nombres: `.env` es la convención y es lo que la gente escribe
         # por costumbre. El último de la lista gana, así que el archivo del VPS pisa a los
         # locales si por accidente quedara alguno en el servidor.
-        env_file=(".env", "config.env", "/etc/myprogressplan/config.env"),
+        env_file=(".env", "config.env", "/etc/myfittplan/config.env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )

@@ -162,7 +162,7 @@ Cuentas de prueba, todas con la contraseña Demo1234! :
 
   mariana@leanmuscle.mx     coach de LeanMuscle
   regina@reginafit.mx       segunda coach, para ver que no se filtran datos entre ellas
-  admin@myprogressplan.com  superadmin de la plataforma
+  admin@myfittplan.com      superadmin de la plataforma
 
 Las alumnas de la semilla entran con su propio correo y la misma contraseña.
 

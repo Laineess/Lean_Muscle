@@ -1,7 +1,7 @@
 """Envío de correo.
 
 **Detrás de una interfaz a propósito.** Hoy sale por SMTP desde una cuenta de correo; el día
-que haya buzón en myprogressplan.com con SPF, DKIM y DMARC, se cambia una clase y nada más.
+que haya buzón en myfittplan.com con SPF, DKIM y DMARC, se cambia una clase y nada más.
 
 Advertencia que conviene tener presente y que el diseño no puede resolver solo: el correo
 automático enviado desde una cuenta personal a decenas de destinatarios distintos es
@@ -90,7 +90,7 @@ class EmisorSmtp:
             time.sleep(espera)
 
         mensaje = EmailMessage()
-        mensaje["From"] = formataddr(("MyProgressPlan", cfg.smtp_remitente or cfg.smtp_usuario))
+        mensaje["From"] = formataddr(("MyFittPlan", cfg.smtp_remitente or cfg.smtp_usuario))
         mensaje["To"] = correo.para
         mensaje["Subject"] = correo.asunto
         if correo.responder_a:

@@ -25,10 +25,10 @@
 
 set -euo pipefail
 
-DESTINO=/var/backups/myprogressplan
-DATOS=/var/lib/myprogressplan
-LLAVE=/etc/myprogressplan/respaldo.key
-CONFIG=/etc/myprogressplan/config.env
+DESTINO=/var/backups/myfittplan
+DATOS=/var/lib/myfittplan
+LLAVE=/etc/myfittplan/respaldo.key
+CONFIG=/etc/myfittplan/config.env
 
 #: Días que se conservan. Ver la nota 2 del encabezado antes de subirlo.
 DIAS_RETENCION=30
@@ -49,7 +49,7 @@ bd_url() {
 preparar() {
     command -v gpg >/dev/null || { apt-get update -qq && apt-get install -y -qq gnupg; }
 
-    install -d -m 700 /etc/myprogressplan
+    install -d -m 700 /etc/myfittplan
     install -d -m 700 "$DESTINO"
 
     if [[ -e $LLAVE ]]; then
@@ -192,11 +192,11 @@ ADVERTENCIA
     local clave="${sin_esquema#*:}"; clave="${clave%%@*}"
     local host="${sin_esquema#*@}"; host="${host%%:*}"
 
-    systemctl stop myprogressplan || true
+    systemctl stop myfittplan || true
     gpg --batch --quiet --decrypt --passphrase-file "$LLAVE" "$archivo" \
         | gunzip \
         | MYSQL_PWD="$clave" mysql -h "$host" -u "$usuario" "$base"
-    systemctl start myprogressplan || true
+    systemctl start myfittplan || true
     echo "Restaurado."
 }
 

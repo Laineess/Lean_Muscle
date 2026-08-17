@@ -22,7 +22,7 @@ const CLAVE_DEMO = "Demo1234!";
 const CUENTAS_DEMO: [string, string][] = [
   ["Alumna", "andrea.saenz@ejemplo.mx"],
   ["Coach", "mariana@leanmuscle.mx"],
-  ["Superadmin", "admin@myprogressplan.com"],
+  ["Superadmin", "admin@myfittplan.com"],
 ];
 
 export function Acceso() {
@@ -90,7 +90,7 @@ export function Acceso() {
   return (
     <main className="mx-auto flex min-h-full w-full max-w-sm flex-col justify-center gap-10 px-5 py-16">
       <header className="flex flex-col gap-3">
-        <Etiqueta>MyProgressPlan</Etiqueta>
+        <Etiqueta>MyFittPlan</Etiqueta>
         <Portada>Entra a tu cuenta</Portada>
         <Apoyo>Con el correo que le diste a tu coach.</Apoyo>
       </header>

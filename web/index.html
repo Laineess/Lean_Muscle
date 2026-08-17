@@ -6,7 +6,7 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0c0c0c" media="(prefers-color-scheme: dark)" />
-    <title>MyProgressPlan</title>
+    <title>MyFittPlan</title>
 
     <!-- Instalable en la pantalla de inicio. En iPhone no es adorno: Safari solo permite
          notificaciones push si la app está instalada. -->
@@ -14,14 +14,14 @@
     <link rel="icon" href="/icono-192.png" type="image/png" />
     <link rel="apple-touch-icon" href="/icono-192.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="MyProgress" />
+    <meta name="apple-mobile-web-app-title" content="MyFitt" />
   </head>
   <body class="h-full">
     <div id="root" class="h-full"></div>
     <!-- Antes de pintar: si no, quien eligió oscuro ve un destello blanco al abrir. -->
     <script>
       (function () {
-        var t = localStorage.getItem("mpp:tema");
+        var t = localStorage.getItem("mfp:tema");
         if (t === "claro") document.documentElement.classList.add("claro");
         if (t === "oscuro") document.documentElement.classList.add("dark");
       })();

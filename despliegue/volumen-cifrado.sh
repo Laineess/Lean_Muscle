@@ -2,7 +2,7 @@
 #
 # Volumen cifrado para los datos sensibles, en Ubuntu con un solo disco.
 #
-# Crea un contenedor LUKS en un archivo y lo monta en /var/lib/myprogressplan. Ahí viven las
+# Crea un contenedor LUKS en un archivo y lo monta en /var/lib/myfittplan. Ahí viven las
 # fotografías de chequeo y los comprobantes de pago; la base de datos va aparte (ver abajo).
 #
 # QUÉ PROTEGE Y QUÉ NO — importa entenderlo antes de confiar en esto:
@@ -26,11 +26,11 @@
 
 set -euo pipefail
 
-CONTENEDOR=/var/lib/myprogressplan.luks
-NOMBRE=myprogressplan
-PUNTO=/var/lib/myprogressplan
-LLAVE=/etc/myprogressplan/volumen.key
-USUARIO=myprogressplan
+CONTENEDOR=/var/lib/myfittplan.luks
+NOMBRE=myfittplan
+PUNTO=/var/lib/myfittplan
+LLAVE=/etc/myfittplan/volumen.key
+USUARIO=myfittplan
 
 exigir_root() {
     [[ $EUID -eq 0 ]] || { echo "Esto necesita root: usa sudo." >&2; exit 1; }
@@ -53,7 +53,7 @@ crear() {
     chmod 600 "$CONTENEDOR"
 
     echo "== Generando la llave"
-    install -d -m 700 /etc/myprogressplan
+    install -d -m 700 /etc/myfittplan
     # 512 bits de /dev/urandom. Una frase que alguien pueda recordar no aguanta un ataque
     # por diccionario contra una copia del contenedor.
     dd if=/dev/urandom of="$LLAVE" bs=64 count=1 status=none
@@ -64,7 +64,7 @@ crear() {
 
     echo "== Abriendo y formateando el sistema de archivos"
     cryptsetup open --key-file "$LLAVE" "$CONTENEDOR" "$NOMBRE"
-    mkfs.ext4 -q -L myprogressplan "/dev/mapper/$NOMBRE"
+    mkfs.ext4 -q -L myfittplan "/dev/mapper/$NOMBRE"
 
     mkdir -p "$PUNTO"
     mount "/dev/mapper/$NOMBRE" "$PUNTO"
@@ -84,7 +84,7 @@ crear() {
 
 Listo. El volumen está montado en $PUNTO.
 
-  LM_RUTA_DATOS=$PUNTO   <- ponlo en /etc/myprogressplan/config.env
+  LM_RUTA_DATOS=$PUNTO   <- ponlo en /etc/myfittplan/config.env
 
 RESPALDA LA LLAVE AHORA, fuera de este servidor:
 

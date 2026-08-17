@@ -1,4 +1,4 @@
-/* Service worker de MyProgressPlan.
+/* Service worker de MyFittPlan.
  *
  * Hace una sola cosa: recibir notificaciones y abrir la pantalla correcta al tocarlas.
  *
@@ -18,12 +18,12 @@ self.addEventListener("push", (evento) => {
     /* Un payload ilegible no debe dejar al teléfono sin avisar de nada. */
   }
 
-  const titulo = datos.titulo || "MyProgressPlan";
+  const titulo = datos.titulo || "MyFittPlan";
   const opciones = {
     body: datos.cuerpo || "",
     // Etiqueta igual reemplaza la anterior en la bandeja: evita cinco avisos apilados de lo
     // mismo cuando el teléfono estuvo sin señal un rato.
-    tag: datos.etiqueta || "myprogressplan",
+    tag: datos.etiqueta || "myfittplan",
     renotify: false,
     icon: "/icono-192.png",
     badge: "/icono-192.png",

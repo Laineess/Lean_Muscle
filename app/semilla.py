@@ -97,8 +97,8 @@ def _hash_texto(texto: str) -> str:
 # ---------------------------------------------------------------------------
 
 CONSENTIMIENTOS = [
-    ("terminos", "1.0", "Términos y Condiciones de uso de MyProgressPlan."),
-    ("privacidad", "2.0", "Aviso de Privacidad de MyProgressPlan."),
+    ("terminos", "1.0", "Términos y Condiciones de uso de MyFittPlan."),
+    ("privacidad", "2.0", "Aviso de Privacidad de MyFittPlan."),
     ("datos_salud", "2.0", "Consentimiento expreso para el tratamiento de datos de salud."),
     ("protocolo_foto", "2.0", "Aceptación del protocolo fotográfico sin rostro."),
 ]
@@ -1067,10 +1067,10 @@ def sembrar_plataforma(sesion: Any, coach_ids: list[int]) -> None:
     con motivo por escrito.
     """
     plataforma = Coach(
-        nombre="MyProgressPlan",
-        marca="MyProgressPlan",
+        nombre="MyFittPlan",
+        marca="MyFittPlan",
         slug="plataforma",
-        email="hola@myprogressplan.com",
+        email="hola@myfittplan.com",
         plan="plataforma",
         limite_alumnas=0,
         color_acento="#c9a227",
@@ -1083,7 +1083,7 @@ def sembrar_plataforma(sesion: Any, coach_ids: list[int]) -> None:
         Usuario(
             coach_id=plataforma.id,
             rol="admin_plataforma",
-            email="admin@myprogressplan.com",
+            email="admin@myfittplan.com",
             hash_contrasena=hash_contrasena(CLAVE_DEMO),
             estado="activo",
         )

@@ -22,7 +22,7 @@ export function MarcoPlataforma() {
       <header className="sticky top-0 z-30 border-b border-linea bg-fondo/90 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-6 px-5 sm:px-6">
           <span className="text-menor font-semibold tracking-[-0.01em]">
-            MyProgressPlan <span className="text-tinta-suave">· plataforma</span>
+            MyFittPlan <span className="text-tinta-suave">· plataforma</span>
           </span>
 
           <nav aria-label="Secciones" className="flex items-center gap-5 overflow-x-auto">

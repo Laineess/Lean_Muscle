@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 /* ===========================================================================
-   MyProgressPlan — sistema de diseño
+   MyFittPlan — sistema de diseño
 
    Negro y gris son la estructura y no se tocan. El dorado es el ACENTO, y es una
    variable: cada Coach define el suyo desde sus ajustes y reemplaza al dorado sin
-   que haya que rehacer una sola pantalla. El dorado de MyProgressPlan es el valor
+   que haya que rehacer una sola pantalla. El dorado de MyFittPlan es el valor
    por defecto.
 
    Regla de contraste que manda sobre el gusto: el dorado sobre fondo claro da 2.4:1

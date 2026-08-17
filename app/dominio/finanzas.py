@@ -42,7 +42,7 @@ class CategoriaIngreso(StrEnum):
 
 class CategoriaGasto(StrEnum):
     PLATAFORMA = "plataforma"
-    """Lo que la coach le paga a MyProgressPlan."""
+    """Lo que la coach le paga a MyFittPlan."""
     EQUIPO = "equipo"
     LOCAL = "local"
     FORMACION = "formacion"

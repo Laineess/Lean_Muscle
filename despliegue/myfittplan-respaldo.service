@@ -7,8 +7,8 @@ Requires=mysql.service
 Type=oneshot
 # Corre como root: necesita leer el volumen cifrado y la llave de respaldo, que son 400.
 User=root
-WorkingDirectory=/opt/myprogressplan
-ExecStart=/usr/bin/env bash /opt/myprogressplan/despliegue/respaldo.sh correr
+WorkingDirectory=/opt/myfittplan
+ExecStart=/usr/bin/env bash /opt/myfittplan/despliegue/respaldo.sh correr
 
 # Un volcado de una base con varios miles de chequeos, más el tar de las fotografías. Media
 # hora es holgado; si se pasa de ahí, algo está mal y conviene que falle en vez de colgarse.

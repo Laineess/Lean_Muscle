@@ -65,8 +65,8 @@ export function Legales() {
 
       <Apoyo>
         ¿Dudas sobre tus datos? Escribe a{" "}
-        <a href="mailto:privacidad@myprogressplan.com" className="underline underline-offset-2">
-          privacidad@myprogressplan.com
+        <a href="mailto:privacidad@myfittplan.com" className="underline underline-offset-2">
+          privacidad@myfittplan.com
         </a>
         .
       </Apoyo>

@@ -201,6 +201,6 @@ def _actor_publico(
             nombre=nombre,
             correo=usuario.email if usuario else "",
             color_acento=coach.color_acento if coach else "#c9a227",
-            marca=(coach.marca or coach.nombre) if coach else "MyProgressPlan",
+            marca=(coach.marca or coach.nombre) if coach else "MyFittPlan",
             debe_cambiar_contrasena=debe_cambiar,
         )

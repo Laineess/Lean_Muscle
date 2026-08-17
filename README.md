@@ -1,10 +1,10 @@
-# MyProgressPlan
+# MyFittPlan
 
 Plataforma SaaS de coaching físico y nutricional. Varias coaches, cada una con su cartera
 de alumnas aislada, sobre un método de chequeo mensual estandarizado.
 
-**MyProgressPlan** es la plataforma; **LeanMuscle** es la marca comercial de una de las
-coaches. En términos legales cada coach es Responsable del tratamiento y MyProgressPlan es
+**MyFittPlan** es la plataforma; **LeanMuscle** es la marca comercial de una de las
+coaches. En términos legales cada coach es Responsable del tratamiento y MyFittPlan es
 su Encargada.
 
 ---
@@ -229,7 +229,7 @@ alrededor de 500 destinatarios diarios, y correo automático desde una cuenta pe
 decenas de destinatarios distintos es exactamente el patrón que los filtros marcan como
 spam. El proveedor puede suspender la cuenta, y esa cuenta suele ser la personal de la coach.
 
-Con **myprogressplan.com** la solución cuesta tres registros DNS —SPF, DKIM y DMARC— y
+Con **myfittplan.com** la solución cuesta tres registros DNS —SPF, DKIM y DMARC— y
 resuelve entrega y reputación. Mientras tanto:
 
 - El correo sale detrás de una interfaz ([`correo.py`](app/servicios/correo.py)): cambiar de
@@ -244,19 +244,19 @@ resuelve entrega y reputación. Mientras tanto:
 ## Pendientes
 
 **Bloqueante para desplegar**: Let's Encrypt no emite certificados para una dirección IP.
-Hace falta apuntar **myprogressplan.com** al VPS; sin HTTPS no se pueden manejar datos de
+Hace falta apuntar **myfittplan.com** al VPS; sin HTTPS no se pueden manejar datos de
 salud.
 
-**Legal**: los cuatro documentos están alineados a MyProgressPlan y **pendientes de revisión
+**Legal**: los cuatro documentos están alineados a MyFittPlan y **pendientes de revisión
 por abogado mexicano**. Los tres plazos de conservación dicen lo mismo en los tres, que es lo
 que hay que mantener al tocar cualquiera:
 
 | Documento | Sección de plazos |
 |---|---|
-| [Aviso de Privacidad v2](docs/Aviso_de_Privacidad_Alumnos_MyProgressPlan_v2.md) | §8 |
-| [Términos y Condiciones v2](docs/Terminos_y_Condiciones_Alumnos_MyProgressPlan_v2.md) | §5 |
-| [Contrato SaaS de Coaches v2](docs/Contrato_SaaS_Coaches_MyProgressPlan_v2.md) | Anexo A.7 |
-| [Anexo Legal v2](docs/Anexo_Legal_ProteccionDatos_MyProgressPlan_v2.md) | §10 |
+| [Aviso de Privacidad v2](docs/Aviso_de_Privacidad_Alumnos_MyFittPlan_v2.md) | §8 |
+| [Términos y Condiciones v2](docs/Terminos_y_Condiciones_Alumnos_MyFittPlan_v2.md) | §5 |
+| [Contrato SaaS de Coaches v2](docs/Contrato_SaaS_Coaches_MyFittPlan_v2.md) | Anexo A.7 |
+| [Anexo Legal v2](docs/Anexo_Legal_ProteccionDatos_MyFittPlan_v2.md) | §10 |
 
 Los `.docx` de la versión 1.0 siguen en `docs/` como referencia histórica.
 
@@ -307,7 +307,7 @@ juzga ella, y el módulo no finge lo contrario.
 Las imágenes **no las sirve Python**. La aplicación comprueba sesión, inquilino y permiso,
 anota el acceso y responde con `X-Accel-Redirect`; nginx entrega el archivo desde una
 `location internal;`, que es la que impide leer una foto adivinando su ruta. La configuración
-está en [`nginx-myprogressplan.conf`](despliegue/nginx-myprogressplan.conf).
+está en [`nginx-myfittplan.conf`](despliegue/nginx-myfittplan.conf).
 
 ## Comprobantes: el OCR sugiere, la coach confirma
 
@@ -391,10 +391,10 @@ una prueba que borra las que ya no corresponden a ningún endpoint.
 
 | Unidad | Cuándo | Qué hace |
 |---|---|---|
-| [`myprogressplan-recordatorios.timer`](despliegue/myprogressplan-recordatorios.timer) | 07:00 diario | Calcula y **encola** avisos de pago próximo, pago vencido, cita de mañana, inactividad y purga de fotos |
-| [`myprogressplan-purga.timer`](despliegue/myprogressplan-purga.timer) | cada 30 min | **Borra** las imágenes vencidas: fotos de comida a las 36 h y fotos de chequeo al cumplir su retención |
-| [`myprogressplan-correo.timer`](despliegue/myprogressplan-correo.timer) | cada 5 min | **Envía** lo encolado —correo y push—, con espaciado y hasta 5 reintentos |
-| [`myprogressplan-respaldo.timer`](despliegue/myprogressplan-respaldo.timer) | 03:30 diario | Volcado de la base y de los archivos, cifrado con GPG, rotación de 30 días |
+| [`myfittplan-recordatorios.timer`](despliegue/myfittplan-recordatorios.timer) | 07:00 diario | Calcula y **encola** avisos de pago próximo, pago vencido, cita de mañana, inactividad y purga de fotos |
+| [`myfittplan-purga.timer`](despliegue/myfittplan-purga.timer) | cada 30 min | **Borra** las imágenes vencidas: fotos de comida a las 36 h y fotos de chequeo al cumplir su retención |
+| [`myfittplan-correo.timer`](despliegue/myfittplan-correo.timer) | cada 5 min | **Envía** lo encolado —correo y push—, con espaciado y hasta 5 reintentos |
+| [`myfittplan-respaldo.timer`](despliegue/myfittplan-respaldo.timer) | 03:30 diario | Volcado de la base y de los archivos, cifrado con GPG, rotación de 30 días |
 
 Están separados a propósito: si el SMTP se cae a las 6 de la mañana, los recordatorios se
 siguen calculando y nada se pierde. Y como cada aviso lleva una llave única construida por el

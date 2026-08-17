@@ -59,7 +59,7 @@ export function Salud() {
       {d.fotosPorPurgar > 0 ? (
         <Aviso tono="atencion" titulo={`${d.fotosPorPurgar} fotografías pasaron su plazo`}>
           Deberían estar borradas. Comprueba que el trabajo de purga esté corriendo:
-          <code className="ml-1">systemctl list-timers myprogressplan-recordatorios</code>. El
+          <code className="ml-1">systemctl list-timers myfittplan-recordatorios</code>. El
           plazo de conservación está prometido por escrito en el Aviso de Privacidad.
         </Aviso>
       ) : null}

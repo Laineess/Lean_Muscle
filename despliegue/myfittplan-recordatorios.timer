@@ -1,5 +1,5 @@
 [Unit]
-Description=Recordatorios diarios de MyProgressPlan (pagos, citas, inactividad, purga)
+Description=Recordatorios diarios de MyFittPlan (pagos, citas, inactividad, purga)
 
 [Timer]
 # A las 07:00 hora de México. Antes es intrusivo; más tarde y el recordatorio de una cita

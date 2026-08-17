@@ -1,5 +1,5 @@
 [Unit]
-Description=Envío de los avisos encolados de MyProgressPlan
+Description=Envío de los avisos encolados de MyFittPlan
 
 [Timer]
 # Cada cinco minutos. Es el compromiso entre que un aviso importante —una clave temporal—

@@ -94,7 +94,7 @@ class EmisorWebPush:
                 subscription_info=suscripcion.como_dict(),
                 data=notificacion.como_json(),
                 vapid_private_key=cfg.vapid_privada,
-                vapid_claims={"sub": cfg.vapid_contacto or "mailto:soporte@myprogressplan.com"},
+                vapid_claims={"sub": cfg.vapid_contacto or "mailto:soporte@myfittplan.com"},
                 timeout=10,
             )
             return Resultado(entregada=True, caducada=False)

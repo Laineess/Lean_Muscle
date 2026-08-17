@@ -30,7 +30,7 @@ from app.compartido.errores import SinAlcanceDeInquilino
 from app.config import ajustes
 from app.datos.base import BaseMultiInquilino
 
-_registro = logging.getLogger("myprogressplan.datos")
+_registro = logging.getLogger("myfittplan.datos")
 
 #: Exime del filtro **una sentencia suelta**. Solo para las consultas que por definicion
 #: preceden al inquilino: buscar el usuario al entrar, comprobar que un correo no este

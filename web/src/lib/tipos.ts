@@ -36,7 +36,7 @@ export type NivelActividad =
 export interface Coach {
   nombre: string;
   marca: string;
-  /** Reemplaza al dorado de MyProgressPlan en toda la interfaz de sus alumnas. */
+  /** Reemplaza al dorado de MyFittPlan en toda la interfaz de sus alumnas. */
   colorAcento: string;
   plan: string;
   limiteAlumnas: number;

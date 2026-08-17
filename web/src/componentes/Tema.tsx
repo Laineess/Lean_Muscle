@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 export type Tema = "sistema" | "claro" | "oscuro";
 
-const LLAVE = "mpp:tema";
+const LLAVE = "mfp:tema";
 
 export function temaGuardado(): Tema {
   const v = localStorage.getItem(LLAVE);

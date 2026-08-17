@@ -77,7 +77,7 @@ def test_todos_los_enlaces_apuntan_al_dominio_del_servicio() -> None:
     for aviso in POR_CORREO:
         _, _, html = redactar(aviso, CONTEXTO)
         for enlace in re.findall(r'href="([^"]+)"', html):
-            assert enlace.startswith("https://myprogressplan.com"), f"{aviso.value}: {enlace}"
+            assert enlace.startswith("https://myfittplan.com"), f"{aviso.value}: {enlace}"
 
 
 def test_el_aviso_de_contrasena_explica_el_riesgo() -> None:

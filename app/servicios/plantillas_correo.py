@@ -14,7 +14,7 @@ from typing import Any
 
 from app.dominio.avisos import Aviso
 
-SITIO = "https://myprogressplan.com"
+SITIO = "https://myfittplan.com"
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,10 +28,10 @@ class Plantilla:
 
 PLANTILLAS: dict[Aviso, Plantilla] = {
     Aviso.BIENVENIDA: Plantilla(
-        asunto="{coach} te dio de alta en MyProgressPlan",
+        asunto="{coach} te dio de alta en MyFittPlan",
         texto=(
             "Hola {nombre}:\n\n"
-            "{coach} te dio de alta en MyProgressPlan, donde vas a llevar tu seguimiento.\n\n"
+            "{coach} te dio de alta en MyFittPlan, donde vas a llevar tu seguimiento.\n\n"
             "Entra con este correo y la clave temporal {clave}. Al entrar te pediremos que "
             "la cambies por una tuya.\n\n"
             "La clave vence en 24 horas."
@@ -39,7 +39,7 @@ PLANTILLAS: dict[Aviso, Plantilla] = {
         boton=("Entrar a mi cuenta", f"{SITIO}/acceso"),
     ),
     Aviso.CLAVE_TEMPORAL: Plantilla(
-        asunto="Tu clave temporal de MyProgressPlan",
+        asunto="Tu clave temporal de MyFittPlan",
         texto=(
             "Hola {nombre}:\n\n"
             "{coach} generó una clave temporal para que recuperes tu acceso: {clave}\n\n"
@@ -52,7 +52,7 @@ PLANTILLAS: dict[Aviso, Plantilla] = {
         asunto="Cambiaste tu contraseña",
         texto=(
             "Hola {nombre}:\n\n"
-            "Tu contraseña de MyProgressPlan se cambió el {momento}.\n\n"
+            "Tu contraseña de MyFittPlan se cambió el {momento}.\n\n"
             "Si no fuiste tú, escríbele a tu coach ahora mismo: alguien más tiene acceso a "
             "tu cuenta, y ahí está tu historial de salud."
         ),
@@ -159,9 +159,9 @@ def _html(texto: str, boton: tuple[str, str] | None) -> str:
         f"{parrafos}{accion}"
         '<hr style="border:0;border-top:1px solid #e4e4e7;margin:32px 0 16px">'
         '<p style="font-size:12px;color:#767676;margin:0;line-height:1.5">'
-        "MyProgressPlan · Este correo se envió porque tienes una cuenta activa.<br>"
+        "MyFittPlan · Este correo se envió porque tienes una cuenta activa.<br>"
         f'Dudas de privacidad: <a href="{SITIO}/privacidad" style="color:#767676">'
-        "myprogressplan.com/privacidad</a></p></div>"
+        "myfittplan.com/privacidad</a></p></div>"
     )
 
 

@@ -39,10 +39,10 @@ from app.rutas.traduccion import respuesta_para
 
 RAIZ = Path(__file__).resolve().parent
 
-_registro = logging.getLogger("myprogressplan")
+_registro = logging.getLogger("myfittplan")
 
 app = FastAPI(
-    title="LeanMuscle",
+    title="MyFittPlan",
     version="0.1.0",
     description="Plataforma de coaching físico y nutricional",
     # En producción la documentación interactiva no se publica: describe la superficie

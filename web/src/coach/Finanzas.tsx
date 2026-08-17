@@ -559,7 +559,7 @@ function FormMovimiento({
           id="m-concepto"
           value={concepto}
           onChange={(e) => setConcepto(e.target.value)}
-          placeholder="Suscripción de MyProgressPlan · agosto"
+          placeholder="Suscripción de MyFittPlan · agosto"
         />
       </Campo>
 

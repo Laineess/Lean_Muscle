@@ -30,7 +30,7 @@ const PESTANAS: Pestana[] = [
 
 export function MarcoAlumna() {
   // La alumna ve la marca de su coach, no la de la plataforma: la relación es con ella.
-  const marca = actorGuardado()?.marca ?? "MyProgressPlan";
+  const marca = actorGuardado()?.marca ?? "MyFittPlan";
   const [logoRoto, setLogoRoto] = useState(false);
   const { pathname } = useLocation();
 

@@ -66,7 +66,7 @@ function Entrada() {
 export function App() {
   const actor = actorGuardado();
 
-  // El acento de la Coach reemplaza al dorado de MyProgressPlan en toda la interfaz de sus
+  // El acento de la Coach reemplaza al dorado de MyFittPlan en toda la interfaz de sus
   // alumnas. Negro y gris son la estructura y no se tocan: solo cambia esta variable.
   useEffect(() => {
     if (actor?.colorAcento) {

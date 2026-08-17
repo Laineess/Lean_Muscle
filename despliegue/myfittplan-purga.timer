@@ -1,5 +1,5 @@
 [Unit]
-Description=Purga de imagenes vencidas de MyProgressPlan
+Description=Purga de imagenes vencidas de MyFittPlan
 
 [Timer]
 # Cada media hora. Una foto de comida vive 36 horas: con este intervalo, el borrado real

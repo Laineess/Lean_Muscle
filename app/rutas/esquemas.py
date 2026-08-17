@@ -47,7 +47,7 @@ class ActorPublico(Esquema):
     rol: str
     nombre: str
     correo: str
-    #: Reemplaza al dorado de MyProgressPlan en toda la interfaz de sus alumnas.
+    #: Reemplaza al dorado de MyFittPlan en toda la interfaz de sus alumnas.
     color_acento: str
     marca: str
     #: Entró con la contraseña inicial. Hasta que la cambie no se abre nada más.

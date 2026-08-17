@@ -1,6 +1,6 @@
 {
-  "name": "MyProgressPlan",
-  "short_name": "MyProgress",
+  "name": "MyFittPlan",
+  "short_name": "MyFitt",
   "description": "Tu chequeo mensual, tu plan y tu evolución.",
   "start_url": "/inicio",
   "scope": "/",

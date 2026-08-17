@@ -5,11 +5,11 @@ Requires=mysql.service
 
 [Service]
 Type=oneshot
-User=myprogressplan
-Group=myprogressplan
-WorkingDirectory=/opt/myprogressplan
-EnvironmentFile=/etc/myprogressplan/config.env
-ExecStart=/opt/myprogressplan/.venv/bin/python -m app.trabajos.emisor_avisos
+User=myfittplan
+Group=myfittplan
+WorkingDirectory=/opt/myfittplan
+EnvironmentFile=/etc/myfittplan/config.env
+ExecStart=/opt/myfittplan/.venv/bin/python -m app.trabajos.emisor_avisos
 
 # El envío va con espaciado entre correos, así que un lote de 40 tarda alrededor de un
 # minuto. El tope da margen sin dejar el proceso colgado si el SMTP no responde.
@@ -19,4 +19,4 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/myprogressplan
+ReadWritePaths=/var/lib/myfittplan

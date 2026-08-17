@@ -1,5 +1,5 @@
 [Unit]
-Description=Respaldo diario de MyProgressPlan
+Description=Respaldo diario de MyFittPlan
 
 [Timer]
 # 03:30, cuando no hay nadie capturando chequeos. La aleatoriedad evita que el respaldo

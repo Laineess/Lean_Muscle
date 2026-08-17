@@ -13,8 +13,8 @@ import type { ActorPublico } from "@/lib/api";
 
 export type Rol = "alumna" | "coach" | "admin_plataforma";
 
-const LLAVE_CORREO = "mpp.correo_recordado";
-const LLAVE_ACTOR = "mpp.actor";
+const LLAVE_CORREO = "mfp.correo_recordado";
+const LLAVE_ACTOR = "mfp.actor";
 
 function leer(almacen: Storage, llave: string): string | null {
   try {

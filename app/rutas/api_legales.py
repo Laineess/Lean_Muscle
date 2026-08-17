@@ -26,7 +26,7 @@ def documento(clave: str, coach: str | None = None) -> DocumentoLegal:
     ruta se lee sin haber entrado; si no viene, el hueco queda a la vista.
     """
     try:
-        doc = legales.leer(clave, coach=coach, titular="MyProgressPlan")
+        doc = legales.leer(clave, coach=coach, titular="MyFittPlan")
     except KeyError as causa:
         raise HTTPException(404, "No existe ese documento") from causa
     except FileNotFoundError as causa:  # pragma: no cover - despliegue incompleto

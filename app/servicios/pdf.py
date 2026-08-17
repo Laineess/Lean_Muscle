@@ -291,10 +291,10 @@ def _construir(bloques: list[Flowable], nombre: str, coach: str) -> Documento:
         topMargin=MARGEN_ARRIBA,
         bottomMargin=MARGEN_ABAJO,
         title=nombre.replace(".pdf", "").replace("-", " ").capitalize(),
-        author="MyProgressPlan",
+        author="MyFittPlan",
     )
 
-    aviso = f"{coach} · MyProgressPlan — uso personal; no sustituye atención médica."
+    aviso = f"{coach} · MyFittPlan — uso personal; no sustituye atención médica."
 
     def pie(lienzo: Any, doc: Any) -> None:
         lienzo.saveState()
