@@ -292,6 +292,31 @@ class AlumnaDadaDeAlta(Esquema):
     clave_temporal: str
 
 
+class PerfilEditable(Esquema):
+    """Lo que hay guardado hoy, para llenar el formulario de edición.
+
+    Sin esto el formulario abría vacío y guardar borraba whatsapp, estatura y lo demás: el
+    PUT escribe todos los campos, así que lo que no se carga se pierde.
+    """
+
+    ulid: str
+    nombre: str
+    correo: str
+    whatsapp: str | None
+    fecha_nacimiento: date
+    estatura_cm: int | None
+    tarifa_ulid: str | None
+    nivel_experiencia: str | None
+    equipo: str | None
+    ocupacion: str | None
+    bascula_ref: str | None
+    lugar_ref: str | None
+    hora_ref: str | None
+    zona_horaria: str
+    porcentaje_grasa_objetivo: Numero | None
+    estado: str
+
+
 class EdicionDeAlumna(Esquema):
     nombre: Texto120
     whatsapp: Texto30 | None = None

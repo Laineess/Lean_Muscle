@@ -8,15 +8,17 @@
  */
 
 import { Check, Copy } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Dialogo } from "@/componentes/Dialogo";
+import { Cargando } from "@/componentes/Estado";
 import { Apoyo, Aviso, Boton, Campo, Entrada, Etiqueta, Selector } from "@/componentes/primitivas";
 import {
   ErrorApi,
   api,
   type EdicionDeAlumnaApi,
   type FilaCarteraApi,
+  type PerfilEditableApi,
   type PlanComercialApi,
 } from "@/lib/api";
 import { num } from "@/lib/formato";
@@ -37,6 +39,7 @@ interface Borrador {
   lugarRef: string;
   horaRef: string;
   equipo: string;
+  grasaObjetivo: string;
   estado: string;
 }
 
@@ -53,8 +56,31 @@ const VACIO: Borrador = {
   lugarRef: "",
   horaRef: "07:00",
   equipo: "gimnasio_completo",
+  grasaObjetivo: "",
   estado: "activa",
 };
+
+/** Lo guardado, en la forma que usa el formulario. */
+function desdePerfil(p: PerfilEditableApi): Borrador {
+  return {
+    nombre: p.nombre,
+    correo: p.correo,
+    whatsapp: p.whatsapp ?? "",
+    fechaNacimiento: p.fechaNacimiento,
+    estaturaCm: p.estaturaCm === null ? "" : String(p.estaturaCm),
+    tarifaUlid: p.tarifaUlid ?? "",
+    nivelExperiencia: p.nivelExperiencia ?? "principiante",
+    ocupacion: p.ocupacion ?? "",
+    basculaRef: p.basculaRef ?? "",
+    lugarRef: p.lugarRef ?? "",
+    horaRef: p.horaRef ?? "07:00",
+    equipo: p.equipo ?? "gimnasio_completo",
+    // Se guarda como fracción y se enseña como porcentaje: nadie escribe «0.22» de grasa.
+    grasaObjetivo:
+      p.porcentajeGrasaObjetivo === null ? "" : String(Math.round(p.porcentajeGrasaObjetivo * 100)),
+    estado: p.estado,
+  };
+}
 
 export function FormAlumna({
   alumna,
@@ -70,20 +96,41 @@ export function FormAlumna({
   const editando = alumna !== null;
 
   const [b, setB] = useState<Borrador>(
-    editando
-      ? { ...VACIO, nombre: alumna.nombre, estado: alumna.estado }
-      : VACIO,
+    editando ? { ...VACIO, nombre: alumna.nombre, estado: alumna.estado } : VACIO,
   );
+  // Al editar hay que traer lo guardado antes de dejar tocar nada: el PUT escribe todos los
+  // campos, así que guardar el formulario a medio llenar borraría lo que no se cargó.
+  const [cargando, setCargando] = useState(editando);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [claveEmitida, setClaveEmitida] = useState<{ clave: string; correo: string } | null>(null);
   const [copiada, setCopiada] = useState(false);
+
+  const ulid = alumna?.ulid;
+  useEffect(() => {
+    if (!ulid) return;
+    const control = new AbortController();
+    api.coach
+      .perfilDeAlumna(ulid, control.signal)
+      .then((p) => {
+        setB(desdePerfil(p));
+        setCargando(false);
+      })
+      .catch((causa: unknown) => {
+        if (control.signal.aborted) return;
+        setError(causa instanceof ErrorApi ? causa.message : "No se pudieron cargar sus datos.");
+        setCargando(false);
+      });
+    return () => control.abort();
+  }, [ulid]);
 
   const cambiar = <K extends keyof Borrador>(campo: K, valor: Borrador[K]) =>
     setB((v) => ({ ...v, [campo]: valor }));
 
   const numero = (v: string) => (v.trim() ? Number(v) : null);
   const texto = (v: string) => (v.trim() ? v.trim() : null);
+  /** El porcentaje que teclea la coach, de vuelta a la fracción que guarda la base. */
+  const fraccion = (v: string) => (v.trim() ? Number(v) / 100 : null);
 
   // Las mismas guardas que el servidor, para avisar antes de enviar.
   const problema = !b.nombre.trim()
@@ -114,6 +161,7 @@ export function FormAlumna({
           basculaRef: texto(b.basculaRef),
           lugarRef: texto(b.lugarRef),
           horaRef: texto(b.horaRef),
+          porcentajeGrasaObjetivo: fraccion(b.grasaObjetivo),
           estado: b.estado,
         };
         await api.coach.editarAlumna(alumna.ulid, cambios);
@@ -199,12 +247,16 @@ export function FormAlumna({
           <Boton tono="contorno" medida="chica" onClick={onCerrar}>
             Cancelar
           </Boton>
-          <Boton medida="chica" disabled={enviando} onClick={() => void guardar()}>
+          <Boton medida="chica" disabled={enviando || cargando} onClick={() => void guardar()}>
             {enviando ? "Guardando…" : editando ? "Guardar" : "Dar de alta"}
           </Boton>
         </>
       }
     >
+      {cargando ? (
+        <Cargando que="sus datos" />
+      ) : (
+        <>
       <Campo id="a-nombre" etiqueta="Nombre completo">
         <Entrada
           id="a-nombre"
@@ -301,6 +353,22 @@ export function FormAlumna({
               <Entrada id="a-hora" value={b.horaRef} onChange={(e) => cambiar("horaRef", e.target.value)} />
             </Campo>
           </div>
+          <Campo
+            id="a-grasa"
+            etiqueta="Grasa objetivo"
+            sufijo="%"
+            ayuda="Con esto la calculadora proyecta cuánto le falta. Solo lo ves tú."
+          >
+            <Entrada
+              id="a-grasa"
+              type="number"
+              min={3}
+              max={60}
+              value={b.grasaObjetivo}
+              onChange={(e) => cambiar("grasaObjetivo", e.target.value)}
+              className="rounded-r-none"
+            />
+          </Campo>
           <Campo id="a-estado" etiqueta="Estado">
             <Selector id="a-estado" value={b.estado} onChange={(e) => cambiar("estado", e.target.value)}>
               <option value="activa">Activa</option>
@@ -315,6 +383,8 @@ export function FormAlumna({
           el consentimiento para datos sensibles sea personal, así que capturarlo tú lo
           invalidaría.
         </Aviso>
+      )}
+        </>
       )}
 
       {error ? <Aviso tono="error">{error}</Aviso> : null}

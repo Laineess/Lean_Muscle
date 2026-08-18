@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc
 from app.config import ajustes
-from app.datos.modelos import Alumna, Chequeo, Cita, Coach, Usuario
+from app.datos.modelos import Alumna, Chequeo, Cita, Coach, Tarifa, Usuario
 from app.datos.repos import consultas as q
 from app.dominio.agenda import EstadoCita, Franja, agendar, transicionar
 from app.dominio.avisos import Aviso
@@ -38,6 +38,7 @@ from app.rutas.esquemas import (
     HistorialPublico,
     MarcaDeCobro,
     MarcaPublica,
+    PerfilEditable,
     RechazoChequeo,
     ResumenPanel,
     ValidacionChequeo,
@@ -211,6 +212,45 @@ def dar_de_alta_alumna(
 
     return AlumnaDadaDeAlta(
         alumna_ulid=alta.alumna_ulid, correo=alta.correo, clave_temporal=alta.clave_temporal
+    )
+
+
+@ruteador.get("/alumnas/{ulid}", response_model=PerfilEditable)
+def perfil_de_alumna(
+    ulid: str,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> PerfilEditable:
+    """Lo guardado hoy, para llenar el formulario de edición.
+
+    No es dato de salud, así que no deja fila en la bitácora de accesos: es el perfil
+    operativo que la propia coach capturó.
+    """
+    _ = actor
+    alumna = q.alumna_por_ulid(s, ulid)
+    if alumna is None:
+        raise HTTPException(404, "No existe esa alumna")
+
+    usuario = s.get(Usuario, alumna.usuario_id)
+    plan = s.get(Tarifa, alumna.tarifa_id) if alumna.tarifa_id else None
+
+    return PerfilEditable(
+        ulid=alumna.ulid,
+        nombre=alumna.nombre,
+        correo=usuario.email if usuario else "",
+        whatsapp=alumna.whatsapp,
+        fecha_nacimiento=alumna.fecha_nacimiento,
+        estatura_cm=alumna.estatura_cm,
+        tarifa_ulid=plan.ulid if plan else None,
+        nivel_experiencia=alumna.nivel_experiencia,
+        equipo=alumna.equipo,
+        ocupacion=alumna.ocupacion,
+        bascula_ref=alumna.bascula_ref,
+        lugar_ref=alumna.lugar_ref,
+        hora_ref=alumna.hora_ref,
+        zona_horaria=alumna.zona_horaria,
+        porcentaje_grasa_objetivo=alumna.porcentaje_grasa_objetivo,
+        estado=alumna.estado,
     )
 
 

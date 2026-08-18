@@ -554,7 +554,29 @@ export interface EdicionDeAlumnaApi {
   basculaRef: string | null;
   lugarRef: string | null;
   horaRef: string | null;
+  porcentajeGrasaObjetivo: number | null;
   estado: string | null;
+}
+
+/** Lo guardado hoy. El PUT escribe todos los campos, así que el formulario carga esto
+ *  primero: lo que no se cargue se pierde al guardar. */
+export interface PerfilEditableApi {
+  ulid: string;
+  nombre: string;
+  correo: string;
+  whatsapp: string | null;
+  fechaNacimiento: string;
+  estaturaCm: number | null;
+  tarifaUlid: string | null;
+  nivelExperiencia: string | null;
+  equipo: string | null;
+  ocupacion: string | null;
+  basculaRef: string | null;
+  lugarRef: string | null;
+  horaRef: string | null;
+  zonaHoraria: string;
+  porcentajeGrasaObjetivo: number | null;
+  estado: string;
 }
 
 export interface MovimientoApi {
@@ -1147,6 +1169,8 @@ export const api = {
 
     darDeAlta: (alumna: AltaDeAlumnaApi) =>
       pedir<AlumnaDadaDeAltaApi>("/coach/alumnas", { metodo: "POST", cuerpo: alumna }),
+    perfilDeAlumna: (ulid: string, senal?: AbortSignal) =>
+      pedir<PerfilEditableApi>(`/coach/alumnas/${ulid}`, senal ? { senal } : {}),
     editarAlumna: (ulid: string, alumna: EdicionDeAlumnaApi) =>
       pedir<FilaCarteraApi>(`/coach/alumnas/${ulid}`, { metodo: "PUT", cuerpo: alumna }),
     darDeBaja: (ulid: string) => pedir<void>(`/coach/alumnas/${ulid}`, { metodo: "DELETE" }),
