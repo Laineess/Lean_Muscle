@@ -1,8 +1,7 @@
 /** Cuenta de la alumna: perfil, privacidad y seguridad.
  *
- *  La privacidad va aquí y no escondida en un menú: la ley exige que los medios para
- *  ejercer derechos ARCO y limitar el uso de los datos sean accesibles, y una alumna que no
- *  encuentra dónde descargar sus fotos no tiene realmente ese derecho.
+ *  La privacidad va aquí y no escondida: la ley exige que ejercer los derechos ARCO sea
+ *  accesible, y quien no encuentra dónde descargar sus fotos no tiene ese derecho.
  */
 
 import { useState } from "react";

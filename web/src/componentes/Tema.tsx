@@ -1,32 +1,10 @@
-/** Modo claro y oscuro.
- *
- *  Tres estados, no dos: «sistema» es el valor de fábrica y es el que respeta la decisión
- *  que la persona ya tomó en su teléfono. Elegir claro u oscuro a mano la fija.
- *
- *  La clase se pone en `<html>`, donde el CSS ya la espera: `.claro` bloquea la consulta de
- *  medios y `.dark` fuerza el oscuro. La primera aplicación ocurre en `index.html`, antes de
- *  pintar, para que no haya un parpadeo blanco al abrir en oscuro.
- */
+/** Selector de tema. La lógica vive en `lib/tema.ts`; esto solo la enseña. */
 
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { LLAVE_TEMA, aplicarTema, temaGuardado, type Tema } from "@/lib/tema";
 import { cn } from "@/lib/utils";
-
-export type Tema = "sistema" | "claro" | "oscuro";
-
-const LLAVE = "mfp:tema";
-
-export function temaGuardado(): Tema {
-  const v = localStorage.getItem(LLAVE);
-  return v === "claro" || v === "oscuro" ? v : "sistema";
-}
-
-export function aplicarTema(tema: Tema): void {
-  const raiz = document.documentElement;
-  raiz.classList.toggle("claro", tema === "claro");
-  raiz.classList.toggle("dark", tema === "oscuro");
-}
 
 const OPCIONES: { id: Tema; rotulo: string; Icono: typeof Sun }[] = [
   { id: "claro", rotulo: "Claro", Icono: Sun },
@@ -39,8 +17,8 @@ export function InterruptorDeTema({ className }: { className?: string }) {
 
   useEffect(() => {
     aplicarTema(tema);
-    if (tema === "sistema") localStorage.removeItem(LLAVE);
-    else localStorage.setItem(LLAVE, tema);
+    if (tema === "sistema") localStorage.removeItem(LLAVE_TEMA);
+    else localStorage.setItem(LLAVE_TEMA, tema);
   }, [tema]);
 
   return (

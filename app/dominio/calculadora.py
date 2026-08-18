@@ -1,12 +1,7 @@
-"""Calculadora metabólica: el método de la coach, traducido a código.
+"""Calculadora metabólica: el método de la coach, traducido de `Calculadora del Fitness.xlsm`.
 
-Origen: `Calculadora del Fitness.xlsm`, hoja «Calculo bajar de peso». Es la herramienta con
-la que la clienta arma los planes hoy, y no aparece en ningún documento de requerimientos.
-Las fórmulas se preservan **exactas**, incluidos los coeficientes y las constantes: cambiar
-un número aquí cambia el plan de todas sus alumnas.
-
-Cada constante lleva la celda de la que sale, para poder auditar contra el archivo original.
-Módulo puro: sin base de datos ni HTTP.
+Las fórmulas y sus coeficientes se preservan exactos —cambiar un número aquí cambia el plan
+de todas sus alumnas— y cada constante lleva su celda para poder auditarla. Módulo puro.
 """
 
 from __future__ import annotations
@@ -187,11 +182,8 @@ class Composicion:
 
 
 def tasa_metabolica_basal(comp: Composicion, sexo: Sexo, edad: int) -> Decimal:
-    """Celdas B87/B88.
-
-    La única diferencia entre hombre y mujer en la hoja es el término de 198 kcal: la
-    fórmula femenina lo multiplica por cero. Se replica tal cual.
-    """
+    """Celdas B87/B88. La única diferencia por sexo es el término de 198 kcal, que la
+    fórmula femenina multiplica por cero."""
     termino_sexo = COEF_SEXO_MASCULINO if sexo is Sexo.MASCULINO else CERO
     return (
         COEF_MLG * comp.masa_libre_de_grasa_kg
@@ -238,11 +230,7 @@ class Energia:
 
 
 def energia(tmb: Decimal, actividad: NivelActividad, porcentaje_ajuste: Decimal) -> Energia:
-    """Celdas C19 a C23.
-
-    `porcentaje_ajuste` es una fracción con signo: −0.28 es un déficit del 28 %,
-    +0.10 un superávit del 10 %.
-    """
+    """Celdas C19 a C23. `porcentaje_ajuste` va con signo: −0.28 es un déficit del 28 %."""
     mantenimiento = tmb * MULTIPLICADOR[actividad] * FACTOR_TERMICO
     ajustadas = mantenimiento + mantenimiento * porcentaje_ajuste
     diario = ajustadas - mantenimiento
@@ -284,12 +272,8 @@ def macros(kcal_ajustadas: Decimal, reparto: RepartoMacros) -> Macros:
 def gramos_por_kilo(
     macros_calculados: Macros, comp: Composicion, base_proteina: BaseProteina
 ) -> dict[str, Decimal]:
-    """Celdas C30:C32 y B79:C80.
-
-    Carbohidrato y grasa siempre se expresan contra el peso total; la proteína, contra lo
-    que elija la coach — expresarla contra masa libre de grasa es lo que tiene sentido en
-    alguien con mucha grasa corporal.
-    """
+    """Celdas C30:C32 y B79:C80. Carbohidrato y grasa van contra el peso total; la
+    proteína, contra lo que elija la coach."""
     referencia_proteina = (
         comp.peso_kg if base_proteina is BaseProteina.PESO_TOTAL else comp.masa_libre_de_grasa_kg
     )
@@ -326,12 +310,8 @@ def deficit_promedio_semanal(
     dias_refeed: int,
     porcentaje_dia_refeed: Decimal = DEFICIT_DIA_REFEED_POR_DEFECTO,
 ) -> Decimal:
-    """Celdas B72:B75.
-
-    Con 1 día de refeed a mantenimiento y 26 % de déficit los otros seis, el déficit
-    promedio de la semana baja a 22.29 %. Es el número que de verdad manda sobre el
-    resultado, no el del día bajo.
-    """
+    """Celdas B72:B75. Es el número que manda sobre el resultado, no el del día bajo: con
+    un refeed y 26 % los otros seis días, el promedio queda en 22.29 %."""
     if not 0 <= dias_refeed <= MAX_DIAS_REFEED:
         raise ErrorDeDominio(
             Codigo.DIAS_DE_REFEED_FUERA_DE_RANGO, dias=dias_refeed, maximo=MAX_DIAS_REFEED
@@ -373,12 +353,8 @@ class ProyeccionPerdida:
 def proyectar_perdida(
     comp: Composicion, porcentaje_grasa_objetivo: Decimal, energia_calculada: Energia
 ) -> ProyeccionPerdida:
-    """Celdas H105:H117.
-
-    El modelo no supone que todo lo perdido sea grasa: por cada kilo de grasa se pierden
-    0.2 kg de masa libre de grasa, y de esos el 30 % es proteína. Por eso los kilos totales
-    son más que los kilos de grasa.
-    """
+    """Celdas H105:H117. No todo lo perdido es grasa: por cada kilo se van 0.2 kg de masa
+    libre de grasa, y de esos el 30 % es proteína."""
     if not energia_calculada.es_deficit:
         raise ErrorDeDominio(Codigo.PROYECCION_SIN_DEFICIT)
     if porcentaje_grasa_objetivo >= comp.porcentaje_grasa:

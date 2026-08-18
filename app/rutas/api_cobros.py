@@ -1,15 +1,11 @@
-"""Planes comerciales y cobros programados.
+"""Planes comerciales y cobros programados: la coach crea planes con su precio y marca en un
+calendario cuándo debe pagar cada alumna.
 
-Es la dinámica de cobro entera: la coach crea planes con su precio, cada alumna pertenece a
-uno, y la coach marca en un calendario las fechas en las que esa alumna debe pagar algo.
+Un cobro vencido y sin pagar pausa el plan. Es la única palanca de cobro, y por eso vive en
+el cobro y no en el ciclo: el ciclo mide el método, no el dinero.
 
-**Un cobro vencido y sin pagar pausa el plan de la alumna.** Esa es la única palanca de
-cobro del sistema, y por eso vive en el cobro y no en el ciclo: el ciclo mide el método, no
-el dinero.
-
-El plan comercial se guarda en la tabla `tarifa`. Hacia afuera se llama plan porque `Plan`
-ya es el de nutrición y entrenamiento, y dos cosas con el mismo nombre en la misma pantalla
-se confunden.
+El plan comercial se guarda en `tarifa`; hacia afuera se llama plan porque `Plan` ya es el
+de nutrición y entrenamiento.
 """
 
 from __future__ import annotations
@@ -274,9 +270,8 @@ def cobro_publico(c: CobroProgramado, hoy: date) -> CobroDeAlumna:
         estado=c.estado,
         pagado_en=c.pagado_en,
         nota=c.nota,
-        # Un comprobante en revisión ya no cuenta como vencido: la alumna hizo lo suyo y
-        # espera a la coach. Pausarle el plan por esa demora sería castigarla por algo que
-        # no depende de ella.
+        # Un comprobante en revisión no cuenta como vencido: la alumna hizo lo suyo y
+        # pausarle el plan sería castigarla por la demora de la coach.
         vencido=c.estado == "pendiente" and c.fecha < hoy,
         tiene_comprobante=c.comprobante_key is not None,
         motivo_rechazo=c.motivo_rechazo,
@@ -303,11 +298,7 @@ def citas_de_alumna(
     actor: Annotated[Actor, Depends(solo_coach)],
     s: Annotated[Session, Depends(datos)],
 ) -> list[CitaDeAlumna]:
-    """Sus consultas, para que el calendario del expediente muestre lo mismo que la agenda.
-
-    Son la misma cita vista desde dos lados: si solo apareciera en la agenda, la coach
-    tendría que recordar de memoria a quién le agendó qué al abrir su expediente.
-    """
+    """Sus consultas: la misma cita que sale en la agenda, vista desde el expediente."""
     _ = actor
     alumna = q.alumna_por_ulid(s, ulid)
     if alumna is None:
@@ -378,11 +369,8 @@ def a_quien_cobrar(
     s: Annotated[Session, Depends(datos)],
     texto: Annotated[str, Query(alias="q")] = "",
 ) -> list[AlumnaConCobros]:
-    """Alumnas con algo pendiente, para el buscador de finanzas.
-
-    Trae también sus cobros para poder autocompletar monto y concepto: volver a teclear lo
-    que el sistema ya sabe es como se acaba registrando un importe que no cuadra.
-    """
+    """Alumnas con algo pendiente, con sus cobros: teclear otra vez lo que el sistema ya
+    sabe es como se acaba registrando un importe que no cuadra."""
     _ = actor
     busca = texto.strip().lower()
     hoy = ahora_utc().date()

@@ -1,11 +1,8 @@
-"""Fotografías, comprobantes, notificaciones y mensajería.
+"""Fotografías, comprobantes, notificaciones y mensajería: los flujos donde el dato sensible
+entra o sale, así que aquí importa el orden de las operaciones.
 
-Lo que tienen en común: son los flujos donde el dato sensible entra o sale del sistema, así
-que aquí es donde más importa el orden de las operaciones.
-
-**La fotografía se recorta antes de tocar el disco.** El archivo que sube la alumna se
-procesa en memoria y se descarta; solo persiste la versión sin cabeza ni cuello. No hay un
-instante en que exista un original identificable guardado.
+La fotografía se recorta antes de tocar el disco: no hay un instante en que exista un
+original identificable guardado.
 """
 
 from __future__ import annotations
@@ -68,13 +65,8 @@ async def subir_foto(
     s: Annotated[Session, Depends(datos)],
     archivo: Annotated[UploadFile, File()],
 ) -> FotoSubida:
-    """Sube una fotografía de chequeo.
-
-    El original **nunca se guarda**: se lee en memoria, se recorta la zona de cabeza y cuello,
-    se reescala y se convierte a WebP sin metadatos. Lo que llega al disco ya es la versión
-    recortada, así que ni siquiera existe una ventana en la que un original identificable
-    esté en el servidor.
-    """
+    """Sube una fotografía de chequeo. El original nunca se guarda: se procesa en memoria y
+    lo que llega al disco ya viene recortado y sin metadatos."""
     if angulo not in {a.value for a in Angulo}:
         raise HTTPException(422, "Ángulo desconocido")
 
@@ -183,12 +175,8 @@ def servir_foto(
     s: Annotated[Session, Depends(datos)],
     mini: bool = False,
 ) -> Response:
-    """Entrega la imagen con `X-Accel-Redirect`.
-
-    Python **no la carga en memoria**: comprueba el permiso, anota el acceso y le dice a
-    nginx qué archivo mandar. Servir fotos desde la aplicación satura los trabajadores con
-    media docena de alumnas activas.
-    """
+    """Entrega la imagen con `X-Accel-Redirect`: Python comprueba el permiso, anota el
+    acceso y le dice a nginx qué mandar, sin cargarla en memoria."""
     chequeo = q.chequeo_por_ulid(s, chequeo_ulid)
     if chequeo is None:
         raise HTTPException(404, "No existe ese chequeo")
@@ -236,12 +224,8 @@ def servir_logo(
     actor: Annotated[Actor, Depends(actor_actual)],
     s: Annotated[Session, Depends(datos)],
 ) -> Response:
-    """El logo de la marca del inquilino en curso.
-
-    No es dato sensible —es la marca, se enseña a todo el mundo—, así que no deja fila en la
-    bitácora de accesos. Sí va tras la sesión: el `coach_id` sale de ella y nadie pide el
-    logo de otro inquilino.
-    """
+    """El logo del inquilino en curso. No es dato sensible, así que no deja fila en la
+    bitácora; sí va tras la sesión, que es de donde sale el `coach_id`."""
     from app.datos.modelos import Coach
 
     coach = s.get(Coach, actor.coach_id)
@@ -255,11 +239,8 @@ def servir_logo(
 def llave_de_push(
     actor: Annotated[Actor, Depends(actor_actual)],
 ) -> LlavePush:
-    """La llave pública VAPID que el navegador necesita para suscribirse.
-
-    Es pública por definición —viaja en cada suscripción—, pero se sirve tras la sesión: no
-    hace falta publicar de qué servidor de push depende la plataforma a quien no entró.
-    """
+    """La llave pública VAPID para suscribirse. Pública por definición, pero tras la sesión:
+    a quien no entró no hay por qué decirle de qué servidor de push dependemos."""
     _ = actor
     return LlavePush(publica=ajustes().vapid_publica)
 
@@ -270,12 +251,8 @@ def suscribir_push(
     actor: Annotated[Actor, Depends(actor_actual)],
     s: Annotated[Session, Depends(datos)],
 ) -> None:
-    """Registra este navegador.
-
-    Se identifica por el hash del endpoint: una persona puede tener varias suscripciones
-    —teléfono, laptop— y volver a suscribir el mismo navegador solo refresca las llaves en
-    lugar de duplicar la fila.
-    """
+    """Registra este navegador, identificado por el hash de su endpoint: volver a suscribir
+    el mismo refresca las llaves en vez de duplicar la fila."""
     endpoint_hash = hashlib.sha256(cuerpo.endpoint.encode("utf-8")).hexdigest()
 
     fila = s.scalars(

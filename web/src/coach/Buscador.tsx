@@ -1,16 +1,11 @@
-/** Buscador global de la coach.
+/** Buscador global de la coach: cualquier alumna o sección en dos teclas, con ⌘K o Ctrl+K.
  *
- *  Con 60 alumnas, recorrer listas es el cuello de botella. Esto la lleva a cualquier
- *  alumna, chequeo o sección en dos teclas, y es lo que permite mantener el mismo sistema
- *  espacioso en los dos frentes en lugar de apretar el panel hasta volverlo una hoja de
- *  cálculo.
- *
- *  Se abre con ⌘K o Ctrl+K, o tocando el campo en la barra.
+ *  Es lo que permite mantener el panel espacioso en vez de apretarlo hasta volverlo una
+ *  hoja de cálculo.
  */
 
 import { Command } from "cmdk";
 import { Search } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { cartera } from "@/lib/datos";
@@ -24,23 +19,6 @@ const SECCIONES = [
   { rotulo: "Finanzas", a: "/coach/finanzas" },
   { rotulo: "Ajustes y seguridad", a: "/coach/ajustes" },
 ];
-
-export function useBuscador() {
-  const [abierto, setAbierto] = useState(false);
-
-  useEffect(() => {
-    const alTeclear = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setAbierto((v) => !v);
-      }
-    };
-    document.addEventListener("keydown", alTeclear);
-    return () => document.removeEventListener("keydown", alTeclear);
-  }, []);
-
-  return { abierto, setAbierto };
-}
 
 export function DisparadorBuscador({ onClick }: { onClick: () => void }) {
   return (

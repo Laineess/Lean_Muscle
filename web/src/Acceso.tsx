@@ -1,13 +1,7 @@
 /** Pantalla de acceso.
  *
- *  «Recordar mis datos» **no guarda la contraseña**. Guarda el correo para no reescribirlo
- *  y le pide al servidor una sesión de larga duración; el token vive en una cookie HttpOnly
- *  que JavaScript no puede leer. Guardar contraseñas en el navegador es lo que convierte el
- *  robo de un teléfono en el robo de un expediente clínico.
- *
- *  En el MVP no hay recuperación automática: la coach genera una clave temporal desde su
- *  panel tras verificar identidad. Es una decisión tomada, y la pantalla lo explica en vez
- *  de dejar a la alumna atorada.
+ *  «Recordar mis datos» guarda el correo, nunca la contraseña: el token vive en una cookie
+ *  HttpOnly. La recuperación no es automática; la coach emite la clave desde su panel.
  */
 
 import { useState, type FormEvent } from "react";
@@ -44,12 +38,7 @@ export function Acceso() {
     );
   }
 
-  /** Entra con una cuenta de la semilla. **Hace login de verdad.**
-   *
-   *  Antes falseaba el actor en `sessionStorage` sin pedir cookie, y con la API en pie eso
-   *  dejaba una sesión que el servidor no reconocía: la primera petición devolvía 401 y
-   *  echaba de vuelta al acceso. Solo se compila en desarrollo.
-   */
+  /** Entra con una cuenta de la semilla, con login de verdad. Solo en desarrollo. */
   async function entrarDemostracion(cuenta: string) {
     setError(null);
     setEnviando(true);

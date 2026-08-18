@@ -1,7 +1,5 @@
-/** Panel de la coach: qué le toca hoy.
- *
- *  Lo primero es la bandeja de validación, porque es la guarda del método: sin validar el
- *  chequeo del mes anterior no puede publicar plan nuevo.
+/** Panel de la coach: qué le toca hoy. Primero la bandeja de validación, que es la guarda
+ *  del método: sin validar el chequeo anterior no puede publicar plan nuevo.
  */
 
 import { ArrowRight } from "lucide-react";

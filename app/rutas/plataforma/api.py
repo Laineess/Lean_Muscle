@@ -1,15 +1,11 @@
-"""Panel de la plataforma: administrar coaches, cobrarles y vigilar que nada falle en silencio.
+"""Panel de la plataforma: administrar coaches, cobrarles y vigilar lo que falla en silencio.
 
-Vive en `app/rutas/plataforma/` y no junto a las demás rutas por una razón concreta: es el
-único paquete de rutas al que `pruebas/aislamiento/prueba_fronteras.py` le permite importar
-`sin_alcance`. Todo lo demás en `app/rutas` tiene prohibido consultar sin filtro de inquilino,
-y esa prohibición se comprueba sobre el árbol de imports, no de palabra.
+Vive aparte porque es el único paquete de rutas al que `prueba_fronteras.py` le permite
+importar `sin_alcance`.
 
-**El superadmin no ve datos de alumnas.** Ni fotografías, ni pesos, ni historiales, ni
-nombres. Solo cuántas. Las consultas viven en `app/datos/repos/plataforma.py` y una prueba
-lee su árbol sintáctico para impedir que alguien meta un `select(Alumna)` «solo para
-depurar». Frente a la LFPDPPP la plataforma es Encargado y no Responsable, y esa posición se
-sostiene si el acceso técnico coincide con lo que dicen los documentos, no solo el contrato.
+El superadmin no ve datos de alumnas: ni fotos, ni pesos, ni nombres. Solo cuántas. Frente a
+la LFPDPPP la plataforma es Encargado y no Responsable, y eso se sostiene si el acceso
+técnico coincide con el contrato.
 """
 
 from __future__ import annotations
@@ -132,11 +128,8 @@ def dar_de_alta_coach(
     cuerpo: AltaDeCoach,
     actor: Annotated[Actor, Depends(solo_admin)],
 ) -> CoachDadaDeAlta:
-    """Crea el inquilino y su usuaria coach.
-
-    La clave temporal se devuelve **una sola vez**, para poder dictarla si el correo no llega.
-    Después solo queda su hash, y entrar con ella obliga a cambiarla.
-    """
+    """Crea el inquilino y su usuaria coach. La clave se devuelve una sola vez; después solo
+    queda su hash, y entrar con ella obliga a cambiarla."""
     _ = actor
     with sesion_sin_alcance("alta de un inquilino nuevo: todavía no existe su alcance") as s:
         ulid, correo, clave = cuentas.dar_de_alta_coach(
@@ -174,12 +167,8 @@ def editar_coach(
     cuerpo: EdicionDeCoach,
     actor: Annotated[Actor, Depends(solo_admin)],
 ) -> FilaDeCoach:
-    """Plan, límite de alumnas y estado.
-
-    Poner una coach en `baja` **no borra nada**: sus alumnas y sus expedientes siguen ahí. La
-    eliminación de datos personales es un flujo distinto, con plazos propios, y no puede
-    dispararse desde un selector de estado.
-    """
+    """Plan, límite de alumnas y estado. Poner una coach en `baja` no borra nada: eliminar
+    datos personales es otro flujo, con plazos propios."""
     _ = actor
     if cuerpo.estado not in ESTADOS_DE_COACH:
         raise HTTPException(422, f"Estado desconocido: {cuerpo.estado}")
@@ -262,15 +251,8 @@ def registrar_cobro(
     cuerpo: CobroNuevo,
     actor: Annotated[Actor, Depends(solo_admin)],
 ) -> CobroPublico:
-    """Registra un pago recibido de la coach.
-
-    Es solo inserción: corregir un cobro mal capturado se hace con otro en negativo, no
-    editando el anterior. Lo que se cobró es un hecho, y un historial reescribible no sirve
-    para cuadrar cuentas ni para responder una aclaración.
-
-    Si el cobro trae periodo, la suscripción avanza sola a `al_corriente`: capturar el pago y
-    tener que acordarse de mover el estado a mano es la forma segura de que un día no cuadre.
-    """
+    """Registra un pago de la coach. Solo inserción: un cobro mal capturado se corrige con
+    otro en negativo. Si trae periodo, la suscripción avanza sola a `al_corriente`."""
     _ = actor
     if cuerpo.monto == 0:
         raise ErrorDeDominio(Codigo.MONTO_INVALIDO)
@@ -351,12 +333,8 @@ def facturacion(
 
 @ruteador.get("/salud", response_model=SaludPublica)
 def salud(actor: Annotated[Actor, Depends(solo_admin)]) -> SaludPublica:
-    """Las piezas que fallan sin avisar.
-
-    Un correo que no salió no manda un correo diciendo que no salió, y no purgar fotografías
-    a tiempo no produce ningún error: produce un incumplimiento. Por eso las dos están aquí y
-    no escondidas en un log.
-    """
+    """Las piezas que fallan sin avisar: un correo que no salió no manda un correo diciendo
+    que no salió, y no purgar a tiempo no da error, da un incumplimiento."""
     _ = actor
     ahora = ahora_utc()
     with sesion_sin_alcance("panel de plataforma: salud del sistema, sin datos personales") as s:
@@ -385,12 +363,8 @@ def auditoria(
     actor: Annotated[Actor, Depends(solo_admin)],
     limite: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> list[MovimientoDeAuditoria]:
-    """Qué se ha estado haciendo, sin decir sobre quién.
-
-    Llegan la acción, la cuenta y el momento; **no** el `detalle` ni el identificador de la
-    entidad. Con eso se responde «¿qué pasó en esta cuenta?» ante un reclamo, y sigue siendo
-    imposible reconstruir a qué alumna corresponde cada movimiento.
-    """
+    """Qué se ha hecho, sin decir sobre quién: la acción, la cuenta y el momento, nunca el
+    detalle ni la entidad. Responde «¿qué pasó en esta cuenta?» sin identificar a nadie."""
     _ = actor
     with sesion_sin_alcance("panel de plataforma: auditoría sin datos personales") as s:
         nombres = {c.id: c.nombre for c in q.coaches(s)}

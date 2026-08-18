@@ -1,14 +1,8 @@
-"""Semilla de desarrollo.
+"""Semilla de desarrollo. Crea dos coaches a propósito: sin un segundo inquilino, una fuga
+entre coaches es invisible durante el desarrollo.
 
-Crea **dos coaches a propósito**, no una: sin un segundo inquilino en la base local, una
-fuga de datos entre coaches es invisible durante el desarrollo. Todo lo que hoy está
-escrito a mano en el frontend sale de aquí.
-
-    python -m app.semilla            # siembra si la base está vacía
+    python -m app.semilla              # siembra si la base está vacía
     python -m app.semilla --reiniciar  # borra y vuelve a sembrar
-
-Siembra sin alcance de inquilino porque cruza coaches, que es justo el caso que la
-excepción de `sin_alcance` contempla.
 """
 
 from __future__ import annotations
@@ -56,12 +50,8 @@ HOY = date(2026, 8, 13)
 
 
 def _marcador_de_foto(llave: str, angulo: str, cuando: str) -> None:
-    """Escribe una imagen de relleno donde iria la fotografia de chequeo.
-
-    Sin esto la fila apunta a un archivo que no existe y la pantalla de validacion sale con
-    las imagenes rotas. Es un marcador evidente —fondo liso con su rotulo—, no una silueta
-    que pueda confundirse con la foto de alguien.
-    """
+    """Imagen de relleno para que la pantalla de validacion no salga con las imagenes rotas.
+    Un marcador evidente, no una silueta que pueda confundirse con la foto de alguien."""
     from io import BytesIO
 
     from PIL import Image, ImageDraw
@@ -749,9 +739,8 @@ def sembrar_coach(
         sesion.add(ciclo)
         sesion.flush()
 
-        # Cobros: el del mes pasado ya pagado y el del proximo por venir. A la tercera
-        # alumna se le deja uno vencido, que es lo que pausa su plan y hace visible la
-        # palanca de cobro.
+        # El del mes pasado pagado y el proximo por venir. La tercera alumna lleva uno
+        # vencido, que es lo que pausa su plan y hace visible la palanca de cobro.
         precio_plan = planes[i % len(planes)].precio
         sesion.add(
             CobroProgramado(
@@ -787,9 +776,8 @@ def sembrar_coach(
                 )
             )
 
-        # Todas llevan consulta agendada: es lo que abre su ventana de chequeo. Sin cita no
-        # hay chequeo que capturar, asi que una semilla sin citas dejaria la app sin flujo.
-        # La primera cae hoy para que la ventana este abierta al entrar a probar.
+        # Todas llevan consulta: es lo que abre su ventana de chequeo. La primera cae hoy
+        # para que la ventana este abierta al entrar a probar.
         consultas = [(0, "Consulta de este ciclo", "video")]
         if i < 3:
             consultas.append((16 + i, "Revision de medio ciclo", "presencial"))
@@ -959,9 +947,8 @@ def _sembrar_historial_de_andrea(
         )
 
 
-#: Base pública (coach_id nulo): la comparten todas las coaches.
-#: En producción, el catálogo de ejercicios sale del dataset MIT de 1 324 entradas; esto es
-#: la muestra mínima para poder probar el buscador del constructor.
+#: Base publica (coach_id nulo). En produccion el catalogo sale del dataset MIT; esto es
+#: la muestra minima para probar el buscador del constructor.
 ALIMENTOS_BASE = [
     ("Pechuga de pollo", 100, "g", 165, 31.0, 0.0, 3.6, "Proteína animal"),
     ("Huevo entero", 50, "g", 72, 6.3, 0.4, 4.8, "Proteína animal"),
@@ -1059,13 +1046,8 @@ def sembrar_catalogos(sesion: Any) -> None:
 
 
 def sembrar_plataforma(sesion: Any, coach_ids: list[int]) -> None:
-    """El inquilino de la propia plataforma, su superadmin y las suscripciones de ejemplo.
-
-    El superadmin cuelga de un inquilino igual que cualquier otro usuario —el de la
-    plataforma— para no romper la invariante de que **todo usuario tiene `coach_id`**. Lo que
-    lo distingue no es de quien cuelga, sino su rol y que sus rutas abren sesion sin alcance
-    con motivo por escrito.
-    """
+    """El inquilino de la plataforma, su superadmin y suscripciones de ejemplo. El
+    superadmin cuelga de un inquilino como cualquiera: lo que lo distingue es su rol."""
     plataforma = Coach(
         nombre="MyFittPlan",
         marca="MyFittPlan",
@@ -1130,9 +1112,8 @@ def sembrar_plataforma(sesion: Any, coach_ids: list[int]) -> None:
 
 
 def sembrar(reiniciar: bool = False) -> None:
-    # Estas cuentas tienen contrasena conocida y `--reiniciar` borra todas las tablas.
-    # Correrlo contra la base real seria abrir una puerta trasera y perder los datos en el
-    # mismo comando, asi que se rechaza antes de tocar nada.
+    # Estas cuentas tienen contrasena conocida y `--reiniciar` borra todas las tablas:
+    # contra la base real seria abrir una puerta trasera y perder los datos a la vez.
     from app.config import ajustes
 
     if ajustes().es_produccion:
@@ -1146,9 +1127,8 @@ def sembrar(reiniciar: bool = False) -> None:
         if existentes:
             from app.datos.base import Base
 
-            # Sobre `s.connection()` y no sobre el motor: el SELECT de arriba dejo una
-            # transaccion abierta en esta conexion, y un DROP lanzado por otra del pool se
-            # queda esperando su metadata lock contra la propia semilla.
+            # Sobre `s.connection()`: el SELECT de arriba dejo una transaccion abierta, y
+            # un DROP desde otra conexion del pool esperaria su metadata lock para siempre.
             conexion = s.connection()
             Base.metadata.drop_all(bind=conexion)
             Base.metadata.create_all(bind=conexion)

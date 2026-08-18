@@ -1,8 +1,7 @@
 /** Mi plan: nutrición y entrenamiento del ciclo vigente.
  *
- *  El bloqueo por pago vive en el servidor (`app/dominio/ciclo.py`): esta pantalla solo
- *  refleja lo que decide la API. Un cliente comprometido no debe poder saltarlo, así que si
- *  el ciclo está bloqueado la API ni siquiera envía el contenido del plan.
+ *  El bloqueo por pago lo decide el servidor: si el ciclo está bloqueado, la API ni siquiera
+ *  manda el contenido del plan.
  */
 
 import { useState } from "react";

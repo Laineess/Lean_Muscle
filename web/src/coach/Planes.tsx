@@ -1,11 +1,8 @@
-/** Los planes que vende la coach: nombre, costo e intensidad.
+/** Los planes que vende la coach: nombre, costo e intensidad. Cada alumna pertenece a uno
+ *  y de ahí sale cuánto se le cobra.
  *
- *  Es lo que sustituye al precio único por ciclo. Cada alumna pertenece a un plan y de ahí
- *  sale cuánto se le cobra, así que dos alumnas con objetivos distintos pueden pagar
- *  distinto sin tocar nada más.
- *
- *  Un plan con alumnas dentro **no se borra, se desactiva**: con él se iría la explicación
- *  de por qué esas alumnas pagan lo que pagan.
+ *  Un plan con alumnas dentro no se borra, se desactiva: con él se iría la explicación de
+ *  por qué esas alumnas pagan lo que pagan.
  */
 
 import { Plus } from "lucide-react";
@@ -28,7 +25,7 @@ import { ErrorApi, api, type PlanComercialApi } from "@/lib/api";
 import { num } from "@/lib/formato";
 import { usarApi } from "@/lib/usarApi";
 
-export const INTENSIDADES = [
+const INTENSIDADES = [
   ["baja", "Baja"],
   ["media", "Media"],
   ["alta", "Alta"],

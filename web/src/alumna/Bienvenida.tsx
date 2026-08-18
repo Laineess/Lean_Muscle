@@ -1,11 +1,7 @@
 /** Lo primero que ve una alumna nueva: quién la va a acompañar, y luego el cuestionario.
  *
- *  El orden importa. Se le piden lesiones, medicación y peso a alguien que todavía no sabe
- *  con quién está hablando; presentarse primero es lo que convierte ese formulario en una
- *  conversación en vez de un trámite.
- *
- *  El núcleo clínico y los consentimientos no se pueden quitar: los exige la ley y los lee
- *  el constructor al armar su plan. Encima van las preguntas que escribió su coach.
+ *  El orden importa: se le piden lesiones y medicación a alguien que todavía no sabe con
+ *  quién habla. El núcleo clínico no se puede quitar; encima van las preguntas de su coach.
  */
 
 import { ArrowRight, Check } from "lucide-react";

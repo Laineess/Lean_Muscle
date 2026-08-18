@@ -1,10 +1,9 @@
 /** Avisos de la coach: un título, una frase y a quién va.
  *
- *  No es el hilo de mensajes: aquello es una conversación de dos y esto va a varias a la vez
- *  sin esperar respuesta. Llega como notificación al teléfono y queda en la app.
+ *  No es el hilo de mensajes: aquello es una conversación de dos y esto va en una dirección.
  *
- *  Sale por push y no por correo a propósito: una frase de ánimo en la bandeja de entrada es
- *  correo basura, y entonces el correo que sí importa —acceso, dinero— también se ignora.
+ *  Sale por push, no por correo: una frase de ánimo en la bandeja de entrada es correo
+ *  basura, y entonces el que sí importa —acceso, dinero— también se aprende a ignorar.
  */
 
 import { Send } from "lucide-react";
@@ -82,8 +81,8 @@ export function Avisos() {
         <Etiqueta>Avisos</Etiqueta>
         <Portada>Escríbele a tus alumnas</Portada>
         <Apoyo className="medida">
-          Les llega como notificación al teléfono y les queda guardado en la app. Va en una sola
-          dirección: si quieres conversar con una, usa su hilo de mensajes.
+          Les llega como notificación al teléfono. Va en una sola dirección: si quieres
+          conversar con una, usa su hilo de mensajes.
         </Apoyo>
       </header>
 
@@ -154,9 +153,15 @@ export function Avisos() {
       <Regla />
 
       <section className="flex flex-col gap-4">
-        <Titulo>Lo que ya mandaste</Titulo>
+        <div className="flex flex-col gap-1">
+          <Titulo>Lo que ya mandaste</Titulo>
+          <Apoyo>
+            Cada aviso <strong>se borra solo</strong> cuando todas lo abren, y a la semana
+            aunque no lo hayan abierto. Son frases del día, no un archivo.
+          </Apoyo>
+        </div>
         {historial.cargando ? null : (historial.datos ?? []).length === 0 ? (
-          <Vacio>Todavía no has mandado ninguno.</Vacio>
+          <Vacio>Nada pendiente. Lo que mandaste y ya leyeron desaparece de aquí.</Vacio>
         ) : (
           <ul className="flex flex-col divide-y divide-linea border-y border-linea">
             {(historial.datos ?? []).map((a) => (

@@ -35,12 +35,7 @@ import { MarcoPlataforma } from "@/plataforma/Marco";
 import { Salud } from "@/plataforma/Salud";
 import { actorGuardado, guardarActor, rolActual, type Rol } from "@/lib/sesion";
 
-/** Guarda de ruta.
- *
- *  Es comodidad de navegación, no seguridad: quien manda es el servidor, que resuelve el
- *  rol desde la cookie de sesión y responde 403 si no corresponde. Un guard de cliente se
- *  salta editando memoria del navegador.
- */
+/** Guarda de ruta: comodidad de navegación, no seguridad. Quien manda es el servidor. */
 function Exige({ rol, children }: { rol: Rol; children: React.ReactNode }) {
   const { pathname } = useLocation();
   const actual = rolActual();
@@ -76,17 +71,14 @@ export function App() {
     }
   }, [actor?.colorAcento]);
 
-  // El service worker se registra al arrancar; el **permiso** de notificaciones no se pide
-  // aquí sino cuando la usuaria toca el interruptor. Un navegador que ve el diálogo de
-  // permisos sin contexto lo bloquea, y bloqueado no se puede volver a pedir: se acabaría el
-  // canal para siempre en ese dispositivo.
+  // El permiso de notificaciones no se pide aquí sino al tocar el interruptor: un diálogo
+  // sin contexto se bloquea, y bloqueado no se puede volver a pedir nunca.
   useEffect(() => {
     void registrarTrabajador();
   }, []);
 
-  // `sessionStorage` es una caché para pintar la barra sin esperar a la red, no la verdad.
-  // Sin comprobarla, una cookie caducada dejaba la interfaz en pie con todas las peticiones
-  // devolviendo 401. Un 401 aquí lo recoge el manejador global y manda al acceso.
+  // `sessionStorage` es caché, no verdad: sin comprobarla, una cookie caducada dejaba la
+  // interfaz en pie con todas las peticiones devolviendo 401.
   useEffect(() => {
     if (!actor) return;
     api.acceso

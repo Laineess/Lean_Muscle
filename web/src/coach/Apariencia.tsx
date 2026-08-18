@@ -1,9 +1,7 @@
 /** Apariencia: la marca de la coach y el tema de la interfaz.
  *
- *  Las dos cosas responden a la misma pregunta —cómo se ve esto— aunque una la ven sus
- *  alumnas y la otra solo ella. El color de acento es el único token que cambia con la
- *  marca: negro y gris son la estructura y no se tocan, así que cambiarlo no descuadra
- *  ninguna pantalla.
+ *  El color de acento es el único token que cambia con la marca: negro y gris son la
+ *  estructura, así que cambiarlo no descuadra ninguna pantalla.
  */
 
 import { useEffect, useRef, useState } from "react";

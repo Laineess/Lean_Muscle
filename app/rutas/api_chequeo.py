@@ -1,14 +1,10 @@
 """Captura del chequeo mensual, desde el frente de alumna.
 
-Es el flujo que sostiene todo lo demás: sin chequeo no hay peso, sin peso no hay
-calculadora, y sin calculadora no hay plan. Por eso el borrador se guarda paso a paso en el
-servidor y no en el navegador: la alumna hace esto de pie, en ayunas, recién despierta, y
-perder la captura por cerrar la pestaña sin querer significa esperar al mes siguiente.
+El borrador se guarda en el servidor y no en el navegador: la alumna hace esto de pie, en
+ayunas, y perder la captura por cerrar la pestaña significa esperar al mes siguiente.
 
-**Las guardas de envío las evalúa el dominio, no esta capa.** Aquí solo se arma la
-instantánea y se traduce el resultado. La pantalla repite las mismas validaciones por
-cortesía, pero las que mandan son estas: un cliente comprometido no debe poder saltarse
-ninguna.
+Las guardas de envío las evalúa el dominio; la pantalla las repite por cortesía, pero las
+que mandan son estas.
 """
 
 from __future__ import annotations
@@ -61,20 +57,14 @@ def _mi_alumna(s: Session, actor: Actor) -> Alumna:
 
 
 def _hoy_de(alumna: Alumna) -> date:
-    """El día calendario **de la alumna**.
-
-    Una alumna en Tijuana que se pesa a las 7 no debe perder su chequeo porque en Mérida ya
-    es otro día.
-    """
+    """El día calendario de la alumna: en Tijuana no se pierde el chequeo porque en Mérida
+    ya sea otro día."""
     return dia_calendario(ahora_utc(), alumna.zona_horaria)
 
 
 def _numero_de(s: Session, alumna_id: int, chequeo: Chequeo) -> int:
-    """Cuántos chequeos van, contando este. Es lo que la alumna ve como «Chequeo #5».
-
-    Solo cuentan los enviados. Un borrador es el que está haciendo ahora, así que lleva el
-    número siguiente: contarlo como uno más le inventaba un chequeo que no existe.
-    """
+    """Lo que la alumna ve como «Chequeo #5». Solo cuentan los enviados: contar el borrador
+    le inventaba un chequeo que no existe."""
     historial = q.chequeos_enviados(s, alumna_id)
     for i, c in enumerate(historial, start=1):
         if c.id == chequeo.id:
@@ -162,12 +152,8 @@ def _chequeo_editable(s: Session, alumna: Alumna, ulid: str) -> Chequeo:
 
 
 def _exigir_ventana_de_consulta(s: Session, alumna: Alumna, ciclo: Ciclo) -> None:
-    """El chequeo se captura alrededor de la consulta que la coach agendó.
-
-    Es lo que ata la medición a la revisión: la coach mira las fotos y las medidas cuando
-    hablan. Sin consulta agendada no hay chequeo que abrir, y fuera de la ventana tampoco,
-    porque unas medidas de hace tres semanas ya no describen el ciclo que dicen describir.
-    """
+    """El chequeo se captura alrededor de la consulta agendada: es lo que ata la medición a
+    la revisión. Unas medidas de hace tres semanas ya no describen el ciclo."""
     consultas = [
         c
         for c in q.citas_de_alumna(s, alumna.id)
@@ -206,13 +192,8 @@ def abrir_chequeo(
     actor: Annotated[Actor, Depends(solo_alumna)],
     s: Annotated[Session, Depends(datos)],
 ) -> BorradorChequeo:
-    """Abre el chequeo del ciclo, o devuelve el que ya estaba abierto.
-
-    Es idempotente a propósito: la pantalla lo llama al entrar, y entrar dos veces no debe
-    crear dos chequeos. Un chequeo devuelto en `rechazado_calidad` es uno que la coach mandó
-    repetir; se vuelve a la misma captura en lugar de empezar otra, que rompería la
-    numeración de la que cuelgan las gráficas.
-    """
+    """Abre el chequeo del ciclo o devuelve el abierto. Idempotente: entrar dos veces no
+    crea dos. Uno en `rechazado_calidad` se retoma para no romper la numeración."""
     alumna = _mi_alumna(s, actor)
     ciclo = q.ciclo_vigente(s, alumna.id)
     if ciclo is None:
@@ -258,11 +239,8 @@ def guardar_chequeo(
     actor: Annotated[Actor, Depends(solo_alumna)],
     s: Annotated[Session, Depends(datos)],
 ) -> BorradorChequeo:
-    """Guarda el avance. Todo es opcional: es un borrador, no un envío.
-
-    Los rangos se validan aquí aunque el borrador no se envíe: guardar un peso de 700 kg y
-    descubrirlo al final sería peor que rechazarlo al momento.
-    """
+    """Guarda el avance; todo es opcional. Los rangos se validan igual: descubrir un peso
+    de 700 kg al final sería peor que rechazarlo al momento."""
     alumna = _mi_alumna(s, actor)
     chequeo = _chequeo_editable(s, alumna, ulid)
 
@@ -291,12 +269,8 @@ def guardar_chequeo(
 def _guardar_pesaje(
     s: Session, actor: Actor, alumna: Alumna, chequeo: Chequeo, peso: Decimal
 ) -> None:
-    """Un peso por día, hasta tres días por ciclo.
-
-    La unicidad la impone la base con UNIQUE (alumna_id, fecha); aquí se corrige el del día
-    en lugar de intentar insertar otro, porque volver a pesarse el mismo día es corregir, no
-    acumular.
-    """
+    """Un peso por día, hasta tres por ciclo. Volver a pesarse el mismo día corrige el
+    valor en vez de acumular otro."""
     hoy = _hoy_de(alumna)
     del_ciclo = q.pesajes_del_ciclo(s, alumna.id, chequeo.ciclo_id)
 
@@ -353,11 +327,8 @@ def enviar_chequeo(
     actor: Annotated[Actor, Depends(solo_alumna)],
     s: Annotated[Session, Depends(datos)],
 ) -> BorradorChequeo:
-    """Cierra el chequeo y lo manda a evaluación.
-
-    Devuelve **todas** las causas de rechazo juntas, no la primera: la alumna arregla todo de
-    una pasada en vez de descubrir un problema nuevo en cada intento.
-    """
+    """Cierra el chequeo y lo manda a evaluación. Devuelve todas las causas de rechazo
+    juntas: la alumna arregla todo de una pasada."""
     alumna = _mi_alumna(s, actor)
     chequeo = _chequeo_editable(s, alumna, ulid)
 
@@ -409,9 +380,8 @@ def _instantanea(s: Session, alumna: Alumna, chequeo: Chequeo) -> Instantanea:
 
     protocolo = q.consentimiento_vigente(s, alumna.id, "protocolo_foto")
 
-    # La sincronía peso-fotos se mide con la fecha de **subida**, no con la del EXIF: un
-    # teléfono con la hora mal puesta bloquearía un chequeo correcto, y la fecha de subida no
-    # se puede falsear desde el cliente.
+    # Por fecha de subida y no de EXIF: un teléfono con la hora mal puesta bloquearía un
+    # chequeo correcto, y la de subida no se puede falsear desde el cliente.
     fechas_de_fotos = frozenset(
         dia_calendario(f.subida_en, alumna.zona_horaria) for f in fotos if f.subida_en
     )
@@ -435,12 +405,8 @@ def _instantanea(s: Session, alumna: Alumna, chequeo: Chequeo) -> Instantanea:
 def _rechazo(
     errores: tuple[ErrorDeDominio, ...], campos_faltantes: dict[str, list[str]]
 ) -> JSONResponse:
-    """Traduce el rechazo completo, no solo la primera causa.
-
-    Se responde a mano en lugar de lanzar `ErrorDeDominio` porque el manejador global traduce
-    **un** error, y aquí el valor está justo en que van todos: la pantalla marca a la vez la
-    medida que falta y la foto que falta, y la alumna resuelve las dos de una pasada.
-    """
+    """Traduce el rechazo completo. Se responde a mano porque el manejador global traduce
+    un solo error, y aquí el valor está en que vayan todos juntos."""
     estado, mensaje = respuesta_para(errores[0].codigo)
     return JSONResponse(
         status_code=estado,

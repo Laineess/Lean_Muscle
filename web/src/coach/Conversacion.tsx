@@ -1,7 +1,5 @@
-/** El hilo de una alumna, desde el panel de la coach.
- *
- *  Se llega desde la cartera y desde la validación: los dos sitios donde a la coach le surge
- *  algo que preguntar. Abrir el hilo marca como leídos los mensajes de la alumna.
+/** El hilo de una alumna, desde el panel de la coach. Abrirlo marca como leídos sus
+ *  mensajes.
  */
 
 import { ArrowLeft } from "lucide-react";

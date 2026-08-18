@@ -1,13 +1,8 @@
-"""Qué se avisa, a quién y cuándo.
+"""Qué se avisa, a quién y cuándo, todo en un sitio: para ver de un vistazo cuántos mensajes
+recibe una alumna y no llenarle la bandeja sin darse cuenta.
 
-Reúne en un solo lugar todos los disparadores de correo y notificación, para poder ver de
-un vistazo cuántos mensajes recibe una alumna y no llenarle la bandeja sin darse cuenta.
-
-**Un aviso que ya se envió no se repite.** El emisor guarda el sello de cada disparo, y
-estas funciones lo reciben: sin eso, un trabajo programado que corre dos veces manda el
-recordatorio dos veces.
-
-Módulo puro: decide, no envía. El envío vive en `app/servicios/correo.py`.
+Un aviso ya enviado no se repite: el emisor guarda el sello de cada disparo y estas
+funciones lo reciben. Módulo puro: decide, no envía.
 """
 
 from __future__ import annotations
@@ -68,12 +63,9 @@ class Canal(StrEnum):
     CORREO = "correo"
 
 
-#: Por qué canal sale cada aviso.
-#:
-#: El correo se reserva para lo que **no puede perderse** o para lo que la alumna necesita
-#: conservar: acceso, dinero y privacidad. Todo lo demás vive en push y en el propio panel.
-#: Mandar por correo cada movimiento del método sería la forma más rápida de que aprenda a
-#: ignorarnos, y entonces el correo que sí importa también se pierde.
+#: Por qué canal sale cada aviso. El correo se reserva para lo que no puede perderse
+#: —acceso, dinero, privacidad—; mandar por correo cada movimiento del método sería la forma
+#: más rápida de que aprenda a ignorarnos.
 CANALES: dict[Aviso, frozenset[Canal]] = {
     Aviso.BIENVENIDA: frozenset({Canal.CORREO}),
     Aviso.CLAVE_TEMPORAL: frozenset({Canal.CORREO}),
@@ -166,10 +158,8 @@ def toca_avisar_vencido(
 def toca_avisar_purga(
     tomada_en: date, hoy: date, retencion_meses: int, foto_id: str
 ) -> Pendiente | None:
-    """Quince días antes de que la fotografía se borre, con enlace para descargarla.
-
-    Lo exige el Aviso de Privacidad §8: lo que se lleva es suyo y sale del sistema.
-    """
+    """Quince días antes de borrar la foto, con enlace de descarga. Aviso de Privacidad §8:
+    lo que se lleva es suyo y sale del sistema."""
     dias_retencion = retencion_meses * 30
     borra_el = tomada_en + timedelta(days=dias_retencion)
     falta = borra_el - hoy

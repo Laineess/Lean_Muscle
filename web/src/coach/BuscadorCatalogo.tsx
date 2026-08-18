@@ -1,11 +1,7 @@
 /** Buscadores de alimentos y ejercicios sobre el catálogo.
  *
- *  El del alimento es el que quita trabajo de verdad: la coach elige «Pechuga de pollo»,
- *  escribe 180 g y el sistema saca kcal y macros escalando desde la porción de referencia.
- *  Es lo que la saca de teclear cuatro números por alimento en cada plan.
- *
- *  La búsqueda va contra el servidor con un retardo corto: buscar en cada tecla dispararía
- *  una petición por letra.
+ *  La coach elige «Pechuga de pollo», escribe 180 g y salen kcal y macros escalados. La
+ *  búsqueda va con retardo corto: buscar en cada tecla dispararía una petición por letra.
  */
 
 import { Search } from "lucide-react";
@@ -23,11 +19,12 @@ import {
   Vacio,
 } from "@/componentes/primitivas";
 import {
-  api,
-  type AlimentoApi,
-  type AlimentoCatalogoApi,
-  type EjercicioCatalogoApi,
-} from "@/lib/api";
+  baseDeCatalogo,
+  escalar,
+  type AlimentoEnPlan,
+  type EjercicioEnPlan,
+} from "@/lib/alimentos";
+import { api, type AlimentoCatalogoApi, type EjercicioCatalogoApi } from "@/lib/api";
 import { num } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 
@@ -69,68 +66,6 @@ function usarBusqueda<T>(
 }
 
 /* ---------------------------------------------------------------- Alimentos --- */
-
-/** Valores del catálogo referidos a `porcion` unidades. Lo que permite reescalar. */
-export interface BaseDeAlimento {
-  porcion: number;
-  kcal: number;
-  p: number;
-  c: number;
-  g: number;
-}
-
-export interface AlimentoEnPlan extends AlimentoApi {
-  cantidad: number;
-  unidad: string;
-  base: BaseDeAlimento;
-}
-
-const decimal = (n: number) => Math.round(n * 10) / 10;
-
-export const baseDeCatalogo = (a: AlimentoCatalogoApi): BaseDeAlimento => ({
-  porcion: a.porcion,
-  kcal: a.kcal,
-  p: a.proteina,
-  c: a.carbo,
-  g: a.grasa,
-});
-
-/** Escala kcal y macros a la cantidad pedida. Único punto donde se hace la regla de tres. */
-export function escalar(
-  nombre: string,
-  base: BaseDeAlimento,
-  cantidad: number,
-  unidad: string,
-): AlimentoEnPlan {
-  const factor = base.porcion > 0 ? cantidad / base.porcion : 0;
-  return {
-    nombre,
-    porcion: `${num(cantidad, Number.isInteger(cantidad) ? 0 : 1)} ${unidad}`,
-    kcal: Math.round(base.kcal * factor),
-    p: decimal(base.p * factor),
-    c: decimal(base.c * factor),
-    g: decimal(base.g * factor),
-    cantidad,
-    unidad,
-    base,
-  };
-}
-
-/** Los planes viejos guardaban solo el resultado. Se toma esa porción como referencia: la
- *  cantidad vuelve a ser editable sin tener que buscar el alimento otra vez. */
-export function normalizarAlimento(a: AlimentoApi): AlimentoEnPlan {
-  if (a.cantidad !== undefined && a.unidad !== undefined && a.base !== undefined) {
-    return { ...a, cantidad: a.cantidad, unidad: a.unidad, base: a.base };
-  }
-  const cantidad = Number.parseFloat(a.porcion) || 1;
-  const unidad = a.porcion.replace(/^[\d.,\s]+/, "").trim() || "porción";
-  return {
-    ...a,
-    cantidad,
-    unidad,
-    base: { porcion: cantidad, kcal: a.kcal, p: a.p, c: a.c, g: a.g },
-  };
-}
 
 export function BuscadorAlimento({
   onElegir,
@@ -281,14 +216,6 @@ export function BuscadorAlimento({
 }
 
 /* --------------------------------------------------------------- Ejercicios --- */
-
-export interface EjercicioEnPlan {
-  nombre: string;
-  series: number;
-  reps: string;
-  carga: string;
-  nota: string;
-}
 
 export function BuscadorEjercicio({
   lesiones,

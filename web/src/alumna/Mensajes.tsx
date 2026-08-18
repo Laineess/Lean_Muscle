@@ -1,8 +1,5 @@
-/** Mensajes con la coach.
- *
- *  Vive fuera de las tres pestañas: es lo secundario, y se llega desde Inicio. Gastar una
- *  cuarta pestaña en un hilo que se abre dos veces al mes sería cargar la navegación de todos
- *  los días por algo ocasional.
+/** Mensajes con la coach. Fuera de las tres pestañas: es un hilo que se abre dos veces al
+ *  mes, y gastar una pestaña en eso carga la navegación de todos los días.
  */
 
 import { ArrowLeft } from "lucide-react";

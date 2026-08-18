@@ -1,7 +1,6 @@
 /** Inicio de la alumna: qué le toca hoy.
  *
- *  Editorial y calmado — la pantalla abre con el dato, no con adorno. Todo lo que no es
- *  «qué hago ahora» se va bajando, y lo secundario (cuenta, mensajes, avisos) vive al pie
+ *  Abre con el dato, no con adorno. Lo secundario —cuenta, mensajes, avisos— vive al pie
  *  para no gastar una pestaña en ello.
  */
 
@@ -70,9 +69,8 @@ export function Inicio() {
 
   const historico = datos.chequeos;
 
-  // Recién dada de alta: todavía no hay un solo chequeo, así que no hay peso, ni medidas,
-  // ni nada que comparar. El panel entero se apoya en el último chequeo, de modo que sin
-  // esto la pantalla reventaba y se quedaba en negro.
+  // Sin un solo chequeo no hay nada que comparar, y el panel entero se apoya en el
+  // último: sin esto la pantalla se quedaba en negro.
   if (historico.length === 0) {
     return <PrimerChequeo nombre={datos.perfil.nombre} coach={datos.coach} />;
   }
@@ -258,10 +256,8 @@ const ROTULO_MODALIDAD: Record<string, string> = {
   telefono: "Llamada",
 };
 
-/** Días que faltan, contando por día calendario y no por horas.
- *
- *  Una cita de mañana a las 9 está a 14 horas, pero decir «en 0 días» sería absurdo: lo que
- *  la alumna piensa es «mañana».
+/** Días que faltan por día calendario, no por horas: una cita de mañana a las 9 está a 14
+ *  horas, pero lo que la alumna piensa es «mañana».
  */
 function diasHasta(iso: string): number {
   const objetivo = new Date(iso);
@@ -277,11 +273,7 @@ function cuando(dias: number): string {
   return `en ${dias} días`;
 }
 
-/** Lo que viene: el pago del ciclo y las consultas agendadas.
- *
- *  Van juntos porque son las dos únicas fechas que la alumna tiene que recordar, y estaban
- *  repartidas entre dos pantallas distintas.
- */
+/** El pago del ciclo y las consultas: las dos únicas fechas que tiene que recordar. */
 function ProximasFechas({
   ciclo,
   citas,
@@ -353,10 +345,8 @@ function ProximasFechas({
 
 /* -------------------------------------------------- Comprobante de pago --- */
 
-/** Lo que la alumna debe, con el botón para subir su comprobante.
- *
- *  Elige contra qué cobro paga antes de subir la captura: así la coach lo recibe emparejado
- *  y solo confirma, en lugar de tener que adivinar a qué corresponde una transferencia.
+/** Lo que debe, con el botón para subir su comprobante. Elige contra qué cobro paga, así
+ *  la coach lo recibe emparejado en vez de adivinar a qué corresponde.
  */
 function SubirComprobante() {
   const carga = usarApi<CobroApi2[]>((senal) => api.alumna.cobros(senal));
@@ -466,10 +456,8 @@ function SubirComprobante() {
   );
 }
 
-/** Lo que ve una alumna que acaba de entrar y todavía no se ha medido.
- *
- *  Es el último paso del alta, no una pantalla vacía: sin su primer chequeo la coach no
- *  puede calcular nada, así que aquí solo hay una cosa que hacer.
+/** Lo que ve quien acaba de entrar y no se ha medido: es el último paso del alta, y sin su
+ *  primer chequeo la coach no puede calcular nada.
  */
 function PrimerChequeo({ nombre, coach }: { nombre: string; coach: string }) {
   return (

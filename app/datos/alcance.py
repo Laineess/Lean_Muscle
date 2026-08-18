@@ -1,19 +1,10 @@
-"""Aislamiento entre coaches.
+"""Aislamiento entre coaches, capa 2 de cinco (Propuesta Backend, seccion 4).
 
-**MySQL no tiene Row Level Security.** PostgreSQL deja declarar politicas que la base
-aplica aunque el programador olvide el `WHERE`; MySQL no ofrece ese seguro. Como el
-aislamiento entre coaches es la base legal del modelo — una fuga entre inquilinos es una
-infraccion sancionable directamente a la coach — hay que reponer esa red con ingenieria
-explicita.
+MySQL no tiene Row Level Security, y una fuga entre inquilinos es una infraccion
+sancionable a la coach: la red hay que reponerla con ingenieria explicita.
 
-Este modulo es la capa 2 de cinco (Propuesta Backend, seccion 4):
-
-1. Sesion: el `coach_id` sale del token, nunca del cliente.
-2. **Sesion de base con alcance obligatorio (este archivo).**
-3. Prueba automatizada de fuga en CI (`pruebas/aislamiento`).
-4. Llaves de almacenamiento por inquilino.
-5. Vistas `v_tabla` en MySQL, con el usuario de la aplicacion sin permiso sobre las
-   tablas base.
+Las otras cuatro: el `coach_id` sale del token; prueba de fuga en `pruebas/aislamiento`;
+llaves de almacenamiento por inquilino; vistas `v_tabla` en MySQL.
 """
 
 from __future__ import annotations
@@ -76,12 +67,8 @@ FabricaDeSesion = sessionmaker(class_=Session, expire_on_commit=False, future=Tr
 
 @event.listens_for(Session, "do_orm_execute")
 def _aplicar_alcance(estado: ORMExecuteState) -> None:
-    """Inyecta `WHERE coach_id = :actual` en toda lectura de una entidad multi-inquilino.
-
-    Va sobre `with_loader_criteria` y no sobre un `WHERE` a mano porque asi el filtro
-    tambien alcanza los JOIN y la carga diferida de relaciones — que es justo donde se
-    escapan los datos cuando el filtro se escribe endpoint por endpoint.
-    """
+    """Inyecta `WHERE coach_id = :actual` en toda lectura multi-inquilino. Va sobre
+    `with_loader_criteria` para alcanzar tambien los JOIN y la carga diferida."""
     if not estado.is_select or estado.is_column_load or estado.is_relationship_load:
         # Las cargas de columna/relacion heredan el criterio del SELECT que las origino.
         if not estado.is_select:
@@ -98,9 +85,8 @@ def _aplicar_alcance(estado: ORMExecuteState) -> None:
             "verdad corresponde, app.datos.sin_alcance."
         )
 
-    # `coach_id` entra como variable de cierre y no se lee dentro de la lambda:
-    # `with_loader_criteria` la cachea por objeto de codigo y extrae los valores enlazados
-    # sin volver a ejecutarla. Llamar a una funcion dentro lanza `InvalidRequestError`.
+    # `coach_id` va como cierre: `with_loader_criteria` cachea la lambda por objeto de
+    # codigo, y llamar a una funcion dentro lanza `InvalidRequestError`.
     estado.statement = estado.statement.options(
         with_loader_criteria(
             BaseMultiInquilino,
@@ -130,10 +116,8 @@ def sesion_con_alcance(coach_id: int) -> Iterator[Session]:
         try:
             sesion.commit()
         except Exception:
-            # Como dependencia de FastAPI esto corre **despues** de armar la respuesta, asi
-            # que el cliente ya recibio su 200 y no hay forma de cambiarselo. Se registra
-            # completo para que el fallo no desaparezca sin dejar rastro: un guardado que
-            # revienta y responde «listo» es el peor error posible.
+            # Corre despues de responder, asi que el cliente ya tiene su 200. Se registra
+            # completo: un guardado que revienta y responde «listo» es lo peor posible.
             _registro.exception("el commit falló tras responder; se pierde el guardado")
             raise
     except Exception:

@@ -1,9 +1,7 @@
 /** Agenda de la coach: calendario con alta, edición y cancelación de citas.
  *
- *  Tres vistas sobre la rejilla de `Calendario.tsx`, que no sabe nada de la API.
- *
- *  El solape se avisa aquí y lo decide `app/dominio/agenda.py`. Cancelar exige motivo porque
- *  la alumna lo va a leer.
+ *  Tres vistas sobre la rejilla de `Calendario.tsx`, que no sabe nada de la API. El solape
+ *  lo decide `app/dominio/agenda.py`. Cancelar exige motivo porque la alumna lo va a leer.
  */
 
 import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
@@ -195,9 +193,8 @@ export function Agenda() {
   // Sin servidor se trabaja sobre los datos de ejemplo, en memoria. Con servidor, la
   // escritura va a la API y se recarga: el solape lo decide el dominio, no el navegador.
   const [enMemoria, setEnMemoria] = useState<Cita[]>(CITAS_INICIALES);
-  // Se lee a la defensiva: durante un despliegue el navegador puede tener el paquete nuevo
-  // y el servidor todavía el viejo, que devolvía la lista pelada. Reventar aquí dejaba la
-  // pantalla en negro y sin barra para salir.
+  // A la defensiva: durante un despliegue el navegador puede tener el paquete nuevo y el
+  // servidor el viejo, y reventar aquí dejaba la pantalla en negro.
   const respuesta = carga.datos as AgendaApi | CitaApi[] | null;
   const citasApi = Array.isArray(respuesta) ? respuesta : (respuesta?.citas ?? []);
   const cobrosApi = Array.isArray(respuesta) ? [] : (respuesta?.cobros ?? []);
@@ -247,10 +244,8 @@ export function Agenda() {
             rango.inicio.getTime() + 6 * 86_400_000,
           ).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}`;
 
-  /** Ejecuta la mutación contra la API y recarga; si no hay servidor, la aplica en memoria.
-   *
-   *  El solape lo decide el dominio del servidor, no el navegador: la comprobación local es
-   *  solo para avisar antes de enviar. Si el servidor rechaza, su mensaje se muestra tal cual.
+  /** Ejecuta la mutación y recarga. El solape lo decide el servidor; la comprobación local
+   *  solo avisa antes de enviar.
    */
   async function mutar(enApi: () => Promise<unknown>, enLocal: () => void) {
     setFallo(null);

@@ -1,8 +1,7 @@
 /** Ajustes de la cuenta: zona horaria, avisos y seguridad.
  *
- *  Lo que no es ni marca, ni precios, ni contenido para sus alumnas. Cada una de esas vive
- *  en su propia pantalla desde el menú del avatar: una sola página con todo dentro obligaba
- *  a bajar buscando el bloque correcto.
+ *  Lo que no es marca, precios ni contenido para sus alumnas; cada una de esas tiene su
+ *  propia pantalla en el menú del avatar.
  */
 
 import { Notificaciones } from "@/componentes/Notificaciones";

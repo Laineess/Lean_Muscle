@@ -1,20 +1,13 @@
 /** Cliente de la API.
  *
- *  El token de sesión vive en una cookie **HttpOnly** que pone el servidor: aquí no se lee
- *  ni se escribe, solo se pide que viaje con `credentials: "include"`. Por eso no hay
- *  ninguna cabecera de autorización que armar.
- *
- *  El servidor responde los errores de negocio con `{ codigo, mensaje }`, y el `mensaje` ya
- *  viene redactado para la usuaria. Este cliente no inventa textos: si el servidor tiene
- *  algo que decir, se muestra tal cual.
+ *  El token vive en una cookie HttpOnly: aquí solo se pide que viaje con `credentials`.
+ *  Los mensajes de error vienen redactados del servidor y se muestran tal cual.
  */
 
 const BASE = "/api";
 
-/** Qué hacer cuando el servidor dice que la sesión ya no vale.
- *
- *  Lo pone `main.tsx`. Sin esto, la copia del actor en `sessionStorage` mantiene la interfaz
- *  en pie mientras cada petición devuelve 401: se ve el panel entero y no funciona nada.
+/** Qué hacer cuando la sesión ya no vale. Lo pone `main.tsx`: sin esto se ve el panel
+ *  entero en pie mientras cada petición devuelve 401.
  */
 let alCaducarLaSesion: (() => void) | null = null;
 
@@ -113,11 +106,8 @@ async function pedir<T>(ruta: string, opciones: Opciones = {}): Promise<T> {
   return datos as T;
 }
 
-/** Sube un archivo como `multipart/form-data`.
- *
- *  No usa `pedir` porque el cuerpo no es JSON: aquí **no se pone `Content-Type`** a mano. El
- *  navegador lo escribe solo con el `boundary` que acaba de generar, y ponerlo nosotros
- *  produce un cuerpo que el servidor no puede separar.
+/** Sube un archivo como `multipart/form-data`. El `Content-Type` no se pone a mano: lo
+ *  escribe el navegador con su `boundary`, y ponerlo nosotros rompe el cuerpo.
  */
 async function subir<T>(
   ruta: string,
@@ -152,10 +142,8 @@ async function subir<T>(
   return datos as T;
 }
 
-/** Igual que `subir`, pero con campos de texto junto al archivo.
- *
- *  Va en el mismo `FormData` y no en la URL: una nota puede traer acentos, saltos de línea
- *  y comas, y meterla en la query obliga a escaparla dos veces.
+/** Igual que `subir`, con campos de texto en el mismo `FormData`: una nota con acentos y
+ *  saltos de línea en la query habría que escaparla dos veces.
  */
 async function subirConCampos<T>(
   ruta: string,
@@ -1309,11 +1297,8 @@ export const api = {
   },
 };
 
-/** Dirección de una fotografía de chequeo.
- *
- *  Se pone directamente en el `src` de un `<img>`: la cookie de sesión viaja sola y nginx
- *  entrega el archivo con `X-Accel-Redirect`, sin que Python lo cargue en memoria. Cada
- *  apertura queda anotada en la bitácora de accesos.
+/** Dirección de una foto de chequeo, para el `src` de un `<img>`: la cookie viaja sola y
+ *  nginx entrega el archivo. Cada apertura queda anotada en la bitácora.
  */
 export function urlDeFoto(chequeoUlid: string, angulo: string, mini = false): string {
   return `${BASE}/fotos/${chequeoUlid}/${angulo}${mini ? "?mini=true" : ""}`;
@@ -1339,11 +1324,7 @@ export function urlDeFotoDeCoach(version = 0): string {
   return `${BASE}/presentacion/foto${version ? `?v=${version}` : ""}`;
 }
 
-/** Descarga un PDF.
- *
- *  No usa `pedir` porque la respuesta es binaria. El navegador lo guarda con el nombre que
- *  manda el servidor en `Content-Disposition`.
- */
+/** Descarga un PDF. No usa `pedir` porque la respuesta es binaria. */
 export async function descargarPdf(ruta: string, nombreSugerido: string): Promise<void> {
   const respuesta = await fetch(`${BASE}${ruta}`, { credentials: "include" });
   if (!respuesta.ok) {

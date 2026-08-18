@@ -1,8 +1,7 @@
 /** Evolución: comparativa visual, gráficas e historial.
  *
- *  Con retención de 4 meses, un chequeo viejo conserva sus números pero ya no su foto. La
- *  pantalla lo dice en lugar de fingir que la tiene: prometer un «antes y después» que el
- *  sistema ya borró es peor que explicar por qué no está.
+ *  Con retención de 4 meses un chequeo viejo conserva sus números pero no su foto, y la
+ *  pantalla lo dice en vez de prometer un «antes y después» que el sistema ya borró.
  */
 
 import { useState } from "react";

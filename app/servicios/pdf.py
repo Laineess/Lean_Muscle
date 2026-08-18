@@ -1,19 +1,7 @@
-"""Generación de PDF: plan de nutrición, rutina, evolución y recibo de pago.
+"""PDF de plan, rutina, evolución y recibo. Todos salen con la marca de la coach.
 
-Todos salen con la marca de la coach —su nombre comercial y su logo— y no con la de la
-plataforma: para la alumna el documento viene de ella, no de nosotros.
-
-Con **ReportLab**, que es Python puro y se instala como cualquier otra dependencia. WeasyPrint
-producía mejor tipografía, pero exige cairo y pango del sistema: en Windows hay que instalar
-el runtime de GTK a mano y en el VPS son tres paquetes más de apt. Para tres documentos de
-maquetación fija no compensa que la instalación dependa del sistema operativo.
-
-Se compone con Platypus —flujo de bloques— y no colocando coordenadas: así una rutina de
-quince ejercicios reparte sus páginas sola, y el encabezado de cada tabla se repite al
-cortarse.
-
-Las fuentes son las estándar del formato. Su codificación cubre acentos y eñes, que es todo
-lo que necesita el español, y evita empotrar un archivo de tipografía en cada documento.
+ReportLab y no WeasyPrint: es Python puro y no arrastra cairo ni pango del sistema. Se
+compone con Platypus, así una rutina larga reparte sus páginas sola.
 """
 
 from __future__ import annotations
@@ -85,11 +73,8 @@ class Documento:
 
 @dataclass(frozen=True, slots=True)
 class Marca:
-    """Identidad de la coach en el papel. El documento sale con su marca, no con la nuestra.
-
-    `logo` son los bytes de la imagen, no una ruta: quien arma el PDF no debería tener que
-    saber dónde vive el archivo.
-    """
+    """Identidad de la coach en el papel. `logo` son bytes, no una ruta: quien arma el PDF
+    no tiene por qué saber dónde vive el archivo."""
 
     nombre: str
     logo: bytes | None = None
@@ -461,11 +446,8 @@ def evolucion(
     medidas: list[str],
     feedback: str | None,
 ) -> Documento:
-    """Historial de chequeos, del más viejo al más nuevo.
-
-    **Sin fotografías a propósito.** Un PDF sale de la plataforma y deja de estar bajo su
-    control: las imágenes se quedan donde se pueden purgar a los cuatro meses.
-    """
+    """Historial de chequeos, del más viejo al más nuevo. Sin fotografías: un PDF sale de
+    la plataforma y las imágenes tienen que quedarse donde se pueden purgar."""
     bloques: list[Flowable] = _encabezado("Evolución", f"{alumna} · {date.today():%d/%m/%Y}", marca)
 
     if not chequeos:
@@ -547,11 +529,8 @@ def recibo(
     vigencia_inicia: date,
     vigencia_termina: date,
 ) -> Documento:
-    """Recibo de gestión, **no comprobante fiscal**.
-
-    Decirlo en el propio documento evita que la alumna lo presente como CFDI y evita que la
-    coach parezca estar emitiendo uno.
-    """
+    """Recibo de gestión, no comprobante fiscal. Va dicho en el propio documento para que
+    nadie lo presente como CFDI."""
     bloques: list[Flowable] = _encabezado("Recibo", f"Folio {folio} · {coach}", marca)
     bloques += [
         Paragraph(f"${monto:,.2f} MXN", CIFRA_GRANDE),

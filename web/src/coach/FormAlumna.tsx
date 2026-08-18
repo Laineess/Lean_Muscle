@@ -1,12 +1,10 @@
 /** Alta y edición de una alumna.
  *
- *  **El alta no pide datos de salud a propósito.** El historial clínico y los consentimientos
- *  los llena la propia alumna al entrar: que la coach los capture por ella viciaría el
- *  consentimiento, que la ley exige expreso y personal para datos sensibles.
+ *  El alta no pide datos de salud: capturarlos por ella viciaría el consentimiento, que la
+ *  ley exige expreso y personal.
  *
- *  Al dar de alta, el servidor devuelve la contraseña inicial, la misma para todas. Se
- *  muestra para que la coach pueda dictarla si el correo no llega. Solo sirve para entrar
- *  una vez: hasta que la alumna ponga la suya, el servidor no le abre nada.
+ *  Al dar de alta se muestra la contraseña inicial para que la coach la dicte si el correo
+ *  no llega. Solo sirve para entrar una vez.
  */
 
 import { Check, Copy } from "lucide-react";

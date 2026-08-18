@@ -1,8 +1,4 @@
-/** Los avisos que le manda su coach.
- *
- *  Abrir la pantalla los marca como leídos, igual que el hilo de mensajes: si tuvo que entrar
- *  a verlos, ya los vio.
- */
+/** Los avisos que le manda su coach. Abrirlos los marca leídos y con eso se borran. */
 
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -31,7 +27,9 @@ export function Avisos() {
           <Etiqueta>Avisos</Etiqueta>
         </div>
         <Portada>Lo que te manda {marca}</Portada>
-        <Apoyo className="medida">Del más reciente al más antiguo.</Apoyo>
+        <Apoyo className="medida">
+          Del más reciente al más antiguo. No se guardan: una vez leídos desaparecen.
+        </Apoyo>
       </header>
 
       {carga.cargando ? (

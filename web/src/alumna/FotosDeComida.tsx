@@ -1,9 +1,7 @@
-/** Fotos de las comidas: las manda la alumna, se borran solas a las 36 horas.
+/** Fotos de las comidas: las manda la alumna y se borran solas a las 36 horas.
  *
- *  La ventana corta va escrita en la pantalla, no en los términos: es lo único que hace
- *  razonable pedirle a alguien que fotografíe lo que come, y si no se ve, no cuenta.
- *
- *  Si su coach no le pide fotos, este bloque no aparece.
+ *  La ventana corta va escrita en la pantalla: es lo único que hace razonable pedirle a
+ *  alguien que fotografíe lo que come. Si su coach no le pide fotos, esto no aparece.
  */
 
 import { Camera, Clock, Trash2 } from "lucide-react";

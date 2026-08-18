@@ -1,11 +1,7 @@
-"""Procesamiento de las fotografías de chequeo.
+"""Procesamiento de imágenes.
 
-**El recorte sin rostro es el punto entero de este módulo.** La zona de cabeza y cuello se
-elimina antes de guardar nada, y el archivo original se descarta. En ningún momento persiste
-una imagen identificable, ni siquiera un segundo mientras se procesa.
-
-Las métricas de calidad son las que la coach no tiene que juzgar a ojo: nitidez y luminancia.
-La postura y la vestimenta las revisa ella, y este módulo no finge lo contrario.
+El recorte de cabeza y cuello ocurre antes de guardar nada: nunca persiste una imagen
+identificable. Nitidez y luminancia solo prefiltran; la postura la juzga la coach.
 """
 
 from __future__ import annotations
@@ -15,33 +11,34 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-#: Fracción superior de la imagen que se recorta. La guía de la cámara encuadra del cuello
-#: para abajo, así que el 18 % de arriba es cabeza y cuello con margen de error.
+#: Cabeza y cuello, con margen: la guía de la cámara encuadra del cuello para abajo.
 FRACCION_CABEZA = 0.18
 
-#: Lado máximo tras reescalar. 1600 px basta para distinguir textura cutánea, que es el
-#: criterio del documento de requerimientos, y pesa una fracción del original.
+#: Basta para distinguir textura cutánea, que es lo que la coach mira.
 LADO_MAXIMO = 1600
 
-CALIDAD_WEBP = 82
+#: Es la única imagen que alguien examina de cerca; aquí no se aprieta más.
+CALIDAD_WEBP = 80
 
-#: Umbrales de rechazo automático. Salen de medir fotos reales: por debajo, la coach no puede
-#: evaluar composición corporal aunque quiera.
+#: Máximo esfuerzo del codificador: 250 ms más por foto, un 5 % menos de peso, misma calidad.
+ESFUERZO = 6
+
+#: Umbrales de rechazo automático, medidos sobre fotos reales.
 UMBRAL_NITIDEZ = Decimal("40")
 UMBRAL_LUMINANCIA_MINIMA = Decimal("55")
 UMBRAL_LUMINANCIA_MAXIMA = Decimal("215")
 
-#: Tope de entrada. nginx corta antes, pero el servidor no confía en que lo haya hecho.
+#: nginx corta antes, pero el servidor no confía en que lo haya hecho.
 BYTES_MAXIMOS = 12 * 1024 * 1024
 
 
 class ImagenInvalida(ValueError):
-    """El archivo no es una imagen utilizable. No es error de negocio: es entrada corrupta."""
+    """Entrada corrupta, no error de negocio."""
 
 
 @dataclass(frozen=True, slots=True)
 class Procesada:
-    """El resultado. `contenido` ya viene recortado: no existe versión con rostro."""
+    """`contenido` ya viene recortado: no existe versión con rostro."""
 
     contenido: bytes
     ancho: int
@@ -49,23 +46,17 @@ class Procesada:
     bytes: int
     nitidez: Decimal
     luminancia: Decimal
-    #: `aprobada` o `rechazada`. La coach puede revisarla igual; esto solo prefiltra.
+    #: `aprobada` o `rechazada`; solo prefiltra.
     estado_auto: str
     motivo_rechazo: str | None
-    #: Del EXIF original, si lo traía. En el MVP solo advierte, no bloquea.
     tomada_en: datetime | None
 
 
 def _nitidez(gris) -> Decimal:  # type: ignore[no-untyped-def]
-    """Varianza del laplaciano.
-
-    Es la medida clásica de enfoque: una imagen borrosa tiene pocos cambios bruscos entre
-    píxeles vecinos, así que la varianza de su segunda derivada cae.
-    """
+    """Varianza del laplaciano: la medida clásica de enfoque."""
     import numpy as np
 
-    # Laplaciano 3×3 aplicado a mano; evita depender de OpenCV, que en un VPS sin Docker
-    # arrastra media distribución.
+    # A mano, para no arrastrar OpenCV a un VPS sin Docker.
     a = gris.astype(np.float32)
     centro = a[1:-1, 1:-1]
     laplaciano = a[:-2, 1:-1] + a[2:, 1:-1] + a[1:-1, :-2] + a[1:-1, 2:] - 4 * centro
@@ -77,11 +68,7 @@ def _luminancia(gris) -> Decimal:  # type: ignore[no-untyped-def]
 
 
 def _fecha_exif(imagen) -> datetime | None:  # type: ignore[no-untyped-def]
-    """Cuándo se tomó, si la cámara lo dejó anotado.
-
-    Solo se lee la fecha. **El resto del EXIF se descarta**, geolocalización incluida: una
-    foto corporal con las coordenadas de su casa es un dato mucho más peligroso que la foto.
-    """
+    """Solo la fecha. El resto del EXIF se descarta, empezando por la geolocalización."""
     try:
         exif = imagen.getexif()
         bruto = exif.get(306) or exif.get(36867)  # DateTime / DateTimeOriginal
@@ -93,10 +80,7 @@ def _fecha_exif(imagen) -> datetime | None:  # type: ignore[no-untyped-def]
 
 
 def procesar(original: bytes) -> Procesada:
-    """Recorta, reescala, convierte a WebP y mide calidad.
-
-    El resultado sustituye al original, que el llamador debe descartar sin guardarlo.
-    """
+    """Recorta, reescala, convierte a WebP y mide calidad. El original se descarta."""
     import numpy as np
     from PIL import Image, ImageOps
 
@@ -113,8 +97,8 @@ def procesar(original: bytes) -> Procesada:
 
     tomada_en = _fecha_exif(abierta)
 
-    # Endereza según la orientación del EXIF antes de recortar: si no, en una foto tomada de
-    # lado el recorte se llevaría un costado en lugar de la cabeza.
+    # Enderezar va antes de recortar: en una foto tomada de lado, el recorte se llevaría un
+    # costado en lugar de la cabeza.
     imagen: Image.Image = ImageOps.exif_transpose(abierta) or abierta
     imagen = imagen.convert("RGB")
 
@@ -122,11 +106,7 @@ def procesar(original: bytes) -> Procesada:
     if ancho < 200 or alto < 200:
         raise ImagenInvalida("la imagen es demasiado pequeña")
 
-    # --- Recorte sin rostro. Esto ocurre antes que nada más. ---
-    desde_y = int(alto * FRACCION_CABEZA)
-    imagen = imagen.crop((0, desde_y, ancho, alto))
-
-    # --- Reescalado ---
+    imagen = imagen.crop((0, int(alto * FRACCION_CABEZA), ancho, alto))
     imagen.thumbnail((LADO_MAXIMO, LADO_MAXIMO), Image.Resampling.LANCZOS)
 
     gris = np.asarray(imagen.convert("L"))
@@ -142,8 +122,8 @@ def procesar(original: bytes) -> Procesada:
         motivo = "Hay demasiada luz y se pierde el contorno. Aléjate un poco de la ventana."
 
     salida = io.BytesIO()
-    # `exif` no se copia: el WebP nace sin metadatos.
-    imagen.save(salida, format="WEBP", quality=CALIDAD_WEBP, method=4)
+    # Sin copiar `exif`: el WebP nace sin metadatos.
+    imagen.save(salida, format="WEBP", quality=CALIDAD_WEBP, method=ESFUERZO)
     contenido = salida.getvalue()
 
     return Procesada(
@@ -161,27 +141,21 @@ def procesar(original: bytes) -> Procesada:
 
 def miniatura(contenido: bytes, lado: int = 320) -> bytes:
     """Versión chica para la galería. Ya viene recortada: nunca toca el original."""
-    import io as _io
-
     from PIL import Image
 
-    imagen = Image.open(_io.BytesIO(contenido))
+    imagen = Image.open(io.BytesIO(contenido))
     imagen.thumbnail((lado, lado), Image.Resampling.LANCZOS)
-    salida = _io.BytesIO()
-    imagen.save(salida, format="WEBP", quality=75, method=4)
+    salida = io.BytesIO()
+    imagen.save(salida, format="WEBP", quality=75, method=ESFUERZO)
     return salida.getvalue()
 
 
-#: Lado del logo ya procesado. Se ve a 24 px en la barra y a 96 en los ajustes.
+#: Se ve a 24 px en la barra y a 96 en los ajustes.
 LADO_LOGO = 256
 
 
 def logo(original: bytes) -> bytes:
-    """Convierte el logo de la marca a un WebP cuadrado.
-
-    No pasa por `procesar`: aquel recorta cabeza y cuello, que es exactamente lo que un logo
-    no debe perder. Aquí solo se cuadra y se reescala.
-    """
+    """El logo de la marca, cuadrado. No pasa por `procesar`: aquí no se recorta nada."""
     from PIL import Image, ImageOps
 
     if not original:
@@ -195,27 +169,25 @@ def logo(original: bytes) -> bytes:
     except Exception as causa:
         raise ImagenInvalida("no se pudo leer la imagen") from causa
 
-    # `fit` recorta al centro en lugar de deformar: un logo estirado se ve peor que uno con
-    # los bordes recortados.
+    # `fit` recorta al centro; un logo estirado se ve peor que uno con los bordes cortados.
     cuadrado = ImageOps.fit(imagen.convert("RGB"), (LADO_LOGO, LADO_LOGO), Image.Resampling.LANCZOS)
-    salida = io.BytesIO()
-    cuadrado.save(salida, format="WEBP", quality=88, method=4)
-    return salida.getvalue()
+
+    # Colores planos pesan 5× menos sin pérdida; una foto pesa 7× más. Se prueban los dos y
+    # gana el más chico: a 256 px el doble encode no se nota.
+    sin_perdida = io.BytesIO()
+    cuadrado.save(sin_perdida, format="WEBP", lossless=True, method=ESFUERZO)
+    con_perdida = io.BytesIO()
+    cuadrado.save(con_perdida, format="WEBP", quality=88, method=ESFUERZO)
+    return min(sin_perdida.getvalue(), con_perdida.getvalue(), key=len)
 
 
-#: Lado mayor de una foto de comida. Menor que el de un chequeo: aquí no se mide nada, solo
-#: se mira el plato, y la foto vive 36 horas.
+#: Más chica y más apretada que un chequeo: aquí solo se mira el plato, y vive 36 horas.
 LADO_COMIDA = 1024
+CALIDAD_COMIDA = 74
 
 
 def comida(original: bytes) -> bytes:
-    """Convierte una foto de comida a WebP.
-
-    No pasa por `procesar`: aquel recorta cabeza y cuello para no guardar una imagen
-    identificable, y un plato no tiene cabeza que recortar. Lo que sí comparte es lo
-    importante: se reencoda, y **eso borra el EXIF**. Una foto de un teléfono trae dentro la
-    coordenada de dónde se tomó, y eso es la casa de la alumna.
-    """
+    """Foto de un plato. Reencodar borra el EXIF, que trae dónde se tomó."""
     from PIL import Image, ImageOps
 
     if not original:
@@ -229,11 +201,11 @@ def comida(original: bytes) -> bytes:
     except Exception as causa:
         raise ImagenInvalida("no se pudo leer la imagen") from causa
 
-    # Endereza según la orientación declarada antes de descartar los metadatos.
+    # Enderezar antes de descartar los metadatos, que es de donde sale la orientación.
     imagen: Image.Image = ImageOps.exif_transpose(abierta) or abierta
     imagen = imagen.convert("RGB")
     imagen.thumbnail((LADO_COMIDA, LADO_COMIDA), Image.Resampling.LANCZOS)
 
     salida = io.BytesIO()
-    imagen.save(salida, format="WEBP", quality=80, method=4)
+    imagen.save(salida, format="WEBP", quality=CALIDAD_COMIDA, method=ESFUERZO)
     return salida.getvalue()

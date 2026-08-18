@@ -1,11 +1,5 @@
-"""Contrato de la API.
-
-Los nombres salen en `camelCase` porque es lo que consume TypeScript, pero el dominio y la
-base siguen en `snake_case`: la traducción vive aquí y en ningún otro lado.
-
-**Ningún esquema expone la llave interna ni el `coach_id`.** Hacia afuera solo viaja el
-ULID: quien reciba una respuesta no debe poder enumerar alumnas cambiando un número, ni
-deducir cuántos inquilinos hay.
+"""Contrato de la API. La traducción `snake_case` ↔ `camelCase` vive aquí y en ningún otro
+lado, y ningún esquema expone la llave interna ni el `coach_id`: hacia afuera solo el ULID.
 """
 
 from __future__ import annotations
@@ -17,14 +11,11 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
 from pydantic.alias_generators import to_camel
 
-#: Un `Decimal` sale de Pydantic como cadena, y del otro lado TypeScript los declara
-#: `number`: sumar dos importes concatenaba en vez de sumar. Se serializan como número.
+#: Pydantic lo serializa como cadena y TypeScript lo declara `number`: sumar concatenaba.
 Numero = Annotated[Decimal, PlainSerializer(float, return_type=float, when_used="json")]
 
-# Los límites de lo que entra. Sin ellos el valor llega crudo al motor y lo que devuelve la
-# API es un 500: MySQL corta con «Data too long» o «Out of range» y el traductor de errores
-# no tiene nada que traducir. Aquí cada tope coincide con el ancho de su columna, así que lo
-# que no cabe se rechaza con un 422 que dice cuál es el campo.
+# Cada tope coincide con el ancho de su columna. Sin ellos MySQL corta con «Data too long»
+# y la API devuelve un 500 en vez de un 422 que diga cuál es el campo.
 Texto20 = Annotated[str, Field(max_length=20)]
 Texto30 = Annotated[str, Field(max_length=30)]
 Texto60 = Annotated[str, Field(max_length=60)]
@@ -35,8 +26,7 @@ Texto180 = Annotated[str, Field(max_length=180)]
 Texto200 = Annotated[str, Field(max_length=200)]
 Texto255 = Annotated[str, Field(max_length=255)]
 Texto300 = Annotated[str, Field(max_length=300)]
-#: Para columnas TEXT. El tope no es del motor sino del sentido común: nadie escribe una
-#: nota de veinte mil caracteres, y aceptarla es regalar disco a quien quiera llenarlo.
+#: Para columnas TEXT. El tope no es del motor: aceptar veinte mil caracteres regala disco.
 TextoLargo = Annotated[str, Field(max_length=4000)]
 
 #: Dinero en `Numeric(10, 2)`: ocho enteros y dos decimales. Un peso más y el motor corta.
@@ -128,8 +118,7 @@ class PerfilAlumna(Esquema):
     lugar_ref: str | None
     hora_ref: str | None
     zona_horaria: str
-    #: Falso hasta que contesta el cuestionario inicial. Es lo que decide si al entrar ve
-    #: primero la presentación de su coach.
+    #: Falso hasta que lo contesta; decide si al entrar ve primero la presentación.
     cuestionario_completo: bool = True
 
 
@@ -145,11 +134,8 @@ class CitaDeAlumna(Esquema):
 
 
 class ResumenDePlan(Esquema):
-    """Lo justo para decirle si ya tiene plan y qué le toca hoy.
-
-    Sin esto la pantalla de inicio pintaba una rutina de ejemplo: una alumna recién dada de
-    alta veía ejercicios y calorías que nadie le había asignado.
-    """
+    """Si ya tiene plan y qué le toca hoy. Sin esto la pantalla pintaba una rutina de
+    ejemplo a alumnas a las que nadie les había asignado nada."""
 
     publicado: bool
     kcal_objetivo: int | None
@@ -158,11 +144,8 @@ class ResumenDePlan(Esquema):
 
 
 class InicioAlumna(Esquema):
-    """Todo lo que pinta la pantalla de inicio, en una sola llamada.
-
-    Una pantalla, una petición: la alumna la abre en el celular con mala señal, y tres
-    llamadas en cascada se sienten mucho peor que una sola un poco más grande.
-    """
+    """La pantalla de inicio entera, en una llamada: en un celular con mala señal, tres
+    peticiones en cascada se sienten peor que una sola más grande."""
 
     perfil: PerfilAlumna
     ciclo: CicloPublico | None
@@ -197,8 +180,8 @@ class PlanesDeAlumna(Esquema):
     nutricion: PlanPublico | None
     entrenamiento: PlanPublico | None
     bloqueado_por_pago: bool
-    #: `pago`, `ciclo_vencido`, `sin_ciclo` o nulo. Sin esto la pantalla decía «falta tu
-    #: comprobante» a quien ya había pagado y solo tenía el ciclo terminado.
+    #: `pago`, `ciclo_vencido`, `sin_ciclo` o nulo. Sin distinguirlos, la pantalla le pedía
+    #: comprobante a quien ya había pagado y solo tenía el ciclo terminado.
     motivo_bloqueo: str | None
     restricciones: str | None
     lesiones: str | None
@@ -288,12 +271,8 @@ class CancelacionCita(Esquema):
 
 
 class AltaDeAlumna(Esquema):
-    """Lo que la coach captura al dar de alta.
-
-    **No incluye datos de salud a propósito**: el historial clínico y los consentimientos los
-    llena la propia alumna al entrar. Que la coach los capture por ella viciaría el
-    consentimiento, que la ley exige expreso y personal para datos sensibles.
-    """
+    """Lo que la coach captura al dar de alta. Sin datos de salud: capturarlos por ella
+    viciaría el consentimiento, que la ley exige expreso y personal."""
 
     nombre: Texto120
     correo: Texto180
@@ -330,8 +309,8 @@ class EdicionDeAlumna(Esquema):
 
 
 class ClaveTemporalPedida(Esquema):
-    #: Cómo verificó la coach que era ella. Sin este registro, entregar una clave por
-    #: WhatsApp es indistinguible de entregársela a quien se hizo pasar por la alumna.
+    #: Cómo verificó que era ella. Sin el registro, dictar la clave por WhatsApp es
+    #: indistinguible de dársela a quien se hizo pasar por la alumna.
     motivo_verificacion: Texto255
 
 
@@ -527,15 +506,13 @@ class ExpedienteDeConstructor(Esquema):
     parametros: ParametrosDeCiclo
     nutricion: PlanPublico | None
     entrenamiento: PlanPublico | None
-    #: El plan comercial que contrató y su precio. Es lo que se cobra de mensualidad, así
-    #: que el calendario de cobros lo propone solo en vez de hacerla teclearlo cada mes.
+    #: Su plan y su precio: el calendario de cobros propone la mensualidad con esto.
     plan_nombre: str | None = None
     plan_precio: Numero | None = None
 
 
 class FotoPublica(Esquema):
-    """Metadatos de la fotografía. **La imagen no viaja aquí**: se pide por su propia ruta,
-    y esa lectura vuelve a quedar registrada."""
+    """Metadatos. La imagen se pide por su propia ruta, y esa lectura queda registrada."""
 
     angulo: str
     #: Nula si ya se purgó: la fila sobrevive con fecha y motivo, la imagen no.
@@ -639,11 +616,8 @@ class FotoDeBorrador(Esquema):
 
 
 class BorradorChequeo(Esquema):
-    """Todo lo que el flujo de captura necesita, en una sola llamada.
-
-    Incluye los valores del chequeo anterior porque la pantalla los muestra al lado de cada
-    campo: pedirlos aparte sería una segunda petición en un teléfono con mala señal.
-    """
+    """El flujo de captura entero, en una llamada. Incluye el chequeo anterior porque la
+    pantalla lo muestra al lado de cada campo."""
 
     ulid: str
     numero: int
@@ -673,8 +647,7 @@ class GuardadoDeChequeo(Esquema):
     """Lo que la pantalla guarda entre pasos. Todo opcional: es un borrador."""
 
     ayuno_confirmado: bool | None = None
-    #: El dominio vuelve a comprobar el rango con su tabla; esto solo evita que un número
-    #: absurdo llegue a una columna `Numeric(5, 2)` y el motor conteste con un 500.
+    #: El dominio revisa el rango de verdad; esto solo evita el 500 del motor.
     peso_kg: Annotated[Decimal, Field(gt=0, lt=1000)] | None = None
     varianza_confirmada: bool | None = None
     medidas: (
@@ -725,12 +698,8 @@ class SuscripcionPublica(Esquema):
 
 
 class FilaDeCoach(Esquema):
-    """Una coach vista desde la plataforma.
-
-    **Solo agregados.** Ninguna de estas cifras permite llegar a una alumna concreta: son
-    cuántas, no quiénes. Es la línea que sostiene que la plataforma sea Encargado y no
-    Responsable frente a la LFPDPPP.
-    """
+    """Una coach vista desde la plataforma. Solo agregados —cuántas, no quiénes—: es lo que
+    sostiene que la plataforma sea Encargado y no Responsable frente a la LFPDPPP."""
 
     ulid: str
     nombre: str
@@ -1076,11 +1045,8 @@ class ExpedienteDeValidacion(Esquema):
 
 
 class DocumentoLegal(Esquema):
-    """El texto tal cual está en `docs/`, en Markdown.
-
-    `marcadores` lleva los huecos sin rellenar. Un aviso de privacidad con huecos no cumple
-    la LFPDPPP, así que la pantalla lo dice en vez de aparentar que está terminado.
-    """
+    """El Markdown tal cual está en `docs/`. `marcadores` lleva los huecos sin rellenar: un
+    aviso de privacidad con huecos no cumple la LFPDPPP y la pantalla lo dice."""
 
     clave: str
     titulo: str

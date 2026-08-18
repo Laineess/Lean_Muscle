@@ -1,10 +1,7 @@
-/** Finanzas de la coach.
+/** Finanzas de la coach: contabilidad de gestión, no fiscal.
  *
- *  Contabilidad de gestión, no fiscal: responde «¿mi negocio gana dinero?», no sirve para
- *  declarar impuestos. Por eso no hay IVA desglosado ni folios.
- *
- *  Los ingresos que nacen de un pago validado llegan marcados como automáticos y **no se
- *  editan aquí**: corregirlos separaría el ingreso del cobro que lo originó.
+ *  Responde «¿mi negocio gana dinero?», y por eso no hay IVA desglosado ni folios. Los
+ *  ingresos que nacen de un pago validado llegan marcados y no se editan aquí.
  */
 
 import { Lock, Plus } from "lucide-react";
@@ -295,11 +292,8 @@ export function Finanzas() {
   );
 }
 
-/** Buscador de alumna con sus cobros pendientes.
- *
- *  Es el punto donde se concilia el dinero: la coach recibe la transferencia, busca a quién
- *  corresponde y marca qué cobro salda. Ese gesto único es lo que mantiene cuadrado el
- *  adeudo de la alumna con lo que hay registrado en finanzas.
+/** Buscador de alumna con sus cobros pendientes: es donde se concilia el dinero, y ese
+ *  gesto único es lo que mantiene cuadrado el adeudo con lo registrado.
  */
 function BuscadorDeCobro({
   alumna,
@@ -442,10 +436,8 @@ function FormMovimiento({
     }
   }
 
-  /** Al elegir un cobro pendiente se llenan monto y concepto.
-   *
-   *  Volver a teclear lo que el sistema ya sabe es como se acaba registrando un importe que
-   *  no cuadra con lo que se le dijo a la alumna.
+  /** Al elegir un cobro se llenan monto y concepto: teclearlos otra vez es como se acaba
+   *  registrando un importe que no cuadra.
    */
   function tomarCobro(c: CobroApi2) {
     setCobro(c);

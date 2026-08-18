@@ -1,11 +1,7 @@
 /** Bandeja de comprobantes por revisar.
  *
- *  Cada fila enseña lo que se esperaba cobrar junto a lo que el OCR leyó. Si no cuadran, se
- *  marca: mirar la imagen deja de ser opcional.
- *
- *  **El OCR no valida nada.** Un comprobante es una captura que cualquiera puede editar, así
- *  que la coach confirma contra su estado de cuenta y ningún grado de confianza automática
- *  sustituye eso.
+ *  Cada fila enseña lo que se esperaba cobrar junto a lo que leyó el OCR. El OCR no valida
+ *  nada: un comprobante es una captura editable y la coach confirma contra su banco.
  */
 
 import { AlertTriangle, Check, Loader2, X } from "lucide-react";

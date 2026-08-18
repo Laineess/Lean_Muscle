@@ -1,9 +1,7 @@
-/** Cartera de alumnas.
+/** Cartera de alumnas: una por fila, con lo que decide si hay que abrirla.
  *
- *  El sistema se mantiene espacioso porque el buscador global (⌘K) es la vía rápida. Aquí
- *  la lista se lee, no se escanea: una alumna por fila, con lo que decide si hay que abrirla.
- *
- *  En teléfono la misma información se apila; no hay tabla que desplazar en horizontal.
+ *  La vía rápida es el buscador global (⌘K). En teléfono se apila; no hay tabla que
+ *  desplazar en horizontal.
  */
 
 import { useState } from "react";

@@ -1,12 +1,7 @@
-/** Menú del avatar: a dónde va la coach cuando toca su foto.
+/** Menú del avatar: el índice de sus pantallas de configuración.
  *
- *  Antes llevaba a una sola pantalla con todo dentro —marca, precios, presentación, tema,
- *  avisos, contraseña— y había que bajar buscando el bloque. Cada cosa vive ahora en su
- *  pantalla y esto es el índice.
- *
- *  Sin librería de menús: es una lista de enlaces. Lo que sí hace falta es que se cierre
- *  como se espera —fuera, Escape, al navegar— porque un menú que se queda abierto tapando
- *  la pantalla es peor que no tenerlo.
+ *  Sin librería: es una lista de enlaces. Lo que sí hace falta es que se cierre como se
+ *  espera —fuera, Escape, al navegar—, porque uno que se queda abierto tapa la pantalla.
  */
 
 import { useEffect, useRef } from "react";

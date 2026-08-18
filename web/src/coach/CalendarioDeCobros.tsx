@@ -1,8 +1,7 @@
 /** Calendario de cobros de una alumna.
  *
- *  Tocar un día abre el formulario para programar qué se le cobra y cuánto. Es la única
- *  manera de generar un adeudo, y un adeudo vencido pausa el plan de la alumna: por eso el
- *  calendario vive en su expediente y no en finanzas, donde se registra lo ya cobrado.
+ *  Tocar un día programa qué se le cobra. Es la única manera de generar un adeudo, y un
+ *  adeudo vencido pausa su plan: por eso vive en su expediente y no en finanzas.
  */
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -246,11 +245,8 @@ function FormularioDeCobro({
   const servicios = usarApi<ServicioApi[]>((s) => api.coach.servicios(s));
   const delMotivo = (servicios.datos ?? []).filter((x) => x.activo && x.motivo === motivo);
 
-  /** El precio que corresponde solo, si no hay ambigüedad.
-   *
-   *  La mensualidad sale del plan que contrató la alumna. Los demás motivos, de su lista de
-   *  precios, y únicamente cuando hay uno: con dos o más hay que elegir, y con ninguno se
-   *  teclea a mano. Es lo que evita preguntar cuando la respuesta es una sola.
+  /** El precio que corresponde solo, si no hay ambigüedad: la mensualidad sale del plan
+   *  de la alumna y lo demás de su lista, siempre que haya uno solo.
    */
   const unico =
     motivo === "mensualidad"

@@ -1,14 +1,10 @@
 /** Constructor de planes con la calculadora metabólica integrada.
  *
- *  La coach captura actividad, ajuste calórico y reparto de macros; el sistema saca
- *  calorías y gramos con las fórmulas de su propio Excel. Deja de teclear gramos a mano y
- *  de brincar entre la hoja y el panel.
+ *  Dos guardas que también vive el servidor (`app/dominio/plan.py`): sin chequeo validado no
+ *  se publica plan nuevo, y sin calorías ni macros tampoco.
  *
- *  Dos guardas que también vive el servidor (`app/dominio/plan.py`): sin chequeo validado
- *  no se publica plan nuevo, y sin calorías ni macros tampoco.
- *
- *  La proyección **solo la ve la coach**: asume adherencia perfecta, y enseñarle a la
- *  alumna una fecha exacta convierte una estimación en una promesa.
+ *  La proyección solo la ve la coach: asume adherencia perfecta, y enseñársela a la alumna
+ *  convertiría una estimación en una promesa.
  */
 
 import { ArrowLeft } from "lucide-react";
@@ -29,7 +25,7 @@ import {
   Titulo,
   Vacio,
 } from "@/componentes/primitivas";
-import { normalizarAlimento } from "@/coach/BuscadorCatalogo";
+import { normalizarAlimento } from "@/lib/alimentos";
 import {
   EditorEntrenamiento,
   EditorNutricion,

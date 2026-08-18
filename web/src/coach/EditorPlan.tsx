@@ -1,8 +1,7 @@
 /** Edición del contenido del plan: tiempos de comida y días de entrenamiento.
  *
- *  El estado vive aquí y sube al constructor al guardar. La suma de lo capturado se compara
- *  contra el objetivo que calculó la calculadora: sin esa comparación, la coach arma un menú
- *  de 1 400 kcal creyendo que va por 1 850 y no se entera hasta el mes siguiente.
+ *  La suma de lo capturado se compara contra el objetivo de la calculadora: sin eso, la
+ *  coach arma un menú de 1 400 kcal creyendo que va por 1 850.
  */
 
 import { Plus } from "lucide-react";
@@ -12,10 +11,8 @@ import {
   BuscadorAlimento,
   BuscadorEjercicio,
   FilaEditable,
-  escalar,
-  type AlimentoEnPlan,
-  type EjercicioEnPlan,
 } from "@/coach/BuscadorCatalogo";
+import { escalar, type AlimentoEnPlan, type EjercicioEnPlan } from "@/lib/alimentos";
 import {
   Apoyo,
   Aviso,

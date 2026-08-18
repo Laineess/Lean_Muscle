@@ -1,11 +1,5 @@
-"""Acceso y cierre de sesión.
-
-El token viaja en una cookie **HttpOnly**: JavaScript no lo lee ni lo escribe, así que un
-XSS no puede robarla. En la tabla se guarda solo su hash, para que un volcado de la base no
-permita suplantar sesiones.
-
-«Recordarme» alarga la vigencia de la cookie. **No guarda la contraseña en ninguna parte**;
-el frontend solo recuerda el correo, en el navegador, para no reescribirlo.
+"""Acceso y cierre de sesión. El token va en una cookie HttpOnly —un XSS no puede leerla— y
+en la tabla solo queda su hash. «Recordarme» alarga la cookie; no guarda la contraseña.
 """
 
 from __future__ import annotations
@@ -45,11 +39,8 @@ VIGENCIA_LARGA = timedelta(days=30)
 
 
 def _clave_inicial_vigente(s: Session, usuario_id: int) -> bool:
-    """Si la contraseña de alta o de restablecimiento sigue dentro de su plazo.
-
-    Solo aplica a quien no ha puesto la suya. La coach vuelve a emitirla desde la ficha de la
-    alumna, que es el mismo gesto de siempre.
-    """
+    """Si la contraseña de alta o restablecimiento sigue en plazo. Solo aplica a quien no ha
+    puesto la suya; la coach la vuelve a emitir desde la ficha."""
     # Sin alcance a propósito, como el resto del login: todavía no se sabe de qué coach es
     # quien escribe, y esto corre antes de abrir la sesión con inquilino.
     alumna = s.scalars(
@@ -77,9 +68,8 @@ def entrar(datos: Credenciales, peticion: Request, respuesta: Response) -> Actor
     ip = peticion.client.host if peticion.client else None
 
     with Session(motor()) as s:
-        # Antes de mirar credenciales: quien ya gastó sus intentos no puede seguir probando.
-        # Se comprueba aquí y no después para no gastar un Argon2 por cada intento de un
-        # ataque, que es justo lo que lo convertiría en una forma de tumbar el servidor.
+        # Antes de mirar credenciales, para no gastar un Argon2 por intento: eso es lo que
+        # convertiría la fuerza bruta en una forma de tumbar el servidor.
         if limites.bloqueado(s, correo, ip):
             raise ErrorDeDominio(Codigo.DEMASIADOS_INTENTOS)
 
@@ -101,9 +91,8 @@ def entrar(datos: Credenciales, peticion: Request, respuesta: Response) -> Actor
 
         limites.registrar(s, correo, ip, exitoso=True)
 
-        # La contraseña con la que se da de alta —y la que se restablece— es pública: la
-        # coach la dicta. Por eso caduca. Sin esta comprobación, quien conociera el correo de
-        # una alumna que aún no ha entrado podría tomarle la cuenta cuando quisiera.
+        # La contraseña de alta es pública —la dicta la coach— y por eso caduca: sin esto,
+        # quien conociera el correo de una alumna sin estrenar podría tomarle la cuenta.
         if usuario.debe_cambiar_contrasena and not _clave_inicial_vigente(s, usuario.id):
             limites.registrar(s, correo, ip, exitoso=False)
             s.commit()
@@ -155,11 +144,8 @@ def salir(
     peticion: Request,
     respuesta: Response,
 ) -> None:
-    """Revoca la sesión en la base, no solo en el navegador.
-
-    Borrar la cookie sin revocar dejaría el token vivo: quien lo hubiera copiado seguiría
-    dentro.
-    """
+    """Revoca la sesión en la base y no solo en el navegador: borrar la cookie dejaría el
+    token vivo para quien lo hubiera copiado."""
     token = peticion.cookies.get(NOMBRE_COOKIE)
     if token:
         with sesion_con_alcance(actor.coach_id) as s:
@@ -179,14 +165,10 @@ def cambiar_contrasena(
     peticion: Request,
     respuesta: Response,
 ) -> None:
-    """Cambia la contraseña, **revoca todas las sesiones** y avisa por correo.
+    """Cambia la contraseña, revoca todas las sesiones y avisa por correo.
 
-    Revocar es la mitad del valor: si alguien más había entrado, cambiar la contraseña sin
-    cerrar sus sesiones no lo saca, porque su cookie sigue viva. Se cierra también la de
-    quien hace el cambio, y por eso el frontend lo manda de vuelta al acceso.
-
-    El correo tampoco es cortesía: si el cambio no lo hizo ella, es la única señal de que
-    alguien tiene acceso a su expediente.
+    Revocar es la mitad del valor: sin eso, la cookie de quien ya había entrado sigue viva.
+    Y el correo es la única señal que tiene la alumna si el cambio no lo hizo ella.
     """
     with sesion_con_alcance(actor.coach_id) as s:
         cuentas.cambiar_contrasena(s, actor.usuario_id, cuerpo.actual, cuerpo.nueva)

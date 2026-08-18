@@ -1,10 +1,7 @@
-"""Esquema de la base. Un archivo, porque el esquema se lee mejor completo que repartido.
+"""Esquema de la base, en un archivo: se lee mejor completo que repartido.
 
-Convenciones fijadas en `base.py`: InnoDB, utf8mb4_0900_ai_ci, llave interna BIGINT +
-ULID publico, DATETIME(3) en UTC, DECIMAL para dinero y medidas, nunca coma flotante.
-
-Toda tabla con datos de alumnas hereda de `BaseMultiInquilino` y por tanto lleva
-`coach_id`: el aislamiento se aplica en cada consulta (ver `alcance.py`).
+Convenciones en `base.py`. Toda tabla con datos de alumnas hereda de `BaseMultiInquilino`
+y lleva `coach_id`; el aislamiento lo aplica `alcance.py` en cada consulta.
 """
 
 from __future__ import annotations
@@ -113,27 +110,22 @@ class Alumna(BaseMultiInquilino):
     #: Dato unico inicial: no se recaptura en cada chequeo.
     estatura_cm: Mapped[int | None] = mapped_column(Integer)
 
-    #: El plan comercial que contrató. Sustituye al antiguo `objetivo`: si la coach quiere
-    #: distinguir pérdida de ganancia, crea dos planes con esos nombres.
+    #: El plan comercial que contrató.
     tarifa_id: Mapped[int | None] = mapped_column(ForeignKey("tarifa.id"))
     nivel_experiencia: Mapped[str | None] = mapped_column(String(20))
     equipo: Mapped[str | None] = mapped_column(String(30))
     estres: Mapped[int | None] = mapped_column(TINYINT)
     ocupacion: Mapped[str | None] = mapped_column(String(180))
 
-    #: La regla de "mismo dia calendario" se evalua en la zona de la alumna, no en la de la
-    #: coach: una alumna en Tijuana que se pesa a las 7 no debe perder su chequeo porque en
-    #: Merida ya es otro dia.
+    #: La suya, no la de la coach: el "mismo dia calendario" se evalua aqui.
     zona_horaria: Mapped[str] = mapped_column(
         String(60), default="America/Mexico_City", nullable=False
     )
 
-    #: Meta de composicion corporal. Alimenta la proyeccion de la calculadora, que solo ve
-    #: la coach.
+    #: Meta de composicion corporal; alimenta la proyeccion de la calculadora.
     porcentaje_grasa_objetivo: Mapped[Decimal | None] = mapped_column(Numeric(4, 3))
 
-    #: Condiciones del chequeo anterior. Se precargan para bajar la carga de memoria y
-    #: para detectar inconsistencias de entorno.
+    #: Condiciones del chequeo anterior, para precargarlas y detectar inconsistencias.
     bascula_ref: Mapped[str | None] = mapped_column(String(120))
     lugar_ref: Mapped[str | None] = mapped_column(String(120))
     hora_ref: Mapped[str | None] = mapped_column(String(5))
@@ -166,12 +158,8 @@ class HistorialClinico(BaseMultiInquilino):
 
 
 class Consentimiento(BaseMultiInquilino):
-    """Solo INSERT. Sin UPDATE ni DELETE, por diseno.
-
-    `version_texto` y `texto_hash` guardan **que texto exacto acepto**, que es lo que
-    exige el estandar de consentimiento expreso y por escrito para datos sensibles
-    (Anexo Legal, seccion 5).
-    """
+    """Solo INSERT. `version_texto` y `texto_hash` guardan que texto exacto acepto, que es
+    lo que exige el consentimiento expreso para datos sensibles (Anexo Legal, seccion 5)."""
 
     __tablename__ = "consentimiento"
     __table_args__ = (
@@ -245,9 +233,8 @@ class Chequeo(BaseMultiInquilino):
     justificacion_outlier: Mapped[str | None] = mapped_column(Text)
     varianza_confirmada: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    #: Porcentaje de grasa que la coach estima al validar, comparando las fotos contra la
-    #: lamina de referencia visual. Es la entrada que manda toda la cadena de la
-    #: calculadora, y por eso vive en el chequeo: se grafica su evolucion mes a mes.
+    #: Lo estima la coach al validar. Es la entrada que manda toda la calculadora, y vive en
+    #: el chequeo porque se grafica su evolucion mes a mes.
     porcentaje_grasa: Mapped[Decimal | None] = mapped_column(Numeric(4, 3))
     estimado_por: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
 
@@ -258,14 +245,10 @@ class Chequeo(BaseMultiInquilino):
 
 
 class ParametrosCiclo(BaseMultiInquilino):
-    """Las entradas de la calculadora metabolica, guardadas por ciclo.
+    """Entradas de la calculadora metabolica, por ciclo y no en el perfil: es lo que permite
+    entender despues por que un mes funciono y otro no.
 
-    Van por ciclo y no en el perfil a proposito: es lo que permite entender despues por que
-    un mes funciono y otro no. Cada ciclo hereda los valores del anterior y la coach los
-    ajusta si hace falta.
-
-    Origen de los campos: `Calculadora del Fitness.xlsm`, celdas C16, C17, B27/C27/E27,
-    C29, G14 y H14.
+    Origen: `Calculadora del Fitness.xlsm`, celdas C16, C17, B27/C27/E27, C29, G14 y H14.
     """
 
     __tablename__ = "parametros_ciclo"
@@ -298,8 +281,7 @@ class ParametrosCiclo(BaseMultiInquilino):
         String(30), default="masa_libre_de_grasa", nullable=False
     )
 
-    #: Refeeds (celdas G14 y H14). El dia de refeed va a mantenimiento salvo que la coach
-    #: le ponga deficit propio; la hoja lo deja en cero.
+    #: Refeeds (celdas G14 y H14). Van a mantenimiento salvo deficit propio.
     dias_refeed: Mapped[int] = mapped_column(TINYINT, default=0, nullable=False)
     porcentaje_dia_refeed: Mapped[Decimal] = mapped_column(Numeric(4, 3), default=0, nullable=False)
 
@@ -308,11 +290,8 @@ class ParametrosCiclo(BaseMultiInquilino):
 
 
 class Pesaje(BaseMultiInquilino):
-    """UNIQUE (alumna_id, fecha) hace cumplir en la base la regla de un peso por dia.
-
-    El chequeo puede acumular hasta 3 pesajes de fechas distintas del ciclo; el promedio
-    lo calcula `app/dominio/medidas.promedio_de_pesajes`.
-    """
+    """Un peso por dia, garantizado por el UNIQUE. Hasta 3 por chequeo; el promedio lo
+    calcula `app/dominio/medidas.promedio_de_pesajes`."""
 
     __tablename__ = "pesaje"
     __table_args__ = (
@@ -346,11 +325,7 @@ class Medida(BaseMultiInquilino):
 
 
 class Foto(BaseMultiInquilino):
-    """Una foto por angulo, garantizado por la base.
-
-    No se guarda el original: el trabajador recorta cabeza y cuello, reescala, convierte a
-    WebP y **borra el archivo subido**. Nunca persiste una imagen identificable.
-    """
+    """Una por angulo. El original nunca se guarda: entra recortada sin cabeza ni cuello."""
 
     __tablename__ = "foto"
     __table_args__ = (
@@ -412,21 +387,15 @@ class Plan(BaseMultiInquilino):
     carbohidrato_g: Mapped[int | None] = mapped_column(Integer)
     grasa_g: Mapped[int | None] = mapped_column(Integer)
 
-    #: Cada cuanto le toca a la alumna mandar fotos de sus comidas. Solo aplica al plan de
-    #: nutricion. `ninguna` es el valor de fabrica: no se le pide nada si no se pide.
+    #: Cada cuanto le toca mandar fotos de sus comidas. Solo en el plan de nutricion.
     frecuencia_fotos: Mapped[str] = mapped_column(String(12), default="ninguna", nullable=False)
 
 
 class FotoDeComida(BaseMultiInquilino):
-    """Una foto de un plato, para que la coach vea que come de verdad.
+    """Un plato, para que la coach vea que come de verdad. Se borra a las 36 horas.
 
-    **Se borra a las 36 horas**, y eso no es una politica revisable: es lo unico que hace
-    razonable pedirle a alguien que fotografie lo que come. Nada que ver con las fotos de
-    chequeo, que viven cuatro meses porque son el registro del metodo.
-
-    La promesa se cumple por dos vias. Las consultas no devuelven nunca una foto vencida
-    —aunque el archivo siga en disco— y un trabajo borra los bytes. Si el trabajo se cae,
-    la foto deja de verse igual.
+    El plazo se cumple por dos vias: las consultas filtran por fecha aunque el archivo siga
+    en disco, y un trabajo borra los bytes. Si el trabajo se cae, deja de verse igual.
     """
 
     __tablename__ = "foto_de_comida"
@@ -441,8 +410,7 @@ class FotoDeComida(BaseMultiInquilino):
     storage_key: Mapped[str | None] = mapped_column(String(255))
     subida_en: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
     purgada_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
-    #: Que comida es: la escribe la alumna en una linea. No hay lista cerrada porque el
-    #: numero de tiempos lo decide su plan.
+    #: Que comida es, en una linea. Sin lista cerrada: los tiempos los decide su plan.
     tiempo: Mapped[str | None] = mapped_column(String(60))
     nota: Mapped[str | None] = mapped_column(Text)
     #: Lo que la coach le contesta al verla.
@@ -472,9 +440,8 @@ class Alimento(Base):
 
 
 class Ejercicio(Base):
-    """Semilla desde el dataset MIT `hasaneyldrm/exercises-dataset`: 1 324 ejercicios en
-    espanol con `coach_id = NULL`. Los GIF de ese repositorio NO se importan: son de Gym
-    visual y requieren licencia aparte. La media la graba cada coach."""
+    """Semilla del dataset MIT `hasaneyldrm/exercises-dataset`. Sus GIF no se importan:
+    son de Gym visual y requieren licencia aparte."""
 
     __tablename__ = "ejercicio"
     __table_args__ = (Index("ix_ejercicio_coach_nombre", "coach_id", "nombre"), ARGS_DE_TABLA)
@@ -527,15 +494,8 @@ class Pago(BaseMultiInquilino):
 
 
 class Cita(BaseMultiInquilino):
-    """Agenda de la coach: consultas con alumnas y bloques de trabajo propio.
-
-    `alumna_id` es nulo a proposito: la coach tambien bloquea tiempo que no es consulta
-    (grabar clips, revisar chequeos), y ese tiempo tiene que ocupar hueco en la agenda o el
-    solape no se detecta.
-
-    Las horas se guardan en UTC como todo lo demas; la conversion ocurre al presentar, en
-    la zona de la coach.
-    """
+    """Consultas con alumnas y bloques de trabajo propio de la coach. `alumna_id` nulo es un
+    bloqueo: tambien tiene que ocupar hueco o el solape no se detecta."""
 
     __tablename__ = "cita"
     __table_args__ = (
@@ -572,11 +532,8 @@ class Cita(BaseMultiInquilino):
 
 
 class Tarifa(BaseMultiInquilino):
-    """Precio de un plan comercial de la coach.
-
-    El precio se **copia** al ciclo al cobrarlo, no se lee de aqui: si la coach sube la
-    tarifa, las alumnas con ciclo abierto siguen pagando lo pactado.
-    """
+    """Precio de un plan comercial. Se copia al ciclo al cobrarlo: subirlo aqui no reescribe
+    lo que ya se pacto con nadie."""
 
     __tablename__ = "tarifa"
     __table_args__ = (
@@ -592,22 +549,14 @@ class Tarifa(BaseMultiInquilino):
     descripcion: Mapped[str | None] = mapped_column(Text)
     precio: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     dias: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
-    #: Carga de trabajo del plan. Descriptiva: la ve la alumna y ordena la cartera.
+    #: Descriptiva: la ve la alumna y ordena la cartera.
     intensidad: Mapped[str] = mapped_column(String(10), default="media", nullable=False)
     activa: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
 class Servicio(BaseMultiInquilino):
-    """Precio de algo que la coach cobra aparte del plan: una consulta suelta, material,
-    una inscripcion.
-
-    Los planes viven en `Tarifa` porque son una suscripcion —tienen duracion e intensidad, y
-    una alumna pertenece a uno—. Esto es lo contrario: un cargo puntual con su precio, y por
-    eso es otra tabla en vez de una `Tarifa` con campos vacios.
-
-    El precio se **copia** al cobro al programarlo, igual que el de la tarifa: subirlo no
-    reescribe lo que ya se pacto con alguien.
-    """
+    """Cargo puntual: una consulta suelta, material, una inscripcion. Aparte de `Tarifa`,
+    que es una suscripcion con duracion. El precio se copia al cobro al programarlo."""
 
     __tablename__ = "servicio"
     __table_args__ = (
@@ -622,8 +571,7 @@ class Servicio(BaseMultiInquilino):
 
     nombre: Mapped[str] = mapped_column(String(120), nullable=False)
     descripcion: Mapped[str | None] = mapped_column(Text)
-    #: Con que motivo de cobro se programa. Es lo que permite que el formulario de cobro
-    #: ofrezca los servicios que corresponden al motivo elegido.
+    #: Con que motivo se programa; el formulario de cobro filtra por esto.
     motivo: Mapped[str] = mapped_column(String(20), default="cita", nullable=False)
     precio: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -653,8 +601,7 @@ class MovimientoFinanciero(BaseMultiInquilino):
     alumna_id: Mapped[int | None] = mapped_column(ForeignKey("alumna.id"))
     pago_id: Mapped[int | None] = mapped_column(ForeignKey("pago.id"))
 
-    #: Generado al validar un pago. No se edita a mano: se corrige en el pago que lo origino,
-    #: para que el ingreso y el cobro no se separen.
+    #: Generado al validar un pago. Se corrige en el pago, no aqui.
     automatico: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     comprobante_key: Mapped[str | None] = mapped_column(String(255))
@@ -662,12 +609,8 @@ class MovimientoFinanciero(BaseMultiInquilino):
 
 
 class AvisoEnviado(BaseMultiInquilino):
-    """Sello de cada aviso disparado, para que un trabajo programado que corre dos veces no
-    mande dos correos.
-
-    La llave la construye `app/dominio/avisos.py` e incluye lo que identifica el disparo
-    (`cita:{id}:recordatorio`), asi que la unicidad basta para no repetir.
-    """
+    """Sello de cada aviso disparado: un trabajo que corre dos veces no manda dos correos.
+    La llave lleva dentro el hecho que lo disparo (`cita:{id}:recordatorio`)."""
 
     __tablename__ = "aviso_enviado"
     __table_args__ = (
@@ -677,16 +620,14 @@ class AvisoEnviado(BaseMultiInquilino):
     )
 
     destinatario_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
-    #: Se copia al encolar, no se resuelve al enviar: si la alumna cambia de correo entre el
-    #: alta y el envio, la invitacion tiene que llegar a donde se dijo que llegaria.
+    #: Se copia al encolar: si cambia de correo antes del envio, va a donde se dijo.
     destinatario_correo: Mapped[str] = mapped_column(String(180), nullable=False)
 
     tipo: Mapped[str] = mapped_column(String(40), nullable=False)
     llave: Mapped[str] = mapped_column(String(160), nullable=False)
     canal: Mapped[str] = mapped_column(String(20), nullable=False)
 
-    #: Variables con las que se rellena la plantilla. Se guardan porque el trabajador envia
-    #: despues, cuando el contexto de la peticion ya no existe.
+    #: Variables de la plantilla; se guardan porque el envio ocurre fuera de la peticion.
     contexto: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
     #: Nulo mientras esta pendiente. El trabajador toma los nulos.
@@ -708,17 +649,14 @@ class Mensaje(BaseMultiInquilino):
 
 
 class Anuncio(BaseMultiInquilino):
-    """Un aviso que la coach manda a varias alumnas a la vez: titulo y cuerpo, sin hilo.
-
-    No es un `Mensaje`: aquello es una conversacion de dos y esto va en una sola direccion.
-    Que sea una tabla aparte es lo que permite saber a cuantas les llego y cuantas lo leyeron.
-    """
+    """Titulo y cuerpo a varias alumnas a la vez, sin hilo. Tabla aparte de `Mensaje` para
+    poder contar a cuantas llego y cuantas lo leyeron. Se borra al leerse (ver purga)."""
 
     __tablename__ = "anuncio"
     __table_args__ = (Index("ix_anuncio_coach_enviado", "coach_id", "enviado_en"), ARGS_DE_TABLA)
 
     titulo: Mapped[str] = mapped_column(String(80), nullable=False)
-    #: 300 porque es lo que cabe en el payload de una notificacion push sin que se recorte.
+    #: 300 es lo que cabe en un push sin recortarse.
     cuerpo: Mapped[str] = mapped_column(String(300), nullable=False)
     enviado_por: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=False)
     enviado_en: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
@@ -757,12 +695,8 @@ class ClaveTemporal(BaseMultiInquilino):
 
 
 class SuscripcionPush(BaseMultiInquilino):
-    """Un navegador suscrito a notificaciones.
-
-    Una persona puede tener varias —telefono, laptop— y por eso la unicidad va por endpoint
-    y no por usuario. Cuando el servicio de push responde 404 o 410, la suscripcion murio y
-    se borra: seguir insistiendo solo gasta llamadas.
-    """
+    """Un navegador suscrito. La unicidad va por endpoint porque una persona puede tener
+    varios; ante un 404 o 410 del servicio de push se borra en vez de reintentar."""
 
     __tablename__ = "suscripcion_push"
     __table_args__ = (
@@ -783,11 +717,8 @@ class SuscripcionPush(BaseMultiInquilino):
 
 
 class Bitacora(BaseMultiInquilino):
-    """Append-only: sin UPDATE ni DELETE. Retencion de 5 anios.
-
-    Al ejercerse una cancelacion, los datos personales se borran pero el movimiento queda
-    con identificador anonimizado.
-    """
+    """Append-only, retencion de 5 anios. Al cancelar una cuenta el movimiento queda con
+    identificador anonimizado."""
 
     __tablename__ = "bitacora"
     __table_args__ = (Index("ix_bitacora_coach_creado", "coach_id", "creado_en"), ARGS_DE_TABLA)
@@ -846,10 +777,8 @@ class Vulneracion(Base):
 
 
 class Trabajo(Base):
-    """Cola en tabla. systemd dice *cuando*; esta tabla dice *que falta y que fallo*.
-
-    El trabajador la toma con SELECT ... FOR UPDATE SKIP LOCKED.
-    """
+    """Cola en tabla: systemd dice cuando, esto dice que falta y que fallo. El trabajador la
+    toma con SELECT ... FOR UPDATE SKIP LOCKED."""
 
     __tablename__ = "trabajo"
     __table_args__ = (Index("ix_trabajo_estado_correr", "estado", "correr_en"), ARGS_DE_TABLA)
@@ -865,12 +794,8 @@ class Trabajo(Base):
 
 
 class IntentoDeAcceso(Base):
-    """Un intento de entrar, con su resultado. No hereda de BaseMultiInquilino a proposito:
-    al momento de intentar todavia no se sabe de que coach es quien escribe, y un correo que
-    no existe no es de nadie.
-
-    Es lo que frena la fuerza bruta. Vive en la base y no en memoria porque el limite tiene
-    que valer para todos los procesos de uvicorn, no para uno.
+    """Lo que frena la fuerza bruta. Sin `coach_id`: al intentar todavia no se sabe de quien
+    es el correo. En la base y no en memoria, para que el limite valga en todos los procesos.
     """
 
     __tablename__ = "intento_de_acceso"
@@ -880,20 +805,15 @@ class IntentoDeAcceso(Base):
         ARGS_DE_TABLA,
     )
 
-    #: Se guarda en minusculas y **sin verificar que exista**: quien prueba correos al azar
-    #: tambien tiene que quedar frenado.
+    #: En minusculas y sin verificar que exista: probar correos al azar tambien se frena.
     correo: Mapped[str] = mapped_column(String(180), nullable=False)
     ip: Mapped[str | None] = mapped_column(String(45))
     exitoso: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
 class PreguntaCuestionario(BaseMultiInquilino):
-    """Una pregunta que la coach agrega al cuestionario inicial.
-
-    El nucleo clinico —lesiones, condiciones, medicacion, restricciones— no vive aqui: son
-    columnas de `historial_clinico` porque el plan y los avisos las consultan por nombre.
-    Estas son las suyas, y por eso admiten cualquier texto y cualquier tipo.
-    """
+    """Una pregunta propia de la coach. El nucleo clinico no vive aqui: son columnas de
+    `historial_clinico` porque el plan y los avisos las consultan por nombre."""
 
     __tablename__ = "pregunta_cuestionario"
     __table_args__ = (
@@ -930,12 +850,8 @@ class RespuestaCuestionario(BaseMultiInquilino):
 
 
 class PresentacionCoach(BaseMultiInquilino):
-    """Lo primero que ve una alumna nueva: quien la va a acompanar.
-
-    Va antes del cuestionario a proposito. Se le piden lesiones, medicacion y peso a alguien
-    que todavia no sabe con quien esta hablando; presentarse primero es lo que convierte ese
-    formulario en una conversacion.
-    """
+    """Lo primero que ve una alumna nueva, antes del cuestionario: a quien le va a contar
+    sus lesiones y su peso."""
 
     __tablename__ = "presentacion_coach"
     __table_args__ = (UniqueConstraint("coach_id", name="uq_presentacion_coach"), ARGS_DE_TABLA)
@@ -945,8 +861,7 @@ class PresentacionCoach(BaseMultiInquilino):
     titulo: Mapped[str] = mapped_column(String(160), default="", nullable=False)
     #: Texto libre, en parrafos. Lo escribe ella entero.
     texto: Mapped[str] = mapped_column(Text, default="", nullable=False)
-    #: Ficha de datos cortos: [{"rotulo": "Certificaciones", "valor": "..."}]. Va como JSON
-    #: porque ella nombra sus propios campos: fijarlos aqui seria decidir por ella.
+    #: [{"rotulo": "Certificaciones", "valor": "..."}]. JSON porque ella nombra sus campos.
     ficha: Mapped[list[dict[str, str]]] = mapped_column(JSON, default=list, nullable=False)
     #: Apagada no se muestra y la alumna pasa directo al cuestionario.
     activa: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -958,17 +873,9 @@ class PresentacionCoach(BaseMultiInquilino):
 
 
 class SuscripcionCoach(Base):
-    """Lo que cada coach le paga a la plataforma.
-
-    **No hereda de `BaseMultiInquilino` y eso es deliberado.** Es un dato *sobre* el
-    inquilino, no *del* inquilino: pertenece a la relacion comercial entre la plataforma y la
-    coach, igual que la fila de `coach`. Si heredara, el gancho de alcance lo filtraria por la
-    sesion en curso y el superadmin —que no es coach de nadie— no veria ninguna.
-
-    Sin pasarela de pago: la coach paga por transferencia y aqui se registra si esta al
-    corriente. El dia que se conecte un cobro automatico, estas columnas ya describen el
-    estado que la pasarela tendria que sincronizar.
-    """
+    """Lo que cada coach le paga a la plataforma. No hereda de `BaseMultiInquilino`: es un
+    dato *sobre* el inquilino, y el superadmin —que no es coach de nadie— tiene que verlas
+    todas. Sin pasarela: paga por transferencia y aqui se registra."""
 
     __tablename__ = "suscripcion_coach"
     __table_args__ = (
@@ -994,12 +901,8 @@ class SuscripcionCoach(Base):
 
 
 class CobroCoach(Base):
-    """Un pago recibido de una coach. Solo insercion.
-
-    Corregir un cobro mal capturado se hace con otro cobro en negativo, no editando el
-    anterior: lo que se cobro es un hecho, y un historial que se puede reescribir no sirve
-    para cuadrar cuentas ni para responder una aclaracion.
-    """
+    """Un pago recibido de una coach. Solo insercion: un cobro mal capturado se corrige con
+    otro en negativo, no editando el anterior."""
 
     __tablename__ = "cobro_coach"
     __table_args__ = (Index("ix_cobro_coach_fecha", "coach_id", "fecha"), ARGS_DE_TABLA)
@@ -1019,15 +922,8 @@ class CobroCoach(Base):
 
 
 class CobroProgramado(BaseMultiInquilino):
-    """Una fecha en la que la alumna debe pagar algo. Lo pone la coach en su calendario.
-
-    Es la cuenta por cobrar, no el pago: el pago aparece cuando la coach registra el ingreso
-    en finanzas y lo enlaza aqui. Separarlos es lo que permite ver adeudos antes de que
-    exista ningun movimiento.
-
-    **Un cobro vencido y sin pagar pausa el plan de la alumna.** Esa es la unica palanca de
-    cobro del sistema, y por eso la fecha y el estado viven aqui y no en el ciclo.
-    """
+    """La cuenta por cobrar, no el pago: separarlos permite ver adeudos antes de que exista
+    ningun movimiento. Vencido y sin pagar pausa el plan de la alumna."""
 
     __tablename__ = "cobro_programado"
     __table_args__ = (
@@ -1035,10 +931,8 @@ class CobroProgramado(BaseMultiInquilino):
             "motivo in ('inscripcion','mensualidad','cita','material','otro')",
             name="motivo_valido",
         ),
-        # `en_revision` es el hueco entre que la alumna sube su comprobante y la coach lo
-        # confirma. La migracion 0005 ya lo agrego; sin ponerlo tambien aqui, una base creada
-        # desde los modelos —lo que hace la semilla con --reiniciar— nace con el CHECK viejo
-        # y rechaza cualquier comprobante.
+        # `en_revision` tiene que estar aqui y no solo en la migracion 0005: una base creada
+        # desde los modelos naceria con el CHECK viejo y rechazaria todo comprobante.
         CheckConstraint(
             "estado in ('pendiente','en_revision','pagado','cancelado')",
             name="estado_cobro_valido",
@@ -1062,16 +956,14 @@ class CobroProgramado(BaseMultiInquilino):
     nota: Mapped[str | None] = mapped_column(Text)
 
     # --- Comprobante que sube la alumna ---
-    #: Archivo en el volumen cifrado. La alumna elige contra que cobro lo sube, asi que la
-    #: coach recibe el comprobante ya emparejado y solo confirma.
+    #: En el volumen cifrado. Ella elige contra que cobro, asi llega ya emparejado.
     comprobante_key: Mapped[str | None] = mapped_column(String(255))
     subido_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
 
-    #: Lo que el OCR entendio. **No valida nada**: la coach compara contra su estado de
-    #: cuenta. Un comprobante es una imagen que cualquiera puede editar.
+    #: Lo que el OCR entendio. No valida nada: un comprobante es una imagen editable.
     ocr: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     confianza: Mapped[Decimal | None] = mapped_column(Numeric(4, 3))
 
-    #: Por que se rechazo. La alumna lo lee tal cual, asi que se escribe pensando en ella.
+    #: Lo lee la alumna tal cual.
     motivo_rechazo: Mapped[str | None] = mapped_column(Text)
     revisado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)

@@ -1,8 +1,5 @@
-"""Alta de alumnas y cambio de contraseña.
-
-Vive en servicios y no en rutas porque el alta toca varias tablas y tiene que quedar
-consistente: usuario, alumna, ciclo, consentimientos pendientes y correo de invitación. Si
-algo falla a mitad, no puede quedar un usuario sin alumna.
+"""Alta de alumnas y cambio de contraseña. Vive en servicios porque el alta toca varias
+tablas y tiene que quedar consistente: no puede quedar un usuario sin alumna.
 """
 
 from __future__ import annotations
@@ -50,12 +47,8 @@ def normalizar_correo(correo: str) -> str:
 
 
 def validar_contrasena(clara: str) -> None:
-    """Ocho caracteres, con al menos un número y un carácter especial.
-
-    Es la regla que pidió la clienta. Vale la pena saber que el largo pesa más que la
-    variedad —«caballocorreverde7» aguanta más que «Ab3$xq!p»— y por eso el freno de fuerza
-    bruta de `app/servicios/limites.py` importa tanto como esta comprobación.
-    """
+    """Ocho caracteres, un número y un carácter especial: la regla que pidió la clienta.
+    El largo pesa más que la variedad, y por eso el freno de fuerza bruta importa igual."""
     if len(clara) < LONGITUD_MINIMA_CONTRASENA:
         raise ErrorDeDominio(Codigo.CONTRASENA_DEBIL, minimo=LONGITUD_MINIMA_CONTRASENA)
     if not any(c.isdigit() for c in clara):
@@ -79,12 +72,8 @@ def dar_de_alta(
     nivel_experiencia: str | None,
     emitida_por: int,
 ) -> AltaHecha:
-    """Da de alta una alumna con su ciclo inicial y su clave temporal.
-
-    **No captura datos de salud.** El historial clínico y los consentimientos los llena la
-    propia alumna al entrar: que la coach los capture por ella viciaría el consentimiento,
-    que la ley exige expreso y personal para datos sensibles.
-    """
+    """Alta con su ciclo inicial y su clave temporal. Sin datos de salud: que la coach los
+    capture por ella viciaría el consentimiento, que la ley exige expreso y personal."""
     correo = normalizar_correo(correo)
 
     if not nombre.strip():
@@ -163,10 +152,8 @@ def dar_de_alta(
         )
     )
 
-    # El primer cobro nace con ella. El ciclo ya dice `pendiente_pago`, y sin una fila en
-    # `cobro_programado` la alumna veía que debía pagar sin tener contra qué subir su
-    # comprobante: el flujo de pagos cuelga del cobro, no del ciclo. La coach lo puede
-    # cancelar o cambiar desde el calendario de su expediente.
+    # El primer cobro nace con ella: el flujo de pagos cuelga del cobro y no del ciclo, así
+    # que sin esta fila veía que debía pagar sin tener contra qué subir su comprobante.
     if precio > 0:
         s.add(
             CobroProgramado(
@@ -188,12 +175,8 @@ def dar_de_alta(
 
 
 def emitir_clave_temporal(s: Session, alumna: Alumna, emitida_por: int, motivo: str) -> str:
-    """Recuperación de acceso del MVP: la coach verifica identidad y emite la clave.
-
-    `motivo` documenta **cómo** verificó que era ella. No es burocracia: sin ese registro,
-    entregar una clave por WhatsApp es indistinguible de entregársela a quien se hizo pasar
-    por la alumna.
-    """
+    """Recuperación de acceso: la coach verifica identidad y emite la clave. `motivo`
+    documenta cómo lo verificó, que es lo único que distingue entregársela a ella."""
     if not motivo.strip():
         raise ErrorDeDominio(Codigo.CONCEPTO_REQUERIDO)
 
@@ -228,11 +211,8 @@ def _anotar_clave(
 
 
 def cambiar_contrasena(s: Session, usuario_id: int, actual: str, nueva: str) -> None:
-    """Cambia la contraseña y **revoca las demás sesiones**.
-
-    Si alguien más había entrado, cambiar la contraseña sin cerrar sus sesiones no lo saca:
-    su cookie sigue viva. Cerrarlas todas es la mitad del valor de este flujo.
-    """
+    """Cambia la contraseña y revoca las demás sesiones: sin eso, la cookie de quien ya
+    había entrado sigue viva."""
     from app.datos.modelos import Sesion
 
     usuario = s.get(Usuario, usuario_id)
@@ -265,14 +245,8 @@ def dar_de_alta_coach(
     color_acento: str,
     zona_horaria: str,
 ) -> tuple[str, str, str]:
-    """Crea un inquilino nuevo con su usuaria coach. Devuelve (ulid, correo, clave temporal).
-
-    Solo lo llama el superadmin, con una sesion sin alcance: aqui se esta creando el
-    inquilino, asi que todavia no hay inquilino al que atarse.
-
-    El `slug` se deriva del nombre si no viene. Sirve para el subdominio y para la marca, y
-    es unico en toda la plataforma.
-    """
+    """Crea un inquilino con su usuaria coach: (ulid, correo, clave temporal). Solo lo llama
+    el superadmin, sin alcance, porque el inquilino al que atarse todavia no existe."""
     from app.datos.modelos import Coach as FilaCoach
 
     correo = normalizar_correo(correo)

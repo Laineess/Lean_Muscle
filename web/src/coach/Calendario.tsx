@@ -1,9 +1,7 @@
 /** La rejilla del calendario: horas a la izquierda, días arriba, citas encima.
  *
- *  No sabe nada de la API: recibe citas y avisa dónde se tocó.
- *
- *  Las citas que se solapan se reparten el ancho en columnas; apilarlas escondería justo lo
- *  que hay que ver.
+ *  No sabe nada de la API. Las citas que se solapan se reparten el ancho en columnas;
+ *  apilarlas escondería justo lo que hay que ver.
  */
 
 import { useEffect, useRef } from "react";
@@ -44,10 +42,8 @@ function minutosDe(iso: string): number {
   return (h ?? 0) * 60 + (m ?? 0);
 }
 
-/** Reparte en columnas las citas que se tocan entre sí.
- *
- *  Dos citas están en el mismo grupo si se solapan, aunque sea de forma indirecta —A con B y
- *  B con C mete a las tres en el mismo grupo—, porque si no, C se pintaría encima de A.
+/** Reparte en columnas las citas que se tocan. El solape es transitivo: A con B y B con C
+ *  mete a las tres en el mismo grupo, o C se pintaría encima de A.
  */
 function repartir(citas: CitaEnRejilla[]): Map<string, { columna: number; de: number }> {
   const orden = [...citas].sort(
@@ -104,16 +100,18 @@ export function Calendario({
   const cuerpo = useRef<HTMLDivElement>(null);
   const hoy = new Date().toISOString().slice(0, 10);
 
+  const primerDia = dias[0];
+  const primeraCita = citas.reduce<number | null>(
+    (min, c) => (min === null ? minutosDe(c.iniciaEn) : Math.min(min, minutosDe(c.iniciaEn))),
+    null,
+  );
+
   // Abre a la altura de la primera cita del rango, o a las 8 si no hay ninguna. Empezar
   // siempre a las 6 de la mañana obliga a bajar cada vez que se entra.
   useEffect(() => {
-    const primera = citas.reduce<number | null>(
-      (min, c) => (min === null ? minutosDe(c.iniciaEn) : Math.min(min, minutosDe(c.iniciaEn))),
-      null,
-    );
-    const objetivo = ((primera ?? 8 * 60) / 60 - desdeHora - 0.5) * ALTO_HORA;
+    const objetivo = ((primeraCita ?? 8 * 60) / 60 - desdeHora - 0.5) * ALTO_HORA;
     if (cuerpo.current) cuerpo.current.scrollTop = Math.max(0, objetivo);
-  }, [dias[0], citas.length, desdeHora]);
+  }, [primerDia, primeraCita, desdeHora]);
 
   const ahora = new Date();
   const minutoActual = ahora.getHours() * 60 + ahora.getMinutes();
@@ -270,11 +268,7 @@ export function Calendario({
   );
 }
 
-/** Vista de mes: cuadrícula de días con las citas resumidas.
- *
- *  No lleva horas. Un mes con rejilla horaria no cabe en ninguna pantalla y se vuelve
- *  ilegible; lo que se quiere del mes es «qué días tengo cargados», no a qué hora.
- */
+/** Vista de mes, sin horas: lo que se quiere del mes es «qué días tengo cargados». */
 /** Un cobro programado en la rejilla. No es una cita: no tiene hora ni ocupa hueco. */
 export interface CobroEnRejilla {
   ulid: string;

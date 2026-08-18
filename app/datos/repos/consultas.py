@@ -1,12 +1,7 @@
-"""Consultas de lectura.
+"""Consultas de lectura, todas sobre una sesión ya atada al inquilino.
 
-Todas reciben la sesión ya atada al inquilino (`sesion_con_alcance`). **Ninguna filtra por
-`coach_id` a mano**: eso lo hace el gancho de `alcance.py` sobre cada SELECT, incluidos los
-JOIN y la carga diferida. Escribir el filtro a mano aquí sería precisamente el olvido que
-esa capa existe para evitar.
-
-Cada función de este archivo necesita su prueba en `pruebas/aislamiento`. Una función nueva
-sin ella no pasa el CI.
+Ninguna filtra por `coach_id` a mano: eso lo hace el gancho de `alcance.py`. Cada función
+necesita su prueba en `pruebas/aislamiento` o no pasa el CI.
 """
 
 from __future__ import annotations
@@ -63,9 +58,8 @@ def chequeos_de(s: Session, alumna_id: int, limite: int = 24) -> list[Chequeo]:
     return list(reversed(filas))
 
 
-#: Lo que ya salió de las manos de la alumna. Un borrador no es un chequeo suyo todavía: es
-#: una captura a medias, y contarlo en su historial le inventaba un «chequeo #2» que nadie
-#: había hecho.
+#: Lo que ya salió de sus manos. Contar el borrador en el historial le inventaba un
+#: «chequeo #2» que nadie había hecho.
 ENVIADOS = ("pendiente_evaluacion", "validado", "rechazado_calidad")
 
 
@@ -154,12 +148,8 @@ def ultimo_acceso_de(s: Session, usuario_ids: list[int]) -> dict[int, datetime |
 
 
 def ultimo_chequeo_por_alumna(s: Session, alumna_ids: list[int]) -> dict[int, Chequeo]:
-    """El chequeo que le toca mirar a la coach. Es lo que ordena la bandeja de validación.
-
-    Uno pendiente gana sobre uno más reciente. La diferencia importa cuando conviven un
-    borrador vacío y un envío de verdad: quedarse con el más nuevo escondía el que había que
-    validar y dejaba a la alumna marcada como «borrador» en la cartera.
-    """
+    """El chequeo que le toca mirar a la coach. Uno pendiente gana sobre uno más reciente:
+    quedarse con el más nuevo escondía el envío detrás de un borrador vacío."""
     if not alumna_ids:
         return {}
     ultimos: dict[int, Chequeo] = {}
@@ -251,11 +241,8 @@ def chequeo_por_ulid(s: Session, ulid: str) -> Chequeo | None:
 
 
 def borrador_de(s: Session, alumna_id: int, ciclo_id: int) -> Chequeo | None:
-    """El chequeo abierto del ciclo, si lo hay.
-
-    `rechazado_calidad` cuenta como abierto: la alumna vuelve a la misma captura a repetir
-    lo que la coach le pidió, no empieza un chequeo nuevo que rompería la numeración.
-    """
+    """El chequeo abierto del ciclo. `rechazado_calidad` cuenta como abierto: se retoma la
+    misma captura en vez de empezar otra y romper la numeración."""
     return s.scalars(
         select(Chequeo)
         .where(
@@ -278,11 +265,8 @@ def medidas_del_chequeo(s: Session, chequeo_id: int) -> list[Medida]:
 
 
 def consentimiento_vigente(s: Session, alumna_id: int, tipo: str) -> Consentimiento | None:
-    """El consentimiento aceptado y no revocado más reciente de ese tipo.
-
-    Revocar no borra la fila: se inserta la revocación sobre la que había. Por eso se pide el
-    último y se comprueba `revocado_en`, en lugar de confiar en que exista alguna fila.
-    """
+    """El consentimiento vigente de ese tipo. Revocar no borra la fila, así que se pide el
+    último y se comprueba `revocado_en`."""
     return s.scalars(
         select(Consentimiento)
         .where(

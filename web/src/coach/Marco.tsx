@@ -1,8 +1,7 @@
-/** Marco del panel de coach.
+/** Marco del panel de coach: barra superior en escritorio, hamburguesa en teléfono.
  *
- *  Barra superior en escritorio; menú de hamburguesa en teléfono. Mismo sistema visual que
- *  la app de la alumna —los dos frentes se sienten del mismo producto— y el buscador global
- *  resuelve la densidad: con 60 alumnas no se recorre una lista, se busca.
+ *  Mismo sistema visual que la app de la alumna. El buscador global resuelve la densidad:
+ *  con 60 alumnas no se recorre una lista, se busca.
  */
 
 import { Menu, X } from "lucide-react";
@@ -10,7 +9,8 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { Limite } from "@/componentes/Limite";
-import { Buscador, DisparadorBuscador, useBuscador } from "@/coach/Buscador";
+import { Buscador, DisparadorBuscador } from "@/coach/Buscador";
+import { useBuscador } from "@/lib/usarBuscador";
 import { MenuDeCuenta } from "@/coach/MenuDeCuenta";
 import { urlDeFotoDeCoach, urlDeLogo } from "@/lib/api";
 import { usarVersionDeMarca } from "@/lib/marca";

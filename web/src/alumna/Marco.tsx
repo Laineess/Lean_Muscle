@@ -1,10 +1,7 @@
-/** Marco de la app de alumna.
+/** Marco de la app de alumna: tres pestañas, no cinco.
  *
- *  Tres pestañas, no cinco: cada pestaña extra es una decisión más que tomar. Cuenta,
- *  mensajes y avisos viven dentro de Inicio, que es donde ella llega siempre.
- *
- *  En teléfono la barra va abajo, al alcance del pulgar; en escritorio se convierte en
- *  barra superior, porque una barra flotante al pie de una pantalla grande no tiene sentido.
+ *  Cuenta, mensajes y avisos viven dentro de Inicio. En teléfono la barra va abajo, al
+ *  alcance del pulgar; en escritorio sube.
  */
 
 import { LineChart, ListChecks, Sun } from "lucide-react";

@@ -1,8 +1,5 @@
-"""API del panel de coach.
-
-Todas las lecturas van sobre la sesión con alcance: el `coach_id` sale del token y nunca
-del cliente. Un `ulid` de otra coach simplemente no existe para esta sesión, así que
-devuelve 404 sin revelar que existe en otro inquilino.
+"""API del panel de coach. El `coach_id` sale del token, nunca del cliente: un `ulid` ajeno
+no existe para esta sesión y devuelve 404 sin revelar que existe en otro inquilino.
 """
 
 from __future__ import annotations
@@ -102,9 +99,7 @@ def _filas_de_cartera(s: Session) -> list[FilaCartera]:
         acceso = accesos.get(a.usuario_id)
         acceso_dia = acceso.date() if acceso else None
 
-        # Prioridad de la alerta: primero lo que bloquea el método, luego lo que cuesta
-        # dinero, al final lo que solo requiere un empujón.
-        # Lo que de verdad se debe: cobros con fecha pasada y sin pagar.
+        # Primero lo que bloquea el método, luego lo que cuesta dinero, al final el empujón.
         vencidos = q.adeudos_vencidos(s, a.id, hoy)
         adeudo = sum((c.monto for c in vencidos), Decimal(0))
 
@@ -174,11 +169,8 @@ def dar_de_alta_alumna(
     actor: Annotated[Actor, Depends(solo_coach)],
     s: Annotated[Session, Depends(datos)],
 ) -> AlumnaDadaDeAlta:
-    """Alta de una alumna con su ciclo inicial y su invitación.
-
-    La clave temporal se devuelve **una sola vez**, para que la coach pueda dictarla si el
-    correo no llega. No se puede consultar después: solo se guarda su hash.
-    """
+    """Alta con su ciclo inicial y su invitación. La clave se devuelve una sola vez: después
+    no se puede consultar, solo queda su hash."""
     plan = q.tarifa_por_ulid(s, cuerpo.tarifa_ulid) if cuerpo.tarifa_ulid else None
     alta = cuentas.dar_de_alta(
         s,
@@ -229,11 +221,8 @@ def editar_alumna(
     actor: Annotated[Actor, Depends(solo_coach)],
     s: Annotated[Session, Depends(datos)],
 ) -> FilaCartera:
-    """Edita el perfil operativo.
-
-    **No toca el historial clínico ni los consentimientos**: esos los mantiene la alumna. Que
-    la coach pueda editarlos rompería la trazabilidad de quién declaró qué.
-    """
+    """Edita el perfil operativo. No toca historial ni consentimientos: que la coach pueda
+    editarlos rompería la trazabilidad de quién declaró qué."""
     alumna = q.alumna_por_ulid(s, ulid)
     if alumna is None:
         raise HTTPException(404, "No existe esa alumna")
@@ -315,12 +304,8 @@ def dar_de_baja_alumna(
     actor: Annotated[Actor, Depends(solo_coach)],
     s: Annotated[Session, Depends(datos)],
 ) -> None:
-    """Marca la baja; **no borra**.
-
-    El borrado real es un derecho de la alumna (Cancelación, ARCO) y se procesa por ese
-    flujo, con su constancia. Que la coach pueda borrar un expediente de un clic destruiría
-    la trazabilidad que la ley exige conservar.
-    """
+    """Marca la baja; no borra. El borrado real es un derecho de la alumna (Cancelación,
+    ARCO) y va por ese flujo, con su constancia."""
     alumna = q.alumna_por_ulid(s, ulid)
     if alumna is None:
         raise HTTPException(404, "No existe esa alumna")
@@ -390,12 +375,8 @@ def historial_clinico(
     actor: Annotated[Actor, Depends(solo_coach)],
     s: Annotated[Session, Depends(datos)],
 ) -> HistorialPublico:
-    """Historial clínico de una alumna.
-
-    **Cada apertura queda registrada** en `acceso_sensible` con quién y cuándo. Es obligación
-    del Anexo Legal §6 y es lo que permite responder a una alumna que pregunta quién ha visto
-    su expediente.
-    """
+    """Historial clínico. Cada apertura queda en `acceso_sensible` con quién y cuándo:
+    Anexo Legal §6, y es lo que permite contestar quién vio un expediente."""
     from sqlalchemy import func
     from sqlalchemy import select as _select
 
@@ -449,12 +430,8 @@ def fotos_de_chequeo(
     actor: Annotated[Actor, Depends(solo_coach)],
     s: Annotated[Session, Depends(datos)],
 ) -> list[FotoPublica]:
-    """Metadatos de las tres fotografías de un chequeo.
-
-    **Cada apertura queda registrada.** La imagen en sí se pide por su propia ruta —servida
-    con `X-Accel-Redirect` para que nginx la entregue sin cargarla en memoria de Python— y
-    esa lectura vuelve a anotarse.
-    """
+    """Metadatos de las tres fotografías. Cada apertura queda registrada; la imagen se
+    pide por su propia ruta, que la sirve nginx con `X-Accel-Redirect`."""
     from sqlalchemy import select as _select
 
     from app.datos.modelos import Foto
@@ -503,11 +480,8 @@ def estimar_grasa(
     actor: Annotated[Actor, Depends(solo_coach)],
     s: Annotated[Session, Depends(datos)],
 ) -> None:
-    """El porcentaje de grasa que estima la coach viendo las fotos.
-
-    Vive en el chequeo y no en el perfil: es lo que permite graficar su evolución mes a mes,
-    y es la entrada que manda toda la cadena de la calculadora.
-    """
+    """El porcentaje de grasa que estima la coach viendo las fotos. Vive en el chequeo
+    para poder graficar su evolución, y manda toda la cadena de la calculadora."""
     if not (0 < float(cuerpo.porcentaje_grasa) < 1):
         raise ErrorDeDominio(
             Codigo.PORCENTAJE_DE_GRASA_INVALIDO, valor=str(cuerpo.porcentaje_grasa)
@@ -636,11 +610,8 @@ def agenda(
     desde: Annotated[datetime, Query()],
     dias: Annotated[int, Query(ge=1, le=62)] = 7,
 ) -> AgendaDeCoach:
-    """Las consultas y, como marca aparte, los cobros programados de esos días.
-
-    Un cobro no es una cita: no tiene hora, no ocupa hueco y no se puede solapar con nada.
-    Pero sí es algo que le toca ese día, así que sale en su semana.
-    """
+    """Las consultas y, aparte, los cobros de esos días: un cobro no ocupa hueco ni se
+    solapa, pero le toca ese día y sale en su semana."""
     _ = actor
     hasta = desde + timedelta(days=dias)
     citas = [_cita_publica(s, c) for c in q.citas_entre(s, desde, hasta)]
@@ -677,11 +648,8 @@ def _franjas_de(s: Session, alrededor: datetime) -> list[Franja]:
 def _avisar_de_cita(
     s: Session, actor: Actor, cita: Cita, alumna: Alumna, aviso: Aviso, motivo: str = ""
 ) -> None:
-    """Le avisa a la alumna. Una consulta que se agenda y no se comunica no existe para ella.
-
-    La llave lleva el instante de la cita: mover la misma consulta dos veces manda dos
-    avisos, que es justo lo que se quiere, y reintentar el mismo cambio no manda dos.
-    """
+    """Le avisa a la alumna: una consulta que no se comunica no existe para ella. La llave
+    lleva el instante, así que mover la cita dos veces avisa dos veces y reintentar no."""
     usuario = s.get(Usuario, alumna.usuario_id)
     if usuario is None:  # pragma: no cover - defensivo
         return
@@ -852,11 +820,8 @@ def editar_marca(
     actor: Annotated[Actor, Depends(solo_coach)],
     s: Annotated[Session, Depends(datos)],
 ) -> MarcaPublica:
-    """Nombre, nombre comercial y color.
-
-    El color se guarda tal cual y es el unico token que cambia con la marca: negro y gris son
-    la estructura y no se tocan.
-    """
+    """Nombre, nombre comercial y color. El color es el único token que cambia con la
+    marca: negro y gris son la estructura."""
     coach = s.get(Coach, actor.coach_id)
     if coach is None:  # pragma: no cover - defensivo
         raise ErrorDeDominio(Codigo.SIN_PERMISO)
@@ -885,11 +850,8 @@ async def subir_logo(
     s: Annotated[Session, Depends(datos)],
     archivo: Annotated[UploadFile, File()],
 ) -> MarcaPublica:
-    """Sube el logo de la marca.
-
-    Se recorta al centro y se cuadra, no se deforma. Nombre de archivo fijo: subir otro
-    reemplaza el anterior en lugar de acumular versiones que nadie va a borrar.
-    """
+    """Sube el logo. Se recorta al centro en vez de deformarse, y el nombre de archivo es
+    fijo: subir otro reemplaza el anterior."""
     coach = s.get(Coach, actor.coach_id)
     if coach is None:  # pragma: no cover - defensivo
         raise ErrorDeDominio(Codigo.SIN_PERMISO)
@@ -943,11 +905,8 @@ def expediente_de_validacion(
     actor: Annotated[Actor, Depends(solo_coach)],
     s: Annotated[Session, Depends(datos)],
 ) -> ExpedienteDeValidacion:
-    """Todo lo que la pantalla de validacion necesita, en una llamada.
-
-    Las fotografias **no** viajan aqui: se piden por su propia ruta, que es la que deja
-    constancia de que esta coach las abrio y cuando.
-    """
+    """La pantalla de validación entera, en una llamada. Las fotos no viajan aquí: se
+    piden por su ruta, que es la que deja constancia de quién las abrió."""
     alumna = q.alumna_por_ulid(s, ulid)
     if alumna is None:
         raise HTTPException(404, "No existe esa alumna")

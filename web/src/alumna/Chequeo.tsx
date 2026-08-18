@@ -1,13 +1,11 @@
 /** El chequeo mensual: cinco pasos, a pantalla completa.
  *
- *  El borrador vive en el servidor y se guarda al cambiar de paso: cerrar la pestaña sin
- *  querer no cuesta el chequeo del mes.
- *
- *  Lo que se valida aquí es cortesía; las reglas que mandan están en `app/dominio/chequeo.py`.
+ *  El borrador vive en el servidor y se guarda al cambiar de paso. Lo que se valida aquí es
+ *  cortesía; las reglas que mandan están en `app/dominio/chequeo.py`.
  */
 
 import { ArrowLeft, Camera, Check, Loader2, RotateCcw } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Dialogo } from "@/componentes/Dialogo";
@@ -119,13 +117,10 @@ export function Chequeo() {
   const fotosListas = fotos.length;
 
   const pesajes = borrador?.pesajes ?? [];
-  const promedio = useMemo(
-    () =>
-      pesajes.length
-        ? Math.round((pesajes.reduce((s, p) => s + p.pesoKg, 0) / pesajes.length) * 10) / 10
-        : null,
-    [pesajes],
-  );
+  // Son tres tomas como mucho: memorizar el promedio costaba más que calcularlo.
+  const promedio = pesajes.length
+    ? Math.round((pesajes.reduce((s, p) => s + p.pesoKg, 0) / pesajes.length) * 10) / 10
+    : null;
 
   /* ---- Guardas por paso, las mismas que aplica el servidor ---- */
   const puedeAvanzar: Record<Paso, boolean> = {
@@ -701,11 +696,8 @@ interface CapturaProps {
   onCambio: (b: BorradorApi) => void;
 }
 
-/** Una de las tres tomas.
- *
- *  El archivo se manda tal cual y el servidor devuelve lo que midió. **La miniatura que se
- *  enseña es la del servidor**, ya recortada: si se previsualizara el archivo local, la
- *  alumna vería su cara en pantalla y creería que eso es lo que se guardó.
+/** Una de las tres tomas. La miniatura que se enseña es la del servidor, ya recortada: con
+ *  la del archivo local la alumna vería su cara y creería que eso se guardó.
  */
 function CapturaDeFoto({ angulo, rotulo, guia, chequeoUlid, estado, onCambio }: CapturaProps) {
   const entrada = useRef<HTMLInputElement>(null);

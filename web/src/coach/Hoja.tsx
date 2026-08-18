@@ -1,12 +1,9 @@
 /** La calculadora con la forma de la hoja de cálculo original.
  *
- *  Mismos bloques, mismas etiquetas y la celda de la que sale cada número. La coach lleva
- *  años con ese archivo y sabe que el multiplicador de actividad es C16: enseñárselo así es
- *  lo que le permite comprobar que la plataforma calcula lo que ella calculaba, en vez de
- *  pedirle que confíe.
+ *  Mismos bloques, mismas etiquetas y la celda de la que sale cada número: la coach lleva
+ *  años con ese archivo y así comprueba que calculamos lo que ella calculaba.
  *
- *  Los valores llegan calculados del servidor. Este archivo no hace ni una cuenta: si la
- *  hiciera habría dos fuentes de verdad, y tarde o temprano dirían cosas distintas.
+ *  Los valores llegan calculados del servidor; aquí no se hace ni una cuenta.
  */
 
 import { useState } from "react";
