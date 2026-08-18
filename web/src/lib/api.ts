@@ -558,6 +558,22 @@ export interface EdicionDeAlumnaApi {
   estado: string | null;
 }
 
+/** Una solicitud de derechos ARCO, con lo que le queda de plazo. */
+export interface SolicitudArcoApi {
+  ulid: string;
+  derecho: "A" | "R" | "C" | "O";
+  rotulo: string;
+  estado: "recibida" | "respondida" | "resuelta";
+  detalle: string | null;
+  respuesta: string | null;
+  recibidaEn: string;
+  respondidaEn: string | null;
+  resueltaEn: string | null;
+  venceEl: string | null;
+  diasRestantes: number | null;
+  alumna: string | null;
+}
+
 /** Lo guardado hoy. El PUT escribe todo, así que lo que no se cargue se pierde. */
 export interface PerfilEditableApi {
   ulid: string;
@@ -1080,6 +1096,11 @@ export const api = {
     /** Los avisos de su coach. Pedirlos los marca como leídos. */
     avisos: (senal?: AbortSignal) =>
       pedir<AvisoDeAlumnaApi[]>("/mi/avisos", senal ? { senal } : {}),
+
+    arco: (senal?: AbortSignal) =>
+      pedir<SolicitudArcoApi[]>("/mi/arco", senal ? { senal } : {}),
+    ejercerDerecho: (derecho: string, detalle: string) =>
+      pedir<SolicitudArcoApi>("/mi/arco", { metodo: "POST", cuerpo: { derecho, detalle } }),
   },
 
   /** Panel del superadmin. Requiere rol `admin_plataforma`; una coach recibe 403. */
@@ -1214,6 +1235,16 @@ export const api = {
         `/coach/cobrar?q=${encodeURIComponent(texto)}`,
         senal ? { senal } : {},
       ),
+
+    arco: (senal?: AbortSignal) =>
+      pedir<SolicitudArcoApi[]>("/coach/arco", senal ? { senal } : {}),
+    responderArco: (ulid: string, respuesta: string) =>
+      pedir<SolicitudArcoApi>(`/coach/arco/${ulid}/responder`, {
+        metodo: "POST",
+        cuerpo: { respuesta },
+      }),
+    resolverArco: (ulid: string) =>
+      pedir<SolicitudArcoApi>(`/coach/arco/${ulid}/resolver`, { metodo: "POST" }),
 
     anuncios: (senal?: AbortSignal) =>
       pedir<AnuncioApi[]>("/coach/anuncios", senal ? { senal } : {}),

@@ -55,6 +55,9 @@ class Accion(StrEnum):
     COMPROBANTE_SUBIDO = "comprobante_subido"
     CONSENTIMIENTO_REVOCADO = "consentimiento_revocado"
     ANUNCIO_ENVIADO = "anuncio_enviado"
+    ARCO_RECIBIDA = "arco_recibida"
+    ARCO_RESPONDIDA = "arco_respondida"
+    ARCO_RESUELTA = "arco_resuelta"
 
 
 def registrar_acceso(

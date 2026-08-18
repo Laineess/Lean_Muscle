@@ -758,6 +758,10 @@ class SolicitudArco(BaseMultiInquilino):
     respondida_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     resuelta_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     estado: Mapped[str] = mapped_column(String(20), default="recibida", nullable=False)
+    #: Lo que pidio la alumna, con sus palabras.
+    detalle: Mapped[str | None] = mapped_column(Text)
+    #: Lo que le contesto la coach. Es la constancia de la respuesta.
+    respuesta: Mapped[str | None] = mapped_column(Text)
     notas: Mapped[str | None] = mapped_column(Text)
 
 

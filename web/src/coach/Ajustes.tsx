@@ -4,6 +4,7 @@
  *  propia pantalla en el menú del avatar.
  */
 
+import { Arco } from "@/coach/Arco";
 import { Notificaciones } from "@/componentes/Notificaciones";
 import { BotonSalir, CambiarContrasena } from "@/componentes/Seguridad";
 import {
@@ -76,6 +77,10 @@ export function Ajustes() {
       <Regla />
 
       <Notificaciones para="coach" />
+
+      <Regla />
+
+      <Arco />
 
       <Regla />
 

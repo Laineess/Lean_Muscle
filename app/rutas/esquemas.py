@@ -1001,6 +1001,38 @@ class ComentarioDeFoto(Esquema):
 
 
 # ---------------------------------------------------------------------------
+# Derechos ARCO
+# ---------------------------------------------------------------------------
+
+
+class SolicitudArcoNueva(Esquema):
+    #: `A`, `R`, `C` u `O`. La ley exige que se identifique con claridad cuál se ejerce.
+    derecho: Annotated[str, Field(pattern=r"^[ARCO]$")]
+    detalle: TextoLargo = ""
+
+
+class SolicitudArcoPublica(Esquema):
+    ulid: str
+    derecho: str
+    rotulo: str
+    estado: str
+    detalle: str | None
+    respuesta: str | None
+    recibida_en: datetime
+    respondida_en: datetime | None
+    resuelta_en: datetime | None
+    #: Nulo cuando ya se resolvió: no hay plazo que correr.
+    vence_el: date | None
+    dias_restantes: int | None
+    #: Solo la ve la coach: la alumna no necesita saber a quién más le corre el plazo.
+    alumna: str | None = None
+
+
+class RespuestaArco(Esquema):
+    respuesta: TextoLargo
+
+
+# ---------------------------------------------------------------------------
 # La calculadora con la forma de la hoja original
 # ---------------------------------------------------------------------------
 

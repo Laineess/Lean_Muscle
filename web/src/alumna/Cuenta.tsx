@@ -29,7 +29,9 @@ import {
   descargarPdf,
   type CuestionarioApi,
   type InicioAlumnaApi,
+  type SolicitudArcoApi,
 } from "@/lib/api";
+import { fecha } from "@/lib/formato";
 import { usarApi } from "@/lib/usarApi";
 
 const CONSENTIMIENTOS = [
@@ -40,10 +42,10 @@ const CONSENTIMIENTOS = [
 ] as const;
 
 const DERECHOS = [
-  ["Acceso", "Quiero ver todo lo que tienen de mí"],
-  ["Rectificación", "Hay un dato incorrecto"],
-  ["Cancelación", "Quiero que borren mis datos"],
-  ["Oposición", "No quiero un uso concreto"],
+  ["Acceso", "Quiero ver todo lo que tienen de mí", "A"],
+  ["Rectificación", "Hay un dato incorrecto", "R"],
+  ["Cancelación", "Quiero que borren mis datos", "C"],
+  ["Oposición", "No quiero un uso concreto", "O"],
 ] as const;
 
 export function Cuenta() {
@@ -55,20 +57,22 @@ export function Cuenta() {
   const [fallo, setFallo] = useState<string | null>(null);
   const inicio = usarApi<InicioAlumnaApi>((s) => api.alumna.inicio(s)).datos;
   const cuestionario = usarApi<CuestionarioApi>((s) => api.alumna.cuestionario(s)).datos;
+  const solicitudes = usarApi<SolicitudArcoApi[]>((s) => api.alumna.arco(s), []);
 
   const perfil = inicio?.perfil;
   const salud = cuestionario?.nucleo;
 
-  /** La solicitud va al hilo de su coach: bajo la ley, la Responsable es ella. */
-  async function pedir(asunto: string, texto: string) {
+  /** Queda registrada con su plazo. La Responsable es la coach, no la plataforma. */
+  async function pedir(derecho: string, texto: string) {
     setFallo(null);
     setEnviando(true);
     try {
-      await api.alumna.escribir(`${asunto}\n\n${texto.trim() || "Sin detalle."}`);
-      setEnviado(asunto);
+      await api.alumna.ejercerDerecho(derecho, texto);
+      setEnviado(DERECHOS.find(([, , d]) => d === derecho)?.[0] ?? "Solicitud");
       setDetalle("");
       setArco(null);
       setBaja(false);
+      solicitudes.recargar();
     } catch (causa) {
       setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo enviar.");
     } finally {
@@ -84,8 +88,8 @@ export function Cuenta() {
       </header>
 
       {enviado ? (
-        <Aviso tono="exito" titulo="Se la mandamos a tu coach">
-          «{enviado}» quedó en tu hilo de mensajes, con fecha.
+        <Aviso tono="exito" titulo="Solicitud registrada">
+          «{enviado}» quedó con fecha. Tu coach tiene 20 días hábiles para contestarte.
         </Aviso>
       ) : null}
 
@@ -229,9 +233,10 @@ export function Cuenta() {
           <div className="flex flex-col gap-3">
             <Etiqueta>Tus derechos ARCO</Etiqueta>
             <Apoyo>Tienes respuesta en 20 días hábiles y ejecución en 15 más.</Apoyo>
+            <SolicitudesArco filas={solicitudes.datos ?? []} />
             <div className="flex flex-wrap gap-2">
-              {DERECHOS.map(([derecho]) => (
-                <Boton key={derecho} tono="contorno" medida="chica" onClick={() => setArco(derecho)}>
+              {DERECHOS.map(([derecho, , clave]) => (
+                <Boton key={derecho} tono="contorno" medida="chica" onClick={() => setArco(clave)}>
                   {derecho}
                 </Boton>
               ))}
@@ -294,8 +299,8 @@ export function Cuenta() {
             />
           </Campo>
           <Apoyo>
-            Se manda al hilo de tu coach, que es quien responde por tus datos. Queda con fecha
-            y tienes respuesta en 20 días hábiles.
+            Le llega a tu coach, que es quien responde por tus datos. Queda con fecha y tienes
+            respuesta en 20 días hábiles.
           </Apoyo>
           {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
         </Dialogo>
@@ -316,7 +321,7 @@ export function Cuenta() {
                 tono="peligro"
                 medida="chica"
                 disabled={enviando}
-                onClick={() => void pedir("Solicitud de baja definitiva", detalle)}
+                onClick={() => void pedir("C", detalle || "Baja definitiva de la cuenta.")}
               >
                 {enviando ? "Enviando…" : "Pedir mi baja"}
               </Boton>
@@ -335,5 +340,39 @@ export function Cuenta() {
         </Dialogo>
       ) : null}
     </div>
+  );
+}
+
+const ROTULO_ARCO: Record<SolicitudArcoApi["estado"], string> = {
+  recibida: "Esperando respuesta",
+  respondida: "Contestada, en ejecución",
+  resuelta: "Resuelta",
+};
+
+/** Lo que ha pedido y en qué va. Vacío no se enseña: no hay nada que decir. */
+function SolicitudesArco({ filas }: { filas: SolicitudArcoApi[] }) {
+  if (filas.length === 0) return null;
+
+  return (
+    <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+      {filas.map((s) => (
+        <li key={s.ulid} className="flex flex-wrap items-baseline justify-between gap-2 py-2.5">
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="text-menor font-medium">{s.rotulo}</span>
+            <span className="text-micro text-tinta-suave">
+              {ROTULO_ARCO[s.estado]}
+              {s.venceEl ? ` · antes del ${fecha(s.venceEl)}` : ""}
+            </span>
+          </span>
+          {s.estado === "resuelta" ? (
+            <Chip tono="exito">Lista</Chip>
+          ) : (s.diasRestantes ?? 0) < 0 ? (
+            <Chip tono="error">Fuera de plazo</Chip>
+          ) : (
+            <Chip tono="espera">{s.diasRestantes} días</Chip>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
