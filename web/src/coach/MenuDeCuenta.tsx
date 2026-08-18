@@ -17,6 +17,7 @@ import { Regla } from "@/componentes/primitivas";
 import { cn } from "@/lib/utils";
 
 const OPCIONES: [string, string, string][] = [
+  ["/coach/avisos", "Avisos", "Mándale una frase a tus alumnas"],
   ["/coach/ajustes", "Ajustes", "Zona horaria, avisos y contraseña"],
   ["/coach/precios", "Planes y precios", "Lo que vendes y lo que cobras suelto"],
   ["/coach/presentacion", "Presentación", "Lo primero que ve una alumna nueva"],

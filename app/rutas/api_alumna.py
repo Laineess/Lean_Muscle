@@ -115,6 +115,7 @@ def inicio(
     )
 
     resumen = _resumen_de_plan(s, alumna.id, ciclo)
+    pendiente = q.ultimo_aviso_sin_leer(s, actor.usuario_id)
 
     return InicioAlumna(
         perfil=PerfilAlumna(
@@ -141,6 +142,7 @@ def inicio(
         chequeos=chequeos,
         ultimo_feedback=ultimo_feedback,
         avisos_sin_leer=q.avisos_sin_leer(s, actor.usuario_id),
+        ultimo_aviso=str(pendiente.payload.get("titulo")) if pendiente else None,
         coach=nombre_de_coach(s, actor),
         plan=resumen,
         proximas_citas=[

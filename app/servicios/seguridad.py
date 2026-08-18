@@ -17,6 +17,7 @@ from argon2.exceptions import VerifyMismatchError
 
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc
+from app.config import ajustes
 
 _hasher = PasswordHasher()
 
@@ -55,11 +56,14 @@ def comparar_hash(a: str, b: str) -> bool:
     return hmac.compare_digest(a, b)
 
 
-#: Contraseña con la que nace toda cuenta nueva. Es pública por diseño —la coach la dicta
-#: sin tener que leer una cadena aleatoria— y por eso **no sirve para nada más que entrar una
-#: vez**: mientras no se cambie, la sesión no abre ninguna pantalla. La guarda vive en
-#: `app/rutas/sesion.py` y la vigila `pruebas/unidad/prueba_acceso.py`.
-CONTRASENA_INICIAL = "Myprogress2026"
+def contrasena_inicial() -> str:
+    """Con la que nace toda cuenta. La dicta la coach, así que solo sirve para entrar una
+    vez: la sesión no abre nada hasta que se cambie, y caduca a las 24 horas."""
+    clave = ajustes().contrasena_inicial
+    # Una variable de entorno vacía daría de alta cuentas sin contraseña.
+    if len(clave) < 8:
+        raise ErrorDeDominio(Codigo.CONTRASENA_DEBIL)
+    return clave
 
 
 def nueva_clave_temporal() -> str:

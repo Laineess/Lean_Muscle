@@ -28,6 +28,7 @@ Numero = Annotated[Decimal, PlainSerializer(float, return_type=float, when_used=
 Texto20 = Annotated[str, Field(max_length=20)]
 Texto30 = Annotated[str, Field(max_length=30)]
 Texto60 = Annotated[str, Field(max_length=60)]
+Texto80 = Annotated[str, Field(max_length=80)]
 Texto120 = Annotated[str, Field(max_length=120)]
 Texto160 = Annotated[str, Field(max_length=160)]
 Texto180 = Annotated[str, Field(max_length=180)]
@@ -168,6 +169,8 @@ class InicioAlumna(Esquema):
     chequeos: list[ChequeoPublico]
     ultimo_feedback: str | None
     avisos_sin_leer: int
+    #: Título del último aviso sin leer, para no tener que pedir la lista solo para el banner.
+    ultimo_aviso: str | None = None
     coach: str
     #: Lo que viene: sirve para el cuadro de próximas fechas del inicio.
     proximas_citas: list[CitaDeAlumna]
@@ -587,6 +590,32 @@ class MensajePublico(Esquema):
 
 class MensajeNuevo(Esquema):
     cuerpo: str
+
+
+class AnuncioNuevo(Esquema):
+    """Lo que la coach escribe: un título y una frase."""
+
+    titulo: Texto80
+    cuerpo: Texto300
+    #: ULIDs de a quién va. Vacío es «a todas mis alumnas activas».
+    alumnas: Annotated[list[Texto30], Field(max_length=500)] = []
+
+
+class AnuncioPublico(Esquema):
+    ulid: str
+    titulo: str
+    cuerpo: str
+    enviado_en: datetime
+    enviadas: int
+    leidas: int
+
+
+class AvisoDeAlumna(Esquema):
+    ulid: str
+    titulo: str
+    cuerpo: str
+    recibido_en: datetime
+    leido_en: datetime | None
 
 
 class EstimacionGrasa(Esquema):

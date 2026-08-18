@@ -5,7 +5,7 @@
  *  para no gastar una pestaña en ello.
  */
 
-import { ArrowRight, Loader2, LogOut, MessageSquare, ShieldCheck, Upload, User } from "lucide-react";
+import { ArrowRight, Bell, Loader2, LogOut, MessageSquare, ShieldCheck, Upload, User } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 
@@ -20,7 +20,7 @@ import {
   type CobroApi2,
   type InicioAlumnaApi,
 } from "@/lib/api";
-import { chequeos, ciclo, mensajes, notificaciones, alumna } from "@/lib/datos";
+import { chequeos, ciclo, mensajes, alumna } from "@/lib/datos";
 import { delta, diaSemana, fecha, num } from "@/lib/formato";
 import { usarApi, usarApiConRespaldo } from "@/lib/usarApi";
 import { ROTULO_ESTADO, type EstadoChequeo } from "@/lib/tipos";
@@ -48,7 +48,8 @@ const RESPALDO: InicioAlumnaApi = {
   },
   chequeos,
   ultimoFeedback: [...chequeos].reverse().find((c) => c.feedback)?.feedback ?? null,
-  avisosSinLeer: notificaciones.filter((n) => !n.leida).length,
+  avisosSinLeer: 0,
+  ultimoAviso: null,
   coach: "Mariana Cervantes",
   proximasCitas: [],
   plan: null,
@@ -104,9 +105,11 @@ export function Inicio() {
       {datos.avisosSinLeer > 0 ? (
         <Aviso
           tono="atencion"
-          titulo={datos.avisosSinLeer === 1 ? "Tienes un aviso" : `Tienes ${datos.avisosSinLeer} avisos`}
+          titulo={datos.ultimoAviso ?? (datos.avisosSinLeer === 1 ? "Tienes un aviso" : `Tienes ${datos.avisosSinLeer} avisos`)}
         >
-          {notificaciones.find((n) => !n.leida)?.texto ?? "Revisa tus avisos."}
+          <Link to="/avisos" className="underline underline-offset-2">
+            {datos.avisosSinLeer === 1 ? "Ábrelo" : `Ver tus ${datos.avisosSinLeer} avisos`}
+          </Link>
         </Aviso>
       ) : null}
 
@@ -214,6 +217,11 @@ export function Inicio() {
         <Boton asChild tono="discreto" medida="chica">
           <Link to="/mensajes">
             <MessageSquare className="size-4" /> Mensajes
+          </Link>
+        </Boton>
+        <Boton asChild tono="discreto" medida="chica">
+          <Link to="/avisos">
+            <Bell className="size-4" /> Avisos
           </Link>
         </Boton>
         <Boton asChild tono="discreto" medida="chica">

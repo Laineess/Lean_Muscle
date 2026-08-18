@@ -707,6 +707,23 @@ class Mensaje(BaseMultiInquilino):
     leido_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
 
 
+class Anuncio(BaseMultiInquilino):
+    """Un aviso que la coach manda a varias alumnas a la vez: titulo y cuerpo, sin hilo.
+
+    No es un `Mensaje`: aquello es una conversacion de dos y esto va en una sola direccion.
+    Que sea una tabla aparte es lo que permite saber a cuantas les llego y cuantas lo leyeron.
+    """
+
+    __tablename__ = "anuncio"
+    __table_args__ = (Index("ix_anuncio_coach_enviado", "coach_id", "enviado_en"), ARGS_DE_TABLA)
+
+    titulo: Mapped[str] = mapped_column(String(80), nullable=False)
+    #: 300 porque es lo que cabe en el payload de una notificacion push sin que se recorte.
+    cuerpo: Mapped[str] = mapped_column(String(300), nullable=False)
+    enviado_por: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=False)
+    enviado_en: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
+
+
 class Notificacion(BaseMultiInquilino):
     __tablename__ = "notificacion"
     __table_args__ = (
@@ -720,6 +737,8 @@ class Notificacion(BaseMultiInquilino):
     canal: Mapped[str] = mapped_column(String(20), default="push", nullable=False)
     enviada_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     leida_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
+    #: Nulo en las que no vienen de un anuncio.
+    anuncio_id: Mapped[int | None] = mapped_column(ForeignKey("anuncio.id"))
 
 
 class ClaveTemporal(BaseMultiInquilino):

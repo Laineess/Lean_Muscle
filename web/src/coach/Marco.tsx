@@ -165,9 +165,7 @@ export function MarcoCoach() {
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-5 pt-8 pb-16 sm:px-6">
         <Limite clave={pathname}>
-          <Limite clave={pathname}>
-        <Outlet />
-      </Limite>
+          <Outlet />
         </Limite>
       </main>
 

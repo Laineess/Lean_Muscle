@@ -139,9 +139,15 @@ CONTEXTO = {
     "hora_inicio": "09:00",
     "vence": "14/09/2026",
     "motivo": "Se empalmó una urgencia.",
+    "titulo": "Lunes de arranque",
+    "cuerpo": "No tiene que ser perfecto, tiene que ser hoy.",
 }
 
 POR_PUSH = [a for a in Aviso if Canal.PUSH in canales_de(a)]
+
+#: El único cuyo texto no escribimos nosotros: lo teclea la coach y llega tal cual, así que
+#: no se le puede exigir que quepa en una pantalla de bloqueo.
+REDACTADOS = [a for a in POR_PUSH if a is not Aviso.MENSAJE_DE_COACH]
 
 
 class TestPush:
@@ -158,17 +164,37 @@ class TestPush:
         assert "{" not in n.titulo and "{" not in n.cuerpo
         assert n.titulo and n.cuerpo
 
-    @pytest.mark.parametrize("aviso", POR_PUSH, ids=lambda a: a.value)
+    @pytest.mark.parametrize("aviso", REDACTADOS, ids=lambda a: a.value)
     def test_caben_en_la_pantalla_de_bloqueo(self, aviso: Aviso) -> None:
         # Lo que no cabe se corta a media palabra en el teléfono.
         n = push.redactar(aviso, CONTEXTO)
         assert len(n.titulo) <= 42, n.titulo
         assert len(n.cuerpo) <= 90, n.cuerpo
 
+    def test_lo_que_escribe_la_coach_llega_sin_tocarse(self) -> None:
+        # Es el único aviso sin plantilla: reescribirle una palabra sería inaceptable.
+        n = push.redactar(Aviso.MENSAJE_DE_COACH, CONTEXTO)
+        assert n.titulo == CONTEXTO["titulo"]
+        assert n.cuerpo == CONTEXTO["cuerpo"]
+
+    def test_las_llaves_de_lo_que_escribe_la_coach_no_se_interpretan(self) -> None:
+        """Un `{peso}` en su frase es texto, no una plantilla a rellenar: si se interpretara,
+        escribir una llave le reventaría el envío a todas sus alumnas."""
+        n = push.redactar(
+            Aviso.MENSAJE_DE_COACH, {**CONTEXTO, "cuerpo": "Sube tu {peso} de hoy"}
+        )
+        assert n.cuerpo == "Sube tu {peso} de hoy"
+
     def test_la_etiqueta_evita_avisos_apilados(self) -> None:
         # Etiqueta igual reemplaza el anterior en la bandeja en vez de sumarse.
         n = push.redactar(Aviso.RECORDATORIO_CHEQUEO, CONTEXTO)
         assert n.etiqueta == Aviso.RECORDATORIO_CHEQUEO.value
+
+    def test_dos_frases_distintas_no_se_pisan_en_la_bandeja(self) -> None:
+        """Un recordatorio repetido debe reemplazar al anterior; dos frases suyas, no."""
+        una = push.redactar(Aviso.MENSAJE_DE_COACH, {**CONTEXTO, "etiqueta": "anuncio:A"})
+        otra = push.redactar(Aviso.MENSAJE_DE_COACH, {**CONTEXTO, "etiqueta": "anuncio:B"})
+        assert una.etiqueta != otra.etiqueta
 
     def test_el_payload_respeta_el_tope_del_estandar(self) -> None:
         larga = push.Notificacion(titulo="t", cuerpo="x" * 5000)

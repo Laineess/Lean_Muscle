@@ -240,6 +240,8 @@ export interface InicioAlumnaApi {
   chequeos: ChequeoApi[];
   ultimoFeedback: string | null;
   avisosSinLeer: number;
+  /** Título del último aviso sin leer. Nulo si no tiene ninguno. */
+  ultimoAviso: string | null;
   coach: string;
   proximasCitas: CitaDeAlumnaApi[];
   /** Nulo mientras su coach no le haya publicado nada. */
@@ -742,6 +744,25 @@ export interface MensajeApi {
   leidoEn: string | null;
 }
 
+/** Un aviso de la coach, visto desde su panel: a cuántas fue y cuántas lo abrieron. */
+export interface AnuncioApi {
+  ulid: string;
+  titulo: string;
+  cuerpo: string;
+  enviadoEn: string;
+  enviadas: number;
+  leidas: number;
+}
+
+/** El mismo aviso, visto por la alumna. */
+export interface AvisoDeAlumnaApi {
+  ulid: string;
+  titulo: string;
+  cuerpo: string;
+  recibidoEn: string;
+  leidoEn: string | null;
+}
+
 /* ------------------------------------------------------- Panel de plataforma --- */
 
 export interface SuscripcionApi {
@@ -1046,6 +1067,10 @@ export const api = {
       pedir<MensajeApi[]>("/mi/mensajes", senal ? { senal } : {}),
     escribir: (cuerpo: string) =>
       pedir<MensajeApi>("/mi/mensajes", { metodo: "POST", cuerpo: { cuerpo } }),
+
+    /** Los avisos de su coach. Pedirlos los marca como leídos. */
+    avisos: (senal?: AbortSignal) =>
+      pedir<AvisoDeAlumnaApi[]>("/mi/avisos", senal ? { senal } : {}),
   },
 
   /** Panel del superadmin. Requiere rol `admin_plataforma`; una coach recibe 403. */
@@ -1178,6 +1203,11 @@ export const api = {
         `/coach/cobrar?q=${encodeURIComponent(texto)}`,
         senal ? { senal } : {},
       ),
+
+    anuncios: (senal?: AbortSignal) =>
+      pedir<AnuncioApi[]>("/coach/anuncios", senal ? { senal } : {}),
+    enviarAnuncio: (a: { titulo: string; cuerpo: string; alumnas: string[] }) =>
+      pedir<AnuncioApi>("/coach/anuncios", { metodo: "POST", cuerpo: a }),
 
     marca: (senal?: AbortSignal) => pedir<MarcaApi>("/coach/marca", senal ? { senal } : {}),
     guardarMarca: (m: { nombre: string; marca: string; colorAcento: string }) =>

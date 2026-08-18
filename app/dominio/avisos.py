@@ -54,6 +54,10 @@ class Aviso(StrEnum):
     PAGO_RECHAZADO = "pago_rechazado"
     PAGO_VENCIDO = "pago_vencido"
 
+    # --- De la coach ---
+    MENSAJE_DE_COACH = "mensaje_de_coach"
+    """Lo escribe ella: título y cuerpo. El único aviso cuyo texto no está en el código."""
+
     # --- Privacidad ---
     PURGA_PROXIMA = "purga_proxima"
     """Quince días antes de borrar sus fotos, con enlace de descarga."""
@@ -89,6 +93,8 @@ CANALES: dict[Aviso, frozenset[Canal]] = {
     Aviso.PAGO_VALIDADO: frozenset({Canal.PUSH, Canal.CORREO}),
     Aviso.PAGO_RECHAZADO: frozenset({Canal.PUSH, Canal.CORREO}),
     Aviso.PAGO_VENCIDO: frozenset({Canal.PUSH, Canal.CORREO}),
+    # Una frase de ánimo por correo es correo basura. Push y la propia app, nada más.
+    Aviso.MENSAJE_DE_COACH: frozenset({Canal.PUSH}),
     Aviso.PURGA_PROXIMA: frozenset({Canal.PUSH, Canal.CORREO}),
 }
 

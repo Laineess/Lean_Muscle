@@ -132,6 +132,14 @@ def avisos_sin_leer(s: Session, usuario_id: int) -> int:
     )
 
 
+def ultimo_aviso_sin_leer(s: Session, usuario_id: int) -> Notificacion | None:
+    return s.scalars(
+        select(Notificacion)
+        .where(Notificacion.destinatario_id == usuario_id, Notificacion.leida_en.is_(None))
+        .order_by(Notificacion.creado_en.desc())
+    ).first()
+
+
 def cartera(s: Session) -> list[Alumna]:
     return list(s.scalars(select(Alumna).order_by(Alumna.nombre)).all())
 

@@ -17,28 +17,30 @@ from app.rutas.sesion import Actor, actor_establecido
 from app.servicios import limites
 from app.servicios.cuentas import validar_contrasena
 from app.servicios.seguridad import (
-    CONTRASENA_INICIAL,
     VIGENCIA_CLAVE_TEMPORAL,
     clave_temporal_vigente,
+    contrasena_inicial,
     hash_contrasena,
     verificar_contrasena,
 )
 
 
 class TestContrasenaInicial:
-    def test_toda_cuenta_nace_con_la_misma_y_es_publica(self) -> None:
-        """Es pública a propósito: la coach la dicta sin leer una cadena aleatoria."""
-        assert CONTRASENA_INICIAL == "Myprogress2026"
+    def test_sale_de_la_configuracion(self) -> None:
+        """No va escrita en el código: se rota sin desplegar si se filtra."""
+        assert contrasena_inicial()
 
     def test_se_guarda_cifrada_como_cualquier_otra(self) -> None:
-        """Que sea conocida no la exime: en la base nunca hay contraseñas en claro."""
-        guardado = hash_contrasena(CONTRASENA_INICIAL)
-        assert CONTRASENA_INICIAL not in guardado
-        assert verificar_contrasena(guardado, CONTRASENA_INICIAL)
+        """Que la conozca la coach no la exime: en la base nunca hay contraseñas en claro."""
+        clave = contrasena_inicial()
+        guardado = hash_contrasena(clave)
+        assert clave not in guardado
+        assert verificar_contrasena(guardado, clave)
 
     def test_dos_cuentas_no_comparten_el_hash(self) -> None:
         """Argon2 sala cada una. Sin eso, un vistazo a la tabla diría quién no la cambió."""
-        assert hash_contrasena(CONTRASENA_INICIAL) != hash_contrasena(CONTRASENA_INICIAL)
+        clave = contrasena_inicial()
+        assert hash_contrasena(clave) != hash_contrasena(clave)
 
 
 class TestReglasDeContrasena:
@@ -66,10 +68,9 @@ class TestReglasDeContrasena:
         assert caso.value.codigo is Codigo.CONTRASENA_DEBIL, por_que
 
     def test_la_inicial_no_sirve_como_definitiva(self) -> None:
-        """`Myprogress2026` no lleva carácter especial, así que la regla la rechaza. Es lo
-        correcto: la conoce la coach, y nadie debería poder dejarla puesta."""
+        """La conoce la coach: nadie debería poder dejarla puesta."""
         with pytest.raises(ErrorDeDominio):
-            validar_contrasena(CONTRASENA_INICIAL)
+            validar_contrasena(contrasena_inicial())
 
 
 class TestClaveInicialCaduca:

@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Acceso } from "@/Acceso";
 import { Legales } from "@/Legales";
 import { PrimerAcceso } from "@/PrimerAcceso";
+import { Avisos } from "@/alumna/Avisos";
 import { Bienvenida } from "@/alumna/Bienvenida";
 import { Chequeo } from "@/alumna/Chequeo";
 import { Cuenta } from "@/alumna/Cuenta";
@@ -15,6 +16,7 @@ import { MiPlan } from "@/alumna/MiPlan";
 import { Agenda } from "@/coach/Agenda";
 import { Ajustes } from "@/coach/Ajustes";
 import { Apariencia } from "@/coach/Apariencia";
+import { Avisos as AvisosDeCoach } from "@/coach/Avisos";
 import { CuestionarioInicial } from "@/coach/CuestionarioInicial";
 import { PantallaPresentacion } from "@/coach/PantallaPresentacion";
 import { Precios } from "@/coach/Precios";
@@ -117,6 +119,7 @@ export function App() {
         <Route path="/plan" element={<MiPlan />} />
         <Route path="/evolucion" element={<Evolucion />} />
         <Route path="/mensajes" element={<Mensajes />} />
+        <Route path="/avisos" element={<Avisos />} />
         <Route path="/cuenta" element={<Cuenta />} />
       </Route>
 
@@ -158,6 +161,7 @@ export function App() {
         <Route path="/coach/presentacion" element={<PantallaPresentacion />} />
         <Route path="/coach/cuestionario" element={<CuestionarioInicial />} />
         <Route path="/coach/apariencia" element={<Apariencia />} />
+        <Route path="/coach/avisos" element={<AvisosDeCoach />} />
         <Route path="/coach/mensajes/:alumnaUlid" element={<Conversacion />} />
         <Route path="/coach/validar/:alumnaUlid" element={<Validacion />} />
         <Route path="/coach/plan/:alumnaUlid" element={<Constructor />} />

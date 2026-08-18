@@ -164,6 +164,8 @@ TEXTOS: dict[Aviso, tuple[str, str, str]] = {
     Aviso.PAGO_VALIDADO: ("Pago validado", "Tu plan ya está disponible.", "/plan"),
     Aviso.PAGO_RECHAZADO: ("Tu comprobante necesita corrección", "{motivo}", "/inicio"),
     Aviso.PAGO_VENCIDO: ("Tu ciclo terminó", "Tu plan quedó en pausa.", "/inicio"),
+    # El único que no trae texto propio: lo escribe la coach y llega tal cual.
+    Aviso.MENSAJE_DE_COACH: ("{titulo}", "{cuerpo}", "/avisos"),
     Aviso.PURGA_PROXIMA: (
         "Tus fotos se borran en 15 días",
         "Descárgalas si quieres conservarlas.",
@@ -181,5 +183,8 @@ def redactar(aviso: Aviso, contexto: dict[str, object]) -> Notificacion:
         titulo=titulo.format(**contexto),
         cuerpo=cuerpo.format(**contexto),
         ruta=ruta,
-        etiqueta=aviso.value,
+        # Dos avisos del mismo tipo se pisan en la bandeja del teléfono, que es lo que se
+        # quiere en un recordatorio y lo contrario de lo que se quiere en dos frases
+        # distintas de la coach. Por eso el contexto puede traer la suya.
+        etiqueta=str(contexto.get("etiqueta") or aviso.value),
     )

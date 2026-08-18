@@ -72,6 +72,11 @@ class TestCanales:
         # ignorarnos, y entonces el correo que sí importa también se pierde.
         assert canales_de(aviso) == frozenset({Canal.PUSH})
 
+    def test_la_frase_de_la_coach_no_llega_por_correo(self) -> None:
+        """Una frase de ánimo en la bandeja de entrada es correo basura, y entonces el correo
+        que sí importa —acceso, dinero— también se aprende a ignorar."""
+        assert canales_de(Aviso.MENSAJE_DE_COACH) == frozenset({Canal.PUSH})
+
     def test_solo_el_pago_validado_lleva_adjunto(self) -> None:
         con_adjunto = [a for a in Aviso if lleva_adjunto(a)]
         assert con_adjunto == [Aviso.PAGO_VALIDADO]

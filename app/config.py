@@ -53,6 +53,9 @@ class Ajustes(BaseSettings):
     conservar_foto_linea_base: bool = False
     retencion_fotos_meses: int = 4
 
+    #: Con la que nace toda cuenta. Se configura para poder rotarla sin desplegar.
+    contrasena_inicial: str = "Myfittplan2026"
+
     @property
     def es_produccion(self) -> bool:
         return self.entorno == "produccion"

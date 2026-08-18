@@ -19,8 +19,8 @@ from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc, edad_en
 from app.datos.modelos import Alumna, Ciclo, Coach, CobroProgramado, Usuario
 from app.servicios.seguridad import (
-    CONTRASENA_INICIAL,
     VIGENCIA_CLAVE_TEMPORAL,
+    contrasena_inicial,
     exigir_mayor_de_edad,
     hash_contrasena,
     nueva_clave_temporal,
@@ -118,9 +118,7 @@ def dar_de_alta(
             Codigo.LIMITE_DE_ALUMNAS_ALCANZADO, activas=activas, limite=coach.limite_alumnas
         )
 
-    # La misma para todas: la coach la dicta sin leer una cadena aleatoria. Solo alcanza
-    # para el primer acceso, y ahí el servidor obliga a cambiarla.
-    clave = CONTRASENA_INICIAL
+    clave = contrasena_inicial()
 
     usuario = Usuario(
         coach_id=coach_id,
@@ -199,9 +197,7 @@ def emitir_clave_temporal(s: Session, alumna: Alumna, emitida_por: int, motivo: 
     if not motivo.strip():
         raise ErrorDeDominio(Codigo.CONCEPTO_REQUERIDO)
 
-    # La misma con la que nace toda cuenta: la coach la dicta sin leer una cadena aleatoria,
-    # y solo sirve para entrar una vez porque el servidor obliga a cambiarla.
-    clave = CONTRASENA_INICIAL
+    clave = contrasena_inicial()
     usuario = s.get(Usuario, alumna.usuario_id)
     if usuario is None:  # pragma: no cover - defensivo
         raise ErrorDeDominio(Codigo.SIN_PERMISO)

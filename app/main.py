@@ -19,6 +19,7 @@ from app.compartido.errores import ErrorDeDominio, SinAlcanceDeInquilino
 from app.config import ajustes
 from app.rutas import (
     api_alumna,
+    api_anuncios,
     api_biblioteca,
     api_chequeo,
     api_coach,
@@ -109,6 +110,7 @@ app.include_router(api_presentacion.ruteador)
 app.include_router(api_cuestionario.ruteador)
 app.include_router(api_hoja.ruteador)
 app.include_router(api_fotos_comida.ruteador)
+app.include_router(api_anuncios.ruteador)
 
 
 @app.get("/salud", tags=["sistema"])

@@ -54,6 +54,7 @@ class Accion(StrEnum):
     FOTO_ELIMINADA = "foto_eliminada"
     COMPROBANTE_SUBIDO = "comprobante_subido"
     CONSENTIMIENTO_REVOCADO = "consentimiento_revocado"
+    ANUNCIO_ENVIADO = "anuncio_enviado"
 
 
 def registrar_acceso(
