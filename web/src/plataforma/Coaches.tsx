@@ -376,7 +376,6 @@ function FormularioEdicion({
         limiteAlumnas: limite,
         estado,
         precioCiclo: precio,
-        colorAcento: "#c9a227",
       });
       await api.plataforma.editarSuscripcion(coach.ulid, {
         // La suscripción hereda el plan de la cuenta: dos «planes» distintos para la misma

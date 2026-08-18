@@ -820,6 +820,7 @@ export interface AltaDeCoachApi {
   zonaHoraria: string;
 }
 
+/** Términos comerciales. Sin `colorAcento`: eso lo elige la coach en su apariencia. */
 export interface EdicionDeCoachApi {
   nombre: string;
   marca: string;
@@ -827,7 +828,6 @@ export interface EdicionDeCoachApi {
   limiteAlumnas: number;
   estado: string;
   precioCiclo: number;
-  colorAcento: string;
 }
 
 export interface EdicionDeSuscripcionApi {

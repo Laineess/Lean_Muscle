@@ -251,24 +251,35 @@ def suscribir_push(
     actor: Annotated[Actor, Depends(actor_actual)],
     s: Annotated[Session, Depends(datos)],
 ) -> None:
-    """Registra este navegador, identificado por el hash de su endpoint: volver a suscribir
-    el mismo refresca las llaves en vez de duplicar la fila."""
+    """Registra este navegador, identificado por el hash de su endpoint.
+
+    La búsqueda va **sin alcance de inquilino** porque el UNIQUE del endpoint es global: si
+    solo mirara las de esta coach, un navegador ya registrado con otra cuenta no aparecería,
+    se intentaría insertar y MySQL rechazaría el duplicado. La sesión hace commit después de
+    responder, así que eso se veía como un 204 y una suscripción que nunca llegó.
+    """
     endpoint_hash = hashlib.sha256(cuerpo.endpoint.encode("utf-8")).hexdigest()
 
     fila = s.scalars(
-        select(SuscripcionPush).where(SuscripcionPush.endpoint_hash == endpoint_hash)
+        select(SuscripcionPush)
+        .where(SuscripcionPush.endpoint_hash == endpoint_hash)
+        .execution_options(sin_alcance=True)
     ).first()
     if fila is None:
         fila = SuscripcionPush(
             coach_id=actor.coach_id,
             usuario_id=actor.usuario_id,
-            endpoint=cuerpo.endpoint[:500],
+            endpoint=cuerpo.endpoint,
             endpoint_hash=endpoint_hash,
             p256dh=cuerpo.p256dh,
             auth=cuerpo.auth,
         )
         s.add(fila)
     else:
+        # El navegador es de quien acaba de entrar en él: si cambió de cuenta, la suscripción
+        # se muda con él. Dejarla en la anterior le mandaría los avisos a quien ya no lo usa.
+        fila.coach_id = actor.coach_id
+        fila.usuario_id = actor.usuario_id
         fila.p256dh = cuerpo.p256dh
         fila.auth = cuerpo.auth
         # Un navegador que vuelve a suscribirse está vivo: se le perdonan los fallos viejos.

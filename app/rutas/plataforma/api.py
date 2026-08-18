@@ -186,7 +186,6 @@ def editar_coach(
         coach.limite_alumnas = cuerpo.limite_alumnas
         coach.estado = cuerpo.estado
         coach.precio_ciclo = cuerpo.precio_ciclo
-        coach.color_acento = cuerpo.color_acento
         s.flush()
 
         fila = next(f for f in _filas(s, ahora_utc().date()) if f.ulid == ulid)

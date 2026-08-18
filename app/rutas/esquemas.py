@@ -16,8 +16,10 @@ Numero = Annotated[Decimal, PlainSerializer(float, return_type=float, when_used=
 
 # Cada tope coincide con el ancho de su columna. Sin ellos MySQL corta con «Data too long»
 # y la API devuelve un 500 en vez de un 422 que diga cuál es el campo.
+Texto10 = Annotated[str, Field(max_length=10)]
 Texto20 = Annotated[str, Field(max_length=20)]
 Texto30 = Annotated[str, Field(max_length=30)]
+Texto40 = Annotated[str, Field(max_length=40)]
 Texto60 = Annotated[str, Field(max_length=60)]
 Texto80 = Annotated[str, Field(max_length=80)]
 Texto120 = Annotated[str, Field(max_length=120)]
@@ -26,8 +28,12 @@ Texto180 = Annotated[str, Field(max_length=180)]
 Texto200 = Annotated[str, Field(max_length=200)]
 Texto255 = Annotated[str, Field(max_length=255)]
 Texto300 = Annotated[str, Field(max_length=300)]
+Texto500 = Annotated[str, Field(max_length=500)]
 #: Para columnas TEXT. El tope no es del motor: aceptar veinte mil caracteres regala disco.
 TextoLargo = Annotated[str, Field(max_length=4000)]
+
+#: Un entero que cabe en `Integer`. Nadie come 100 000 kcal, pero el motor sí revienta.
+Gramos = Annotated[int, Field(ge=0, le=100000)]
 
 #: Dinero en `Numeric(10, 2)`: ocho enteros y dos decimales. Un peso más y el motor corta.
 Dinero = Annotated[Decimal, Field(gt=0, le=Decimal("99999999.99"))]
@@ -50,7 +56,8 @@ class Esquema(BaseModel):
 
 
 class Credenciales(Esquema):
-    correo: str
+    correo: Texto180
+    #: Sin tope: se cifra antes de guardarse y el hash de Argon2 siempre mide lo mismo.
     contrasena: str
     #: No guarda la contraseña en el navegador: alarga la vigencia de la cookie de sesión.
     recordarme: bool = False
@@ -267,7 +274,7 @@ class CitaNueva(Esquema):
 
 
 class CancelacionCita(Esquema):
-    motivo: str
+    motivo: Texto255
 
 
 class AltaDeAlumna(Esquema):
@@ -377,7 +384,7 @@ class MovimientoNuevo(Esquema):
     alumna_ulid: Texto30 | None = None
     nota: TextoLargo | None = None
     #: Cobro programado que salda este ingreso. Al registrarlo, ese cobro pasa a pagado.
-    cobro_ulid: str | None = None
+    cobro_ulid: Texto30 | None = None
 
 
 class TotalPorCategoria(Esquema):
@@ -448,15 +455,16 @@ class AlimentoCatalogo(Esquema):
 
 
 class AlimentoNuevo(Esquema):
-    nombre: str
-    marca: str | None = None
-    porcion: Numero
-    unidad: str = "g"
-    kcal: Numero
-    proteina: Numero = Decimal(0)
-    carbo: Numero = Decimal(0)
-    grasa: Numero = Decimal(0)
-    grupo: str | None = None
+    nombre: Texto160
+    marca: Texto120 | None = None
+    #: `Numeric(7, 2)` y `Numeric(6, 2)`: pasarse revienta contra el motor.
+    porcion: Annotated[Decimal, Field(gt=0, lt=100000)]
+    unidad: Texto10 = "g"
+    kcal: Annotated[Decimal, Field(ge=0, lt=100000)]
+    proteina: Annotated[Decimal, Field(ge=0, lt=10000)] = Decimal(0)
+    carbo: Annotated[Decimal, Field(ge=0, lt=10000)] = Decimal(0)
+    grasa: Annotated[Decimal, Field(ge=0, lt=10000)] = Decimal(0)
+    grupo: Texto60 | None = None
 
 
 class EjercicioCatalogo(Esquema):
@@ -470,42 +478,47 @@ class EjercicioCatalogo(Esquema):
     propio: bool
 
 
+#: Fracción de un reparto: `Numeric(4, 3)`, entre 0 y 1.
+Fraccion = Annotated[Decimal, Field(ge=0, le=1)]
+
+
 class RepartoDeMacros(Esquema):
     """Fracciones que suman 1. La base lo exige con un CHECK."""
 
-    carbohidrato: Numero
-    proteina: Numero
-    grasa: Numero
+    carbohidrato: Fraccion
+    proteina: Fraccion
+    grasa: Fraccion
 
 
 class ParametrosDeCiclo(Esquema):
     """Las entradas de la calculadora. Se guardan con el plan para que el ciclo siguiente
     arranque de lo que la coach dejó, no de valores por omisión."""
 
-    actividad: str
-    porcentaje_ajuste: Numero
+    actividad: Texto20
+    #: Con signo: −0.28 es un déficit del 28 %. `Numeric(4, 3)`.
+    porcentaje_ajuste: Annotated[Decimal, Field(ge=-1, le=1)]
     reparto: RepartoDeMacros
-    base_proteina: str
-    dias_refeed: int
-    porcentaje_dia_refeed: Numero
-    relacion_ganancia: str
+    base_proteina: Texto30
+    dias_refeed: Annotated[int, Field(ge=0, le=2)]
+    porcentaje_dia_refeed: Fraccion
+    relacion_ganancia: Texto10
 
 
 class PlanGuardado(Esquema):
     """El contenido va como JSON libre: su forma cambia seguido —tiempos de comida, días,
     bloques— y no se consulta por dentro, se lee completo."""
 
-    tipo: str
+    tipo: Texto20
     contenido: dict[str, object]
-    kcal_objetivo: int | None = None
-    proteina_g: int | None = None
-    carbohidrato_g: int | None = None
-    grasa_g: int | None = None
+    kcal_objetivo: Gramos | None = None
+    proteina_g: Gramos | None = None
+    carbohidrato_g: Gramos | None = None
+    grasa_g: Gramos | None = None
     publicar: bool = False
     #: Solo viajan con el plan de nutrición, que es donde vive la calculadora.
     parametros: ParametrosDeCiclo | None = None
     #: `ninguna`, `diaria`, `semanal`, `quincenal` o `mensual`.
-    frecuencia_fotos: str = "ninguna"
+    frecuencia_fotos: Texto20 = "ninguna"
 
 
 class ChequeoDelConstructor(Esquema):
@@ -577,9 +590,9 @@ class ComprobanteLeido(Esquema):
 class SuscripcionNueva(Esquema):
     """Lo que entrega `PushManager.subscribe()` en el navegador."""
 
-    endpoint: str
-    p256dh: str
-    auth: str
+    endpoint: Texto500
+    p256dh: Texto255
+    auth: Texto255
 
 
 class MensajePublico(Esquema):
@@ -591,7 +604,7 @@ class MensajePublico(Esquema):
 
 
 class MensajeNuevo(Esquema):
-    cuerpo: str
+    cuerpo: TextoLargo
 
 
 class AnuncioNuevo(Esquema):
@@ -621,7 +634,8 @@ class AvisoDeAlumna(Esquema):
 
 
 class EstimacionGrasa(Esquema):
-    porcentaje_grasa: Numero
+    #: Fracción: 0.22 es 22 %. `Numeric(4, 3)`.
+    porcentaje_grasa: Annotated[Decimal, Field(gt=0, lt=1)]
 
 
 # ---------------------------------------------------------------------------
@@ -699,12 +713,12 @@ class LlavePush(Esquema):
 
 
 class ValidacionChequeo(Esquema):
-    feedback: str
-    justificacion_outlier: str | None = None
+    feedback: TextoLargo
+    justificacion_outlier: TextoLargo | None = None
 
 
 class RechazoChequeo(Esquema):
-    motivo: str
+    motivo: TextoLargo
 
 
 # ---------------------------------------------------------------------------
@@ -752,16 +766,16 @@ class FilaDeCoach(Esquema):
 
 
 class AltaDeCoach(Esquema):
-    nombre: str
+    nombre: Texto120
     #: Vacío = se usa el nombre. Es lo que ven sus alumnas en la barra y en los correos.
-    marca: str = ""
-    email: str
-    slug: str | None = None
-    plan: str = "basico"
-    limite_alumnas: int = 50
-    precio_ciclo: Numero = Decimal(0)
-    color_acento: str = "#c9a227"
-    zona_horaria: str = "America/Mexico_City"
+    marca: Texto120 = ""
+    email: Texto180
+    slug: Texto60 | None = None
+    plan: Texto30 = "basico"
+    limite_alumnas: Annotated[int, Field(ge=1, le=100000)] = 50
+    precio_ciclo: Importe = Decimal(0)
+    color_acento: Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}$")] = "#c9a227"
+    zona_horaria: Texto60 = "America/Mexico_City"
 
 
 class CoachDadaDeAlta(Esquema):
@@ -772,22 +786,24 @@ class CoachDadaDeAlta(Esquema):
 
 
 class EdicionDeCoach(Esquema):
-    nombre: str
-    marca: str
-    plan: str
-    limite_alumnas: int
-    estado: str
-    precio_ciclo: Numero
-    color_acento: str
+    """Términos comerciales. **No lleva el color de la marca**: eso lo elige la coach en su
+    pantalla de apariencia, y traerlo aquí lo reponía al dorado en cada edición."""
+
+    nombre: Texto120
+    marca: Texto120
+    plan: Texto30
+    limite_alumnas: Annotated[int, Field(ge=1, le=100000)]
+    estado: Texto20
+    precio_ciclo: Importe
 
 
 class EdicionDeSuscripcion(Esquema):
-    plan: str
-    precio: Numero
-    periodicidad: str
-    estado: str
+    plan: Texto30
+    precio: Importe
+    periodicidad: Texto10
+    estado: Texto20
     vigente_hasta: date | None = None
-    nota: str | None = None
+    nota: TextoLargo | None = None
 
 
 class CobroPublico(Esquema):
@@ -802,12 +818,13 @@ class CobroPublico(Esquema):
 
 
 class CobroNuevo(Esquema):
-    monto: Numero
+    #: Admite negativos: un cobro mal capturado se corrige con otro en contra, no editándolo.
+    monto: Importe
     fecha: date
-    metodo: str = "transferencia"
+    metodo: Texto40 = "transferencia"
     periodo_inicia: date | None = None
     periodo_termina: date | None = None
-    nota: str | None = None
+    nota: TextoLargo | None = None
 
 
 class ResumenDeFacturacion(Esquema):
@@ -921,15 +938,15 @@ class PreguntaNueva(Esquema):
 class NucleoClinico(Esquema):
     """La parte que no se puede quitar: la exige la ley y la consulta el plan."""
 
-    lesiones: str | None = None
-    condiciones: str | None = None
-    medicacion: str | None = None
-    restricciones: str | None = None
+    lesiones: TextoLargo | None = None
+    condiciones: TextoLargo | None = None
+    medicacion: TextoLargo | None = None
+    restricciones: TextoLargo | None = None
 
 
 class RespuestaDePregunta(Esquema):
-    pregunta_ulid: str
-    valor: str
+    pregunta_ulid: Texto30
+    valor: TextoLargo
 
 
 class CuestionarioParaAlumna(Esquema):
@@ -945,9 +962,9 @@ class CuestionarioParaAlumna(Esquema):
 
 class EnvioDeCuestionario(Esquema):
     nucleo: NucleoClinico
-    respuestas: list[RespuestaDePregunta] = []
+    respuestas: Annotated[list[RespuestaDePregunta], Field(max_length=200)] = []
     #: Tipos de consentimiento que acepta en este envío.
-    consentimientos: list[str] = []
+    consentimientos: Annotated[list[Texto30], Field(max_length=20)] = []
 
 
 class RespuestaDeAlumna(Esquema):
@@ -984,7 +1001,7 @@ class FotosDeComidaDeAlumna(Esquema):
 
 
 class ComentarioDeFoto(Esquema):
-    comentario: str
+    comentario: TextoLargo
 
 
 # ---------------------------------------------------------------------------
@@ -1192,4 +1209,4 @@ class ComprobantePorRevisar(Esquema):
 
 
 class RechazoDeComprobante(Esquema):
-    motivo: str
+    motivo: TextoLargo

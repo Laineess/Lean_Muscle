@@ -490,8 +490,18 @@ function FormMovimiento({
         </>
       }
     >
-      {/* El buscador va primero: elegir a quién se le cobra llena el resto del formulario. */}
-      {tipo === "ingreso" ? (
+      {/* Al editar solo se enseña a quién quedó ligado: el enlace con el cobro se hace al
+          registrar el ingreso y el servidor no lo cambia, así que un selector aquí sería un
+          control que no hace nada. */}
+      {movimiento ? (
+        movimiento.alumnaNombre ? (
+          <Apoyo>
+            Ingreso de <strong>{movimiento.alumnaNombre}</strong>. Para ligarlo a otra alumna,
+            cancélalo y regístralo de nuevo.
+          </Apoyo>
+        ) : null
+      ) : tipo === "ingreso" ? (
+        /* El buscador va primero: elegir a quién se le cobra llena el resto del formulario. */
         <BuscadorDeCobro
           alumna={alumna}
           cobro={cobro}
