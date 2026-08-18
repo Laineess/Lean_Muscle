@@ -221,11 +221,8 @@ def perfil_de_alumna(
     actor: Annotated[Actor, Depends(solo_coach)],
     s: Annotated[Session, Depends(datos)],
 ) -> PerfilEditable:
-    """Lo guardado hoy, para llenar el formulario de edición.
-
-    No es dato de salud, así que no deja fila en la bitácora de accesos: es el perfil
-    operativo que la propia coach capturó.
-    """
+    """Para llenar el formulario de edición. Sin fila en la bitácora: es el perfil
+    operativo que la propia coach capturó, no dato de salud."""
     _ = actor
     alumna = q.alumna_por_ulid(s, ulid)
     if alumna is None:

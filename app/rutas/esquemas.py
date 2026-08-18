@@ -300,11 +300,8 @@ class AlumnaDadaDeAlta(Esquema):
 
 
 class PerfilEditable(Esquema):
-    """Lo que hay guardado hoy, para llenar el formulario de edición.
-
-    Sin esto el formulario abría vacío y guardar borraba whatsapp, estatura y lo demás: el
-    PUT escribe todos los campos, así que lo que no se carga se pierde.
-    """
+    """Lo guardado hoy. El PUT escribe todos los campos, así que lo que el formulario no
+    cargue de aquí se pierde al guardar."""
 
     ulid: str
     nombre: str
@@ -786,8 +783,7 @@ class CoachDadaDeAlta(Esquema):
 
 
 class EdicionDeCoach(Esquema):
-    """Términos comerciales. **No lleva el color de la marca**: eso lo elige la coach en su
-    pantalla de apariencia, y traerlo aquí lo reponía al dorado en cada edición."""
+    """Términos comerciales. Sin el color de marca: lo elige la coach en su apariencia."""
 
     nombre: Texto120
     marca: Texto120

@@ -1,12 +1,6 @@
-"""Todo lo que entra por la API lleva tope.
+"""Todo lo que entra por la API lleva tope, o MySQL corta y la respuesta es un 500.
 
-Sin tope, el valor llega crudo a MySQL y la respuesta es un 500: el motor corta con «Data
-too long» o «Out of range» y el traductor de errores no tiene nada que traducir. Peor aún
-en las rutas que responden 204, porque la sesión hace commit **después** de responder: el
-cliente recibe «guardado» y el guardado se pierde.
-
-Se lee del OpenAPI que publica FastAPI, así que cubre lo que haya y no lo que alguien se
-acuerde de añadir aquí. No necesita base de datos.
+Se lee del OpenAPI, así que cubre lo que haya. No necesita base de datos.
 """
 
 from __future__ import annotations
@@ -17,13 +11,11 @@ import pytest
 
 from app.main import app
 
-#: Campos sin tope a propósito, con su razón.
+#: Sin tope a propósito: contraseñas, que se guardan cifradas, y JSON libre.
 PERDONADOS = {
-    # La contraseña se cifra antes de guardarse: el hash de Argon2 siempre mide lo mismo.
     ("Credenciales", "contrasena"),
     ("CambioDeContrasena", "actual"),
     ("CambioDeContrasena", "nueva"),
-    # JSON libre: el plan cambia de forma seguido y se guarda completo en una columna JSON.
     ("PlanGuardado", "contenido"),
 }
 

@@ -253,10 +253,8 @@ def suscribir_push(
 ) -> None:
     """Registra este navegador, identificado por el hash de su endpoint.
 
-    La búsqueda va **sin alcance de inquilino** porque el UNIQUE del endpoint es global: si
-    solo mirara las de esta coach, un navegador ya registrado con otra cuenta no aparecería,
-    se intentaría insertar y MySQL rechazaría el duplicado. La sesión hace commit después de
-    responder, así que eso se veía como un 204 y una suscripción que nunca llegó.
+    Busca sin alcance porque el UNIQUE del endpoint es global: filtrando por inquilino, uno
+    ya registrado con otra cuenta no aparecía y el duplicado reventaba tras responder 204.
     """
     endpoint_hash = hashlib.sha256(cuerpo.endpoint.encode("utf-8")).hexdigest()
 
@@ -276,8 +274,7 @@ def suscribir_push(
         )
         s.add(fila)
     else:
-        # El navegador es de quien acaba de entrar en él: si cambió de cuenta, la suscripción
-        # se muda con él. Dejarla en la anterior le mandaría los avisos a quien ya no lo usa.
+        # El navegador es de quien acaba de entrar en él: la suscripción se muda con él.
         fila.coach_id = actor.coach_id
         fila.usuario_id = actor.usuario_id
         fila.p256dh = cuerpo.p256dh

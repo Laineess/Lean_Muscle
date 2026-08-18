@@ -6,11 +6,12 @@
 
 import { Command } from "cmdk";
 import { Search } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { cartera } from "@/lib/datos";
+import { api, type FilaCarteraApi } from "@/lib/api";
 import { fecha } from "@/lib/formato";
-import { ROTULO_ESTADO } from "@/lib/tipos";
+import { ROTULO_ESTADO, type EstadoChequeo } from "@/lib/tipos";
 
 const SECCIONES = [
   { rotulo: "Panel", a: "/coach" },
@@ -37,6 +38,20 @@ export function DisparadorBuscador({ onClick }: { onClick: () => void }) {
 
 export function Buscador({ abierto, onCerrar }: { abierto: boolean; onCerrar: () => void }) {
   const navegar = useNavigate();
+  const [cartera, setCartera] = useState<FilaCarteraApi[]>([]);
+
+  // Se pide al abrir, no al montar: el buscador vive en el marco de todas las pantallas.
+  useEffect(() => {
+    if (!abierto) return;
+    const control = new AbortController();
+    api.coach
+      .alumnas(control.signal)
+      .then(setCartera)
+      .catch(() => {
+        /* sin lista se sigue pudiendo navegar a las secciones */
+      });
+    return () => control.abort();
+  }, [abierto]);
 
   const ir = (a: string) => {
     void navegar(a);
@@ -85,7 +100,7 @@ export function Buscador({ abierto, onCerrar }: { abierto: boolean; onCerrar: ()
                 </span>
                 {a.chequeoEstado ? (
                   <span className="shrink-0 text-micro text-tinta-suave">
-                    {ROTULO_ESTADO[a.chequeoEstado]}
+                    {ROTULO_ESTADO[a.chequeoEstado as EstadoChequeo]}
                   </span>
                 ) : null}
               </Command.Item>

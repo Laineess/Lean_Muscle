@@ -98,8 +98,7 @@ export function FormAlumna({
   const [b, setB] = useState<Borrador>(
     editando ? { ...VACIO, nombre: alumna.nombre, estado: alumna.estado } : VACIO,
   );
-  // Al editar hay que traer lo guardado antes de dejar tocar nada: el PUT escribe todos los
-  // campos, así que guardar el formulario a medio llenar borraría lo que no se cargó.
+  // El PUT escribe todos los campos: guardar a medio cargar borraría lo que falte.
   const [cargando, setCargando] = useState(editando);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);

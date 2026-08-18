@@ -490,9 +490,8 @@ function FormMovimiento({
         </>
       }
     >
-      {/* Al editar solo se enseña a quién quedó ligado: el enlace con el cobro se hace al
-          registrar el ingreso y el servidor no lo cambia, así que un selector aquí sería un
-          control que no hace nada. */}
+      {/* Al editar solo se enseña: el servidor no cambia el enlace, y un selector que no
+          hace nada es peor que ninguno. */}
       {movimiento ? (
         movimiento.alumnaNombre ? (
           <Apoyo>

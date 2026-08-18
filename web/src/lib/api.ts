@@ -558,8 +558,7 @@ export interface EdicionDeAlumnaApi {
   estado: string | null;
 }
 
-/** Lo guardado hoy. El PUT escribe todos los campos, así que el formulario carga esto
- *  primero: lo que no se cargue se pierde al guardar. */
+/** Lo guardado hoy. El PUT escribe todo, así que lo que no se cargue se pierde. */
 export interface PerfilEditableApi {
   ulid: string;
   nombre: string;

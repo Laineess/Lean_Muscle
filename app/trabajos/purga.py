@@ -35,9 +35,8 @@ LOTE = 500
 #: Techo de un aviso de la coach. Si a la semana sigue sin abrirse, ya no se va a abrir.
 VIDA_DEL_AVISO = timedelta(days=7)
 
-#: Cuánto se guarda la cola una vez despachada. Su única función es no mandar dos veces lo
-#: mismo, y toda llave lleva dentro el identificador del hecho que la disparó: pasado el
-#: plazo no hay nada que repetir, y sí un correo de alguien que quizá ya se dio de baja.
+#: La cola solo evita repetir envíos, y cada llave lleva su hecho dentro: pasado el plazo
+#: no hay nada que repetir, y sí correos de gente que quizá ya se dio de baja.
 RETENCION_DE_LA_COLA = timedelta(days=90)
 
 
@@ -63,11 +62,8 @@ def _borrar(llave: str | None) -> None:
 
 
 def _avisos_gastados(s: Session, ahora: datetime) -> int:
-    """Borra los avisos que ya cumplieron: los leyeron todas, o pasó la semana.
-
-    Se borra el anuncio entero, no fila por fila. Si sobrevivieran las copias leídas, la
-    coach seguiría viendo el aviso en su historial como si le quedara algo por hacer.
-    """
+    """Los que ya cumplieron: los leyeron todas, o pasó la semana. Se borra el anuncio
+    entero, o la coach lo seguiría viendo en su historial."""
     sin_leer = select(Notificacion.anuncio_id).where(
         Notificacion.anuncio_id.is_not(None), Notificacion.leida_en.is_(None)
     )

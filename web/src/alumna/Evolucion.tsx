@@ -9,7 +9,7 @@ import { useState } from "react";
 import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
 import { Grafica } from "@/componentes/Grafica";
 import { Apoyo, Aviso, Boton, Chip, Etiqueta, Portada, Regla, Selector, Titulo, Vacio } from "@/componentes/primitivas";
-import { api, type ChequeoApi, type InicioAlumnaApi } from "@/lib/api";
+import { api, descargarPdf, type ChequeoApi, type InicioAlumnaApi } from "@/lib/api";
 import { HOY, chequeos as chequeosEjemplo } from "@/lib/datos";
 import { delta, fecha, fechaCorta, num, porcentaje } from "@/lib/formato";
 import { usarApiConRespaldo } from "@/lib/usarApi";
@@ -175,7 +175,11 @@ export function Evolucion() {
       <section className="flex flex-col gap-5">
         <div className="flex items-center justify-between gap-4">
           <Titulo>Todos tus registros</Titulo>
-          <Boton tono="contorno" medida="chica">
+          <Boton
+            tono="contorno"
+            medida="chica"
+            onClick={() => void descargarPdf("/documentos/evolucion", "mi-evolucion.pdf")}
+          >
             Descargar PDF
           </Boton>
         </div>
