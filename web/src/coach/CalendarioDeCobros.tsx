@@ -27,7 +27,7 @@ import {
   type MotivoDeCobro,
   type ServicioApi,
 } from "@/lib/api";
-import { fecha, num } from "@/lib/formato";
+import { fecha, horaLocal, num } from "@/lib/formato";
 import { usarApi } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +79,8 @@ export function CalendarioDeCobros({
 
   const consultas = new Map<string, CitaDeAlumnaApi>();
   for (const c of citas.datos ?? []) {
-    if (c.estado !== "cancelada") consultas.set(c.iniciaEn.slice(0, 10), c);
+    // La llave sale de la hora local: cortar el ISO en UTC movía de día las citas de la tarde.
+    if (c.estado !== "cancelada") consultas.set(claveDe(new Date(c.iniciaEn)), c);
   }
   const proximasConsultas = [...consultas.values()].slice(-4);
 
@@ -167,7 +168,7 @@ export function CalendarioDeCobros({
               <li key={c.ulid} className="flex items-baseline justify-between gap-2 py-2">
                 <span className="text-micro">{c.titulo}</span>
                 <span className="cifra text-micro text-tinta-media">
-                  {fecha(c.iniciaEn.slice(0, 10))} · {c.iniciaEn.slice(11, 16)}
+                  {fecha(claveDe(new Date(c.iniciaEn)))} · {horaLocal(c.iniciaEn)}
                 </span>
               </li>
             ))}

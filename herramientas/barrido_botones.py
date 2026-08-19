@@ -199,6 +199,15 @@ def main() -> None:
               pide(coach, f"/api/coach/agenda/{cita['ulid']}", "DELETE"))
     boton("Agenda · cargar semana", pide(coach, "/api/coach/agenda?desde=2026-09-01&dias=7"))
 
+    # ---- Horario de consultas ----
+    horario = boton("Horario · leer", pide(coach, "/api/coach/horario"))
+    if isinstance(horario, dict):
+        # Si ya tiene tramos se le devuelven los suyos; el barrido no le reescribe la semana.
+        horario["tramos"] = horario["tramos"] or [
+            {"diaSemana": d, "desde": "09:00", "hasta": "14:00"} for d in range(5)
+        ]
+        boton("Horario · Guardar horario", pide(coach, "/api/coach/horario", "PUT", horario))
+
     # ---- Cobros y finanzas ----
     boton("Cobros · Programar",
                   pide(coach, f"/api/coach/alumnas/{una}/cobros", "POST",
@@ -268,6 +277,20 @@ def main() -> None:
                {"endpoint": "https://fcm.googleapis.com/prueba-botones", "p256dh": "k", "auth": "a"}))
     boton("Alumna · desactivar notificaciones", pide(alumna, "/api/mi/push", "DELETE"))
     boton("Alumna · Descargar PDF", pide(alumna, "/api/documentos/evolucion"))
+
+    huecos = boton("Alumna · horarios libres", pide(alumna, "/api/mi/huecos"))
+    if isinstance(huecos, list) and huecos:
+        boton(
+            "Alumna · Reservar consulta",
+            pide(alumna, "/api/mi/citas", "POST",
+                 {"iniciaEn": huecos[0]["iniciaEn"], "modalidad": "video"}),
+        )
+        boton(
+            "Alumna · Reservar el mismo hueco dos veces (rechaza)",
+            pide(alumna, "/api/mi/citas", "POST",
+                 {"iniciaEn": huecos[0]["iniciaEn"], "modalidad": "video"}),
+            esperados=(409,),
+        )
 
     cobros = boton("Alumna · sus cobros", pide(alumna, "/api/mi/cobros"))
     pendiente = next((c for c in cobros if c["estado"] != "pagado"), None) if isinstance(cobros, list) else None

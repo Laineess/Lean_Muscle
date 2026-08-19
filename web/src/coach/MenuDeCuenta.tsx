@@ -15,6 +15,7 @@ const OPCIONES: [string, string, string][] = [
   ["/coach/avisos", "Avisos", "Mándale una frase a tus alumnas"],
   ["/coach/ajustes", "Ajustes", "Zona horaria, avisos y contraseña"],
   ["/coach/precios", "Planes y precios", "Lo que vendes y lo que cobras suelto"],
+  ["/coach/horario", "Horario de consultas", "Cuándo pueden reservarte tus alumnas"],
   ["/coach/presentacion", "Presentación", "Lo primero que ve una alumna nueva"],
   ["/coach/cuestionario", "Cuestionario", "Las preguntas que contesta al entrar"],
   ["/coach/apariencia", "Apariencia", "Tu marca, tu color y el tema"],

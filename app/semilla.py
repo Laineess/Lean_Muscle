@@ -28,6 +28,7 @@ from app.datos.modelos import (
     Ejercicio,
     Foto,
     HistorialClinico,
+    HorarioDeAtencion,
     Medida,
     Mensaje,
     Pago,
@@ -603,6 +604,18 @@ def sembrar_coach(
             activa=True,
         )
     )
+
+    # Horario de consultas. Las dos coaches atienden en ratos distintos: si una alumna ve
+    # los huecos de la otra, se nota a simple vista.
+    tramos = (
+        ((0, time(9), time(14)), (2, time(9), time(14)), (3, time(16), time(19)))
+        if con_historial
+        else ((5, time(8), time(12)),)
+    )
+    for dia, desde, hasta in tramos:
+        sesion.add(
+            HorarioDeAtencion(coach_id=coach.id, dia_semana=dia, desde=desde, hasta=hasta)
+        )
 
     for orden, (texto_pregunta, tipo, opciones, obligatoria) in enumerate(PREGUNTAS_DEMO, start=1):
         sesion.add(

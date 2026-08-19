@@ -990,6 +990,28 @@ export interface CitaDeAlumnaApi {
   terminaEn: string;
 }
 
+export interface TramoDeHorarioApi {
+  /** Lunes es 0, como en `date.weekday()` del servidor. */
+  diaSemana: number;
+  desde: string;
+  hasta: string;
+}
+
+export interface HorarioDeCoachApi {
+  tramos: TramoDeHorarioApi[];
+  duracionConsultaMin: number;
+  margenConsultaMin: number;
+  antelacionHoras: number;
+  horizonteSemanas: number;
+  zonaHoraria: string;
+}
+
+/** Un rato libre para reservar. En UTC, como todo lo que viaja. */
+export interface HuecoApi {
+  iniciaEn: string;
+  terminaEn: string;
+}
+
 export interface MarcaApi {
   nombre: string;
   marca: string;
@@ -1097,6 +1119,10 @@ export const api = {
     avisos: (senal?: AbortSignal) =>
       pedir<AvisoDeAlumnaApi[]>("/mi/avisos", senal ? { senal } : {}),
 
+    huecos: (senal?: AbortSignal) => pedir<HuecoApi[]>("/mi/huecos", senal ? { senal } : {}),
+    reservar: (iniciaEn: string, modalidad: string) =>
+      pedir<CitaDeAlumnaApi>("/mi/citas", { metodo: "POST", cuerpo: { iniciaEn, modalidad } }),
+
     arco: (senal?: AbortSignal) =>
       pedir<SolicitudArcoApi[]>("/mi/arco", senal ? { senal } : {}),
     ejercerDerecho: (derecho: string, detalle: string) =>
@@ -1162,6 +1188,12 @@ export const api = {
         `/coach/agenda?desde=${encodeURIComponent(desde)}&dias=${dias}`,
         senal ? { senal } : {},
       ),
+    horario: (senal?: AbortSignal) =>
+      pedir<HorarioDeCoachApi>("/coach/horario", senal ? { senal } : {}),
+    /** Reemplaza el horario entero: hay que mandar todos los tramos, no solo el que cambió. */
+    guardarHorario: (h: HorarioDeCoachApi) =>
+      pedir<HorarioDeCoachApi>("/coach/horario", { metodo: "PUT", cuerpo: h }),
+
     citasDeAlumna: (alumnaUlid: string, senal?: AbortSignal) =>
       pedir<CitaDeAlumnaApi[]>(`/coach/alumnas/${alumnaUlid}/citas`, senal ? { senal } : {}),
     agendar: (cita: CitaNuevaApi) => pedir<CitaApi>("/coach/agenda", { metodo: "POST", cuerpo: cita }),

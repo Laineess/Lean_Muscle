@@ -20,6 +20,16 @@ export function diaSemana(iso: string): string {
   return fecha(iso, { weekday: "long", day: "numeric", month: "long" });
 }
 
+/** La hora en la zona de quien mira. Cortar el ISO mostraba la de UTC, no la suya.
+ *  En 24 h, como el resto de la agenda: alineadas unas debajo de otras se comparan mejor. */
+export function horaLocal(iso: string): string {
+  return new Date(iso).toLocaleTimeString(LOCALE, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 export function num(valor: number | null | undefined, decimales = 1): string {
   if (valor === null || valor === undefined || Number.isNaN(valor)) return "—";
   return valor.toLocaleString(LOCALE, {

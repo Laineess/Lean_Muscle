@@ -13,6 +13,7 @@ import { Inicio } from "@/alumna/Inicio";
 import { MarcoAlumna } from "@/alumna/Marco";
 import { Mensajes } from "@/alumna/Mensajes";
 import { MiPlan } from "@/alumna/MiPlan";
+import { Reservar } from "@/alumna/Reservar";
 import { Agenda } from "@/coach/Agenda";
 import { Ajustes } from "@/coach/Ajustes";
 import { Apariencia } from "@/coach/Apariencia";
@@ -22,6 +23,7 @@ import { PantallaPresentacion } from "@/coach/PantallaPresentacion";
 import { Precios } from "@/coach/Precios";
 import { Conversacion } from "@/coach/Conversacion";
 import { Finanzas } from "@/coach/Finanzas";
+import { Horario } from "@/coach/Horario";
 import { Cartera } from "@/coach/Cartera";
 import { Constructor } from "@/coach/Constructor";
 import { MarcoCoach } from "@/coach/Marco";
@@ -111,6 +113,7 @@ export function App() {
         <Route path="/plan" element={<MiPlan />} />
         <Route path="/evolucion" element={<Evolucion />} />
         <Route path="/mensajes" element={<Mensajes />} />
+        <Route path="/reservar" element={<Reservar />} />
         <Route path="/avisos" element={<Avisos />} />
         <Route path="/cuenta" element={<Cuenta />} />
       </Route>
@@ -150,6 +153,7 @@ export function App() {
         <Route path="/coach/finanzas" element={<Finanzas />} />
         <Route path="/coach/ajustes" element={<Ajustes />} />
         <Route path="/coach/precios" element={<Precios />} />
+        <Route path="/coach/horario" element={<Horario />} />
         <Route path="/coach/presentacion" element={<PantallaPresentacion />} />
         <Route path="/coach/cuestionario" element={<CuestionarioInicial />} />
         <Route path="/coach/apariencia" element={<Apariencia />} />

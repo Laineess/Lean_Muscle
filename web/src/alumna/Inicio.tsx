@@ -4,11 +4,12 @@
  *  para no gastar una pestaña en ello.
  */
 
-import { ArrowRight, Bell, Loader2, LogOut, MessageSquare, ShieldCheck, Upload, User } from "lucide-react";
+import { ArrowRight, Bell, CalendarPlus, Loader2, LogOut, MessageSquare, ShieldCheck, Upload, User } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 
 import { cerrarSesion } from "@/lib/sesion";
+import { cn } from "@/lib/utils";
 
 import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
 import { Apoyo, Aviso, Boton, Chip, Dato, Etiqueta, Portada, Regla, Tarjeta, Titulo } from "@/componentes/primitivas";
@@ -20,7 +21,7 @@ import {
   type InicioAlumnaApi,
 } from "@/lib/api";
 import { chequeos, ciclo, mensajes, alumna } from "@/lib/datos";
-import { delta, diaSemana, fecha, num } from "@/lib/formato";
+import { delta, diaSemana, fecha, horaLocal, num } from "@/lib/formato";
 import { usarApi, usarApiConRespaldo } from "@/lib/usarApi";
 import { ROTULO_ESTADO, type EstadoChequeo } from "@/lib/tipos";
 
@@ -281,7 +282,8 @@ function ProximasFechas({
   ciclo: InicioAlumnaApi["ciclo"];
   citas: CitaDeAlumnaApi[];
 }) {
-  if (!ciclo && citas.length === 0) return null;
+  // Sin ciclo ni citas la sección sigue en pie: ahí vive el botón de reservar.
+  const vacia = !ciclo && citas.length === 0;
 
   const diasParaPago = ciclo ? diasHasta(ciclo.terminaEn) : null;
   const vencido = diasParaPago !== null && diasParaPago < 0;
@@ -291,7 +293,12 @@ function ProximasFechas({
     <section className="flex flex-col gap-4">
       <Etiqueta>Próximas fechas</Etiqueta>
 
-      <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+      <ul
+        className={cn(
+          "flex flex-col divide-y divide-linea",
+          !vacia && "border-y border-linea",
+        )}
+      >
         {ciclo ? (
           <li className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3">
             <span className="flex min-w-0 flex-col gap-0.5">
@@ -327,7 +334,7 @@ function ProximasFechas({
               </span>
               <span className="flex items-baseline gap-3">
                 <span className="cifra text-menor">
-                  {fecha(c.iniciaEn)} · {c.iniciaEn.slice(11, 16)}
+                  {fecha(c.iniciaEn)} · {horaLocal(c.iniciaEn)}
                 </span>
                 <Chip tono={dias <= 1 ? "espera" : "neutro"}>{cuando(dias)}</Chip>
               </span>
@@ -336,9 +343,16 @@ function ProximasFechas({
         })}
       </ul>
 
-      {citas.length === 0 ? (
-        <Apoyo>No tienes consultas agendadas. Tu coach te avisa cuando agende una.</Apoyo>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-3">
+        <Boton asChild tono="contorno" medida="chica">
+          <Link to="/reservar">
+            <CalendarPlus className="size-3.5" /> Reservar consulta
+          </Link>
+        </Boton>
+        {citas.length === 0 ? (
+          <Apoyo>Todavía no tienes ninguna agendada.</Apoyo>
+        ) : null}
+      </div>
     </section>
   );
 }
