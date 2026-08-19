@@ -180,7 +180,13 @@ def ver_comprobante(
 ) -> Response:
     """La imagen. La ven la coach y la propia alumna, nadie más."""
     cobro = q.cobro_por_ulid(s, ulid)
-    if cobro is None or cobro.comprobante_key is None:
+    if cobro is None:
+        raise HTTPException(404, "No existe ese cobro")
+    if cobro.comprobante_key is None:
+        # Distinguirlo importa: «nunca subió nada» y «la imagen ya venció» llevan a la coach
+        # a hacer cosas distintas, y el segundo caso no es culpa de la alumna.
+        if cobro.comprobante_purgado_en is not None:
+            raise HTTPException(410, "La imagen de ese comprobante ya se borró por antigüedad")
         raise HTTPException(404, "Ese cobro no tiene comprobante")
 
     if actor.es_alumna:

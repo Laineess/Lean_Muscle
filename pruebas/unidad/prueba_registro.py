@@ -12,15 +12,18 @@ import pytest
 from app.compartido.errores import ErrorDeDominio
 from app.dominio.registro import (
     AVISO_ANTES_DE_BORRAR,
+    GRACIA_TRAS_DESCARTAR,
     INTENTOS_DE_CODIGO,
     VIDA_DE_SOLICITUD,
     VIGENCIA_DEL_CODIGO,
     Estado,
     Paso,
+    borra_el,
     codigo_utilizable,
     esta_vencida,
     exigir_abierto,
     exigir_codigo_utilizable,
+    exigir_decidible,
     paso_actual,
     termino_su_parte,
     toca_recordar,
@@ -100,6 +103,44 @@ class TestVencimiento:
 
     def test_el_plazo_se_cuenta_desde_que_se_creo(self) -> None:
         assert vence_el(AHORA) == AHORA + VIDA_DE_SOLICITUD
+
+
+class TestDescartada:
+    def test_sobrevive_una_semana_desde_que_se_decidio(self) -> None:
+        # Y no desde que se registró: a quien descartan el sexto día no se le borra todo
+        # al día siguiente.
+        decidida = AHORA - timedelta(days=1)
+        creada = AHORA - VIDA_DE_SOLICITUD * 2
+        assert not esta_vencida(Estado.DESCARTADA, creada, AHORA, decidida)
+
+    def test_a_los_siete_dias_de_descartarla_se_borra(self) -> None:
+        decidida = AHORA - GRACIA_TRAS_DESCARTAR
+        assert esta_vencida(Estado.DESCARTADA, AHORA, AHORA, decidida)
+
+    def test_la_aceptada_no_se_borra_nunca_sola(self) -> None:
+        assert borra_el(Estado.ACEPTADA, AHORA, AHORA) is None
+
+    def test_una_descartada_sin_fecha_de_decision_no_se_borra(self) -> None:
+        # Defensivo: sin esa fecha no hay plazo que contar, y borrar «por si acaso» sería
+        # justo lo contrario de lo que se quiere.
+        assert borra_el(Estado.DESCARTADA, AHORA, None) is None
+
+
+class TestDecidir:
+    @pytest.mark.parametrize("estado", [Estado.EN_CURSO, Estado.ESPERANDO])
+    def test_se_decide_lo_que_sigue_abierto(self, estado: Estado) -> None:
+        exigir_decidible(estado)
+
+    @pytest.mark.parametrize("estado", [Estado.ACEPTADA, Estado.DESCARTADA])
+    def test_no_se_decide_dos_veces(self, estado: Estado) -> None:
+        with pytest.raises(ErrorDeDominio):
+            exigir_decidible(estado)
+
+    def test_sin_verificar_todavia_no_se_decide(self) -> None:
+        # No probó ni que el correo es suyo: aceptarla sería crear una alumna con un buzón
+        # que quizá no existe.
+        with pytest.raises(ErrorDeDominio):
+            exigir_decidible(Estado.SIN_VERIFICAR)
 
 
 class TestRecordatorio:

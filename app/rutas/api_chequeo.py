@@ -368,6 +368,19 @@ def enviar_chequeo(
         destinatario_id=alumna.usuario_id,
     )
 
+    # Y a la coach, que es quien tiene que hacer algo con él.
+    suyo = q.usuario_de_coach(s)
+    if suyo is not None:
+        cola.encolar(
+            s,
+            Aviso.CHEQUEO_LISTO,
+            coach_id=actor.coach_id,
+            llave=f"chequeo:{chequeo.ulid}:listo",
+            para=suyo.email,
+            contexto={"alumna": alumna.nombre},
+            destinatario_id=suyo.id,
+        )
+
     return _publico(s, alumna, chequeo)
 
 

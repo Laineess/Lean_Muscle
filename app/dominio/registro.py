@@ -33,6 +33,11 @@ VIDA_DE_SOLICITUD = timedelta(days=7)
 #: Cuánto antes de borrarla se le recuerda que la dejó a medias.
 AVISO_ANTES_DE_BORRAR = timedelta(days=2)
 
+#: Lo que sobrevive una solicitud descartada. No es para la coach —ya decidió— sino para que
+#: un clic equivocado tenga vuelta atrás, y para que a quien descartaron no se le borre el
+#: expediente en el mismo segundo en que le llega el correo.
+GRACIA_TRAS_DESCARTAR = timedelta(days=7)
+
 
 class Estado(StrEnum):
     SIN_VERIFICAR = "sin_verificar"
@@ -50,8 +55,11 @@ class Estado(StrEnum):
 #: castigarla por algo que no depende de ella.
 ABANDONABLES = frozenset({Estado.SIN_VERIFICAR, Estado.EN_CURSO})
 
-#: Ya decididas: no se tocan ni se borran solas.
+#: Ya decididas: la alumna no tiene nada más que hacer en el recorrido.
 CERRADAS = frozenset({Estado.ACEPTADA, Estado.DESCARTADA})
+
+#: Desde qué estados se puede decidir. Una ya decidida no se decide dos veces.
+DECIDIBLES = frozenset({Estado.EN_CURSO, Estado.ESPERANDO})
 
 
 class Paso(StrEnum):
@@ -116,11 +124,30 @@ def vence_el(creada_en: datetime) -> datetime:
     return a_utc(creada_en) + VIDA_DE_SOLICITUD
 
 
-def esta_vencida(estado: Estado, creada_en: datetime, ahora: datetime) -> bool:
-    """Si toca borrarla. Solo alcanza a las que quedaron a medias."""
-    if estado not in ABANDONABLES:
-        return False
-    return a_utc(ahora) >= vence_el(creada_en)
+def borra_el(estado: Estado, creada_en: datetime, decidida_en: datetime | None) -> datetime | None:
+    """Cuándo desaparece, o nulo si no desaparece sola.
+
+    La descartada cuenta desde que se decidió y no desde que se registró: si no, a quien
+    descartan el sexto día se le borra el expediente al día siguiente.
+    """
+    if estado in ABANDONABLES:
+        return vence_el(creada_en)
+    if estado is Estado.DESCARTADA and decidida_en is not None:
+        return a_utc(decidida_en) + GRACIA_TRAS_DESCARTAR
+    return None
+
+
+def esta_vencida(
+    estado: Estado, creada_en: datetime, ahora: datetime, decidida_en: datetime | None = None
+) -> bool:
+    """Si toca borrarla. Alcanza a las que quedaron a medias y a las descartadas."""
+    limite = borra_el(estado, creada_en, decidida_en)
+    return limite is not None and a_utc(ahora) >= limite
+
+
+def exigir_decidible(estado: Estado) -> None:
+    if estado not in DECIDIBLES:
+        raise ErrorDeDominio(Codigo.SOLICITUD_YA_DECIDIDA, estado=estado.value)
 
 
 def toca_recordar(

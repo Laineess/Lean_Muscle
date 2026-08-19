@@ -134,12 +134,23 @@ def ultimo_aviso_sin_leer(s: Session, usuario_id: int) -> Notificacion | None:
     ).first()
 
 
+#: Estados de `alumna` que **no** son cartera: el registro abierto antes de aceptarlo y lo
+#: que quedó descartado. Aparecer aquí las contaría como alumnas suyas sin serlo.
+FUERA_DE_CARTERA = ("solicitud", "descartada")
+
+
+def usuario_de_coach(s: Session) -> Usuario | None:
+    """La cuenta de la coach de este inquilino. Es a quien se le avisa lo que le toca a ella."""
+    return s.scalars(select(Usuario).where(Usuario.rol == "coach")).first()
+
+
 def cartera(s: Session) -> list[Alumna]:
-    """Sus alumnas. Las solicitudes del registro abierto no son suyas todavía: viven en su
-    propia bandeja y aparecer aquí las contaria como cartera antes de que las acepte."""
+    """Sus alumnas. Las solicitudes viven en su propia bandeja hasta que las acepte."""
     return list(
         s.scalars(
-            select(Alumna).where(Alumna.estado != "solicitud").order_by(Alumna.nombre)
+            select(Alumna)
+            .where(Alumna.estado.not_in(FUERA_DE_CARTERA))
+            .order_by(Alumna.nombre)
         ).all()
     )
 

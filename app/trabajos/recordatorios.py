@@ -288,7 +288,7 @@ def correr() -> Resultado:
                 s.scalars(
                     select(CobroProgramado).where(
                         CobroProgramado.alumna_id == candidata.id,
-                        CobroProgramado.comprobante_key.is_not(None),
+                        CobroProgramado.estado.in_(("en_revision", "pagado")),
                     )
                 ).first()
                 is not None

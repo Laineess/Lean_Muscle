@@ -230,6 +230,77 @@ def main() -> None:
         boton("Registro · su recorrido", pide(solicitante, "/api/mi/solicitud"))
         boton("Registro · el chequeo sigue cerrado",
               pide(solicitante, "/api/mi/chequeo", "POST"), esperados=(403,))
+
+        # Termina su parte para que la bandeja tenga algo que decidir.
+        cuestionario = pide(solicitante, "/api/mi/cuestionario")[1]
+        if isinstance(cuestionario, dict):
+            boton(
+                "Registro · Contestar el cuestionario",
+                pide(solicitante, "/api/mi/cuestionario", "POST",
+                     {"nucleo": {"lesiones": "Ninguna", "condiciones": None,
+                                 "medicacion": None, "restricciones": None},
+                      "tarifaUlid": (cuestionario["planes"] or [{}])[0].get("ulid"),
+                      "respuestas": [
+                          {"preguntaUlid": q["ulid"],
+                           "valor": "7" if q["tipo"] == "numero" else "Principiante"}
+                          for q in cuestionario["preguntas"] if q["obligatoria"]
+                      ],
+                      "consentimientos": ["datos_salud", "protocolo_foto"]}),
+            )
+            libres = pide(solicitante, "/api/mi/huecos")[1]
+            if isinstance(libres, list) and libres:
+                boton("Registro · Reservar su primera consulta",
+                      pide(solicitante, "/api/mi/citas", "POST",
+                           {"iniciaEn": libres[0]["iniciaEn"], "modalidad": "video"}))
+            suyos = pide(solicitante, "/api/mi/cobros")[1]
+            inscripcion = next(
+                (c for c in suyos if c["motivo"] == "inscripcion"), None
+            ) if isinstance(suyos, list) else None
+            if inscripcion:
+                boton("Registro · Subir su comprobante de inscripción",
+                      sube(solicitante, f"/api/mi/cobros/{inscripcion['ulid']}/comprobante",
+                           jpg(600, 800), "inscripcion.jpg", "POST"))
+
+    # ---- Bandeja de solicitudes ----
+    bandeja = boton("Solicitudes · bandeja", pide(coach, "/api/coach/solicitudes"))
+    mia = next(
+        (x for x in bandeja if x["correo"] == correo_nuevo), None
+    ) if isinstance(bandeja, list) else None
+    if mia:
+        boton("Solicitudes · lo que contestó",
+              pide(coach, f"/api/coach/alumnas/{mia['alumnaUlid']}/cuestionario"))
+        boton("Solicitudes · Aceptar",
+              pide(coach, f"/api/coach/solicitudes/{mia['ulid']}/aceptar", "POST",
+                   {"tarifaUlid": mia["planPedidoUlid"], "validarPago": True}))
+        boton("Solicitudes · Aceptar dos veces (rechaza)",
+              pide(coach, f"/api/coach/solicitudes/{mia['ulid']}/aceptar", "POST", {}),
+              esperados=(409,))
+
+    # Una segunda, que se descarta: el otro botón de la bandeja.
+    correo_descarte = f"prueba.descarte.{uuid.uuid4().hex[:8]}@ejemplo.mx"
+    otra = boton(
+        "Solicitudes · Crear cuenta (para descartar)",
+        pide(anonimo, "/api/registro/leanmuscle", "POST",
+             {"nombre": "Prueba De Descarte", "correo": correo_descarte,
+              "contrasena": "Manzana8!", "fechaNacimiento": "1991-02-08",
+              "whatsapp": None, "aceptaTerminos": True, "aceptaPrivacidad": True}),
+    )
+    if isinstance(otra, dict) and otra.get("codigo"):
+        segunda = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
+        pide(segunda, "/api/registro/leanmuscle/codigo", "POST",
+             {"correo": correo_descarte, "codigo": otra["codigo"]})
+        pendientes = pide(coach, "/api/coach/solicitudes")[1]
+        suya = next(
+            (x for x in pendientes if x["correo"] == correo_descarte), None
+        ) if isinstance(pendientes, list) else None
+        if suya:
+            boton("Solicitudes · Descartar sin motivo (rechaza)",
+                  pide(coach, f"/api/coach/solicitudes/{suya['ulid']}/descartar", "POST",
+                       {"motivo": "  "}),
+                  esperados=(422,))
+            boton("Solicitudes · Descartar",
+                  pide(coach, f"/api/coach/solicitudes/{suya['ulid']}/descartar", "POST",
+                       {"motivo": "No tomo casos con esa condición sin aval médico."}))
     if isinstance(liga, dict):
         boton("Registro · Apagar la liga",
               pide(coach, "/api/coach/registro", "PUT", {"abierto": liga["abierto"]}))

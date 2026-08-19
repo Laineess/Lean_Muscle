@@ -15,6 +15,7 @@ from typing import Any
 
 from sqlalchemy import select
 
+from app.compartido.fechas import ahora_utc
 from app.datos.modelos import (
     Alimento,
     Alumna,
@@ -38,13 +39,14 @@ from app.datos.modelos import (
     PreguntaCuestionario,
     PresentacionCoach,
     Servicio,
+    SolicitudDeRegistro,
     SuscripcionCoach,
     Tarifa,
     Usuario,
 )
 from app.datos.sin_alcance import sesion_sin_alcance
 from app.dominio.medidas import TipoMedida
-from app.servicios.seguridad import hash_contrasena
+from app.servicios.seguridad import hash_contrasena, hash_de_token
 
 CLAVE_DEMO = "Demo1234!"
 HOY = date(2026, 8, 13)
@@ -86,6 +88,9 @@ def _hash_texto(texto: str) -> str:
 # ---------------------------------------------------------------------------
 # Datos
 # ---------------------------------------------------------------------------
+
+#: El de la solicitud sembrada. No sirve para nada: ya verifico su correo.
+CODIGO_DEMO = "000000"
 
 CONSENTIMIENTOS = [
     ("terminos", "1.0", "Términos y Condiciones de uso de MyFittPlan."),
@@ -1061,6 +1066,99 @@ def sembrar_catalogos(sesion: Any) -> None:
         )
 
 
+def sembrar_solicitud(sesion: Any, coach_id: int) -> None:
+    """Alguien que llego por la liga y va a medias: sin esto la bandeja nace vacia.
+
+    Se queda antes del comprobante a proposito. Sembrarla como «lista para decidir» pedirla
+    una imagen que no existe, y la pantalla de la coach ensenaria una foto rota.
+    """
+    correo = "camila.torres@ejemplo.mx"
+    usuario = Usuario(
+        coach_id=coach_id,
+        rol="alumna",
+        email=correo,
+        hash_contrasena=hash_contrasena(CLAVE_DEMO),
+        estado="activo",
+    )
+    sesion.add(usuario)
+    sesion.flush()
+
+    plan = sesion.scalars(
+        select(Tarifa).where(Tarifa.coach_id == coach_id).order_by(Tarifa.precio)
+    ).first()
+
+    alumna = Alumna(
+        coach_id=coach_id,
+        usuario_id=usuario.id,
+        nombre="Camila Torres",
+        whatsapp="55 8899 0011",
+        fecha_nacimiento=date(1995, 7, 22),
+        sexo="F",
+        estatura_cm=163,
+        tarifa_id=plan.id if plan else None,
+        zona_horaria="America/Mexico_City",
+        cuestionario_completo=True,
+        estado="solicitud",
+    )
+    sesion.add(alumna)
+    sesion.flush()
+
+    for tipo, version, texto in CONSENTIMIENTOS[:2]:
+        sesion.add(
+            Consentimiento(
+                coach_id=coach_id,
+                alumna_id=alumna.id,
+                tipo=tipo,
+                version_texto=version,
+                texto_hash=_hash_texto(texto),
+                aceptado_en=ahora_utc(),
+            )
+        )
+
+    arranque = datetime.combine(date.today() + timedelta(days=3), time(hour=16)).replace(
+        tzinfo=UTC
+    )
+    sesion.add(
+        Cita(
+            coach_id=coach_id,
+            alumna_id=alumna.id,
+            titulo="Consulta · Camila Torres",
+            tipo="consulta",
+            modalidad="video",
+            estado="agendada",
+            inicia_en=arranque,
+            termina_en=arranque + timedelta(minutes=45),
+        )
+    )
+
+    inscripcion = sesion.scalars(
+        select(Servicio).where(Servicio.coach_id == coach_id, Servicio.motivo == "inscripcion")
+    ).first()
+    if inscripcion is not None:
+        sesion.add(
+            CobroProgramado(
+                coach_id=coach_id,
+                alumna_id=alumna.id,
+                fecha=date.today(),
+                motivo="inscripcion",
+                concepto=inscripcion.nombre,
+                monto=inscripcion.precio,
+                estado="pendiente",
+            )
+        )
+
+    sesion.add(
+        SolicitudDeRegistro(
+            coach_id=coach_id,
+            alumna_id=alumna.id,
+            estado="en_curso",
+            codigo_hash=hash_de_token(CODIGO_DEMO),
+            codigo_vence_en=ahora_utc(),
+            ip="127.0.0.1",
+        )
+    )
+
+
 def sembrar_plataforma(sesion: Any, coach_ids: list[int]) -> None:
     """El inquilino de la plataforma, su superadmin y suscripciones de ejemplo. El
     superadmin cuelga de un inquilino como cualquiera: lo que lo distingue es su rol."""
@@ -1174,6 +1272,7 @@ def sembrar(reiniciar: bool = False) -> None:
             con_historial=False,
         )
 
+        sembrar_solicitud(s, principal)
         sembrar_plataforma(s, [principal, segunda])
 
     print(

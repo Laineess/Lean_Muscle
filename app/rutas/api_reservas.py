@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc, en_zona
-from app.datos.modelos import Alumna, Cita, Coach, HorarioDeAtencion, Usuario
+from app.datos.modelos import Alumna, Cita, Coach, HorarioDeAtencion
 from app.datos.repos import consultas as q
 from app.dominio import huecos as h
 from app.dominio.agenda import EstadoCita, Franja, Modalidad, TipoCita
@@ -162,7 +162,7 @@ def _avisar_a_la_coach(
     s: Session, coach_id: int, coach: Coach, alumna: Alumna, cita: Cita
 ) -> None:
     """La alumna agenda sola: sin esto, la coach se entera al abrir su calendario."""
-    usuario = s.scalars(select(Usuario).where(Usuario.rol == "coach")).first()
+    usuario = q.usuario_de_coach(s)
     if usuario is None:  # pragma: no cover - defensivo
         return
 

@@ -1109,6 +1109,53 @@ class EstadoDeSolicitud(Esquema):
     cita_inicia_en: datetime | None = None
 
 
+class SolicitudEnBandeja(Esquema):
+    """Una solicitud vista por la coach, con lo que necesita para decidir sin abrir nada más.
+
+    No trae historial clínico ni respuestas: eso vive en el expediente y su lectura queda
+    anotada en la bitácora. Aquí solo va lo que sostiene la decisión.
+    """
+
+    ulid: str
+    alumna_ulid: str
+    nombre: str
+    correo: str
+    whatsapp: str | None
+    edad: int
+    estado: str
+    paso: str
+    registrada_en: datetime
+    #: Cuándo desaparece sola si nadie hace nada. Nulo si ya está decidida.
+    borra_en: datetime | None
+
+    cuestionario_completo: bool
+    plan_pedido: str | None
+    plan_pedido_ulid: str | None
+    precio_plan: Numero | None
+
+    cita_inicia_en: datetime | None
+    cita_modalidad: str | None
+
+    cobro_ulid: str | None
+    monto_inscripcion: Numero | None
+    #: `pendiente`, `en_revision` o `pagado`. Es lo que decide si hay algo que mirar.
+    estado_del_pago: str | None
+    monto_leido: Numero | None
+    motivo_descarte: str | None
+
+
+class AceptacionDeSolicitud(Esquema):
+    #: El plan que la coach confirma. Nulo deja el que la alumna pidió.
+    tarifa_ulid: Texto30 | None = None
+    #: Da por bueno el comprobante en el mismo gesto. Puede aceptarla sin hacerlo.
+    validar_pago: bool = False
+
+
+class DescarteDeSolicitud(Esquema):
+    #: Lo lee ella tal cual en su correo, así que no es un campo de trámite.
+    motivo: Texto500
+
+
 class RegistroDeCoach(Esquema):
     """El interruptor de la liga, con lo que le falta para poder encenderla."""
 

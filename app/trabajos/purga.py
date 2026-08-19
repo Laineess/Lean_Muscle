@@ -9,6 +9,9 @@ Tres plazos y ninguno es decorativo:
   para siempre sería archivar lo que nació para durar un día.
 - **Registros a medias: 7 días.** Quien empezó y no terminó no dejó una cuenta: dejó nombre,
   correo y fecha de nacimiento. Se borra todo, con recordatorio dos días antes.
+- **Imágenes de comprobantes: 12 meses.** Es lo que más pesa por alumna después de las fotos.
+  Aquí también se borra la imagen y no la fila: el monto, la fecha y lo que leyó el OCR son
+  la contabilidad, y esa no se purga.
 
 Con las fotos **la fila no se borra, la imagen sí**: `purgada_en` queda con la fecha, porque
 la bitácora tiene que poder decir que esa foto existió. Con los avisos se borra todo: no hay
@@ -25,7 +28,14 @@ from sqlalchemy.orm import Session
 
 from app.compartido.fechas import ahora_utc
 from app.config import ajustes
-from app.datos.modelos import Anuncio, AvisoEnviado, Foto, FotoDeComida, Notificacion
+from app.datos.modelos import (
+    Anuncio,
+    AvisoEnviado,
+    CobroProgramado,
+    Foto,
+    FotoDeComida,
+    Notificacion,
+)
 from app.datos.sin_alcance import sesion_sin_alcance
 from app.dominio.fotos_de_comida import VIGENCIA
 from app.servicios import registro
@@ -49,10 +59,13 @@ class Resultado:
     chequeos: int
     avisos: int
     solicitudes: int = 0
+    comprobantes: int = 0
 
     @property
     def total(self) -> int:
-        return self.comidas + self.chequeos + self.avisos + self.solicitudes
+        return (
+            self.comidas + self.chequeos + self.avisos + self.solicitudes + self.comprobantes
+        )
 
 
 def _borrar(llave: str | None) -> None:
@@ -103,13 +116,37 @@ def _cola_despachada(s: Session, ahora: datetime) -> int:
     return len(viejas)
 
 
-def _registros_abandonados(s: Session, ahora: datetime) -> int:
-    """Borra los registros que quedaron a medias, con su cuenta y todo lo que capturaron."""
+def _registros_vencidos(s: Session, ahora: datetime) -> int:
+    """Borra los registros que quedaron a medias o descartados, con cuenta y todo."""
     borradas = 0
-    for solicitud in registro.abandonadas(s, ahora)[:LOTE]:
+    for solicitud in registro.borrables(s, ahora)[:LOTE]:
         registro.borrar(s, solicitud)
         borradas += 1
     return borradas
+
+
+def _comprobantes_vencidos(s: Session, ahora: datetime) -> int:
+    """Borra la imagen y deja la constancia de que existió.
+
+    Se purgan aunque nadie los haya revisado: al año, un comprobante sin mirar no se va a
+    mirar, y lo que sostiene el cobro es el monto de la fila, no la foto de la pantalla.
+    """
+    limite = ahora - timedelta(days=ajustes().retencion_comprobantes_meses * 30)
+    vencidos = s.scalars(
+        select(CobroProgramado)
+        .where(
+            CobroProgramado.comprobante_key.is_not(None),
+            CobroProgramado.subido_en.is_not(None),
+            CobroProgramado.subido_en <= limite,
+        )
+        .limit(LOTE)
+    ).all()
+
+    for cobro in vencidos:
+        _borrar(cobro.comprobante_key)
+        cobro.comprobante_key = None
+        cobro.comprobante_purgado_en = ahora
+    return len(vencidos)
 
 
 def correr() -> Resultado:
@@ -155,10 +192,15 @@ def correr() -> Resultado:
             chequeos += 1
 
         avisos = _avisos_gastados(s, ahora) + _cola_despachada(s, ahora)
-        solicitudes = _registros_abandonados(s, ahora)
+        solicitudes = _registros_vencidos(s, ahora)
+        comprobantes = _comprobantes_vencidos(s, ahora)
 
     return Resultado(
-        comidas=comidas, chequeos=chequeos, avisos=avisos, solicitudes=solicitudes
+        comidas=comidas,
+        chequeos=chequeos,
+        avisos=avisos,
+        solicitudes=solicitudes,
+        comprobantes=comprobantes,
     )
 
 
@@ -166,7 +208,7 @@ def main() -> None:  # pragma: no cover - punto de entrada del timer de systemd
     r = correr()
     print(
         f"purgadas={r.total} comidas={r.comidas} chequeos={r.chequeos} "
-        f"avisos={r.avisos} solicitudes={r.solicitudes}"
+        f"avisos={r.avisos} solicitudes={r.solicitudes} comprobantes={r.comprobantes}"
     )
 
 

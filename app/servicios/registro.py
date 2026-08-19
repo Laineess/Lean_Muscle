@@ -12,10 +12,10 @@ solicitante, tiene que sumarse a `borrar` o quedará huérfano cuando la purga p
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
@@ -24,6 +24,7 @@ from app.datos.modelos import (
     AccesoSensible,
     Alumna,
     AvisoEnviado,
+    Ciclo,
     Cita,
     Coach,
     CobroProgramado,
@@ -36,6 +37,7 @@ from app.datos.modelos import (
     SolicitudArco,
     SolicitudDeRegistro,
     SuscripcionPush,
+    Tarifa,
     Usuario,
 )
 from app.dominio import registro as dom
@@ -253,11 +255,126 @@ def solicitud_de_alumna(s: Session, alumna_id: int) -> SolicitudDeRegistro | Non
     ).first()
 
 
-def marcar_si_termino(s: Session, solicitud: SolicitudDeRegistro, paso: dom.Paso) -> None:
-    """Pasa a «esperando» en cuanto termina su parte: es lo que la mueve a la bandeja."""
+def marcar_si_termino(s: Session, solicitud: SolicitudDeRegistro, paso: dom.Paso) -> bool:
+    """Pasa a «esperando» en cuanto termina su parte: es lo que la mueve a la bandeja.
+
+    Devuelve si acaba de cruzar esa línea, para avisarle a la coach una sola vez.
+    """
     if paso is dom.Paso.ESPERA and solicitud.estado == dom.Estado.EN_CURSO.value:
         solicitud.estado = dom.Estado.ESPERANDO.value
         s.flush()
+        return True
+    return False
+
+
+def esperando(s: Session) -> list[SolicitudDeRegistro]:
+    """Las que le tocan a la coach, de la más vieja a la más nueva: la que lleva más
+    esperando es la que más urge."""
+    return list(
+        s.scalars(
+            select(SolicitudDeRegistro)
+            .where(
+                SolicitudDeRegistro.estado.in_(
+                    [dom.Estado.EN_CURSO.value, dom.Estado.ESPERANDO.value]
+                )
+            )
+            .order_by(SolicitudDeRegistro.creado_en)
+        ).all()
+    )
+
+
+def por_ulid(s: Session, ulid: str) -> SolicitudDeRegistro | None:
+    return s.scalars(
+        select(SolicitudDeRegistro).where(SolicitudDeRegistro.ulid == ulid)
+    ).first()
+
+
+def aceptar(s: Session, solicitud: SolicitudDeRegistro, alumna: Alumna, tarifa: Tarifa | None) -> Ciclo:
+    """La convierte en alumna: estado activo, plan confirmado y su primer ciclo abierto.
+
+    El ciclo nace aquí y no al registrarse porque hasta ahora el plan era una petición suya;
+    el precio que se copia es el del plan que la coach confirma, que puede no ser el que
+    ella pidió.
+    """
+    dom.exigir_decidible(dom.Estado(solicitud.estado))
+
+    coach = s.get(Coach, solicitud.coach_id)
+    if coach is None:  # pragma: no cover - defensivo
+        raise ErrorDeDominio(Codigo.SIN_PERMISO)
+
+    # El límite se cuenta aquí y no al registrarse: una solicitud no ocupa lugar hasta que
+    # se acepta, que es justo lo que permite dejar la liga abierta con el cupo lleno.
+    activas = (
+        s.scalar(select(func.count()).select_from(Alumna).where(Alumna.estado == "activa")) or 0
+    )
+    if activas >= coach.limite_alumnas:
+        raise ErrorDeDominio(
+            Codigo.LIMITE_DE_ALUMNAS_ALCANZADO, activas=activas, limite=coach.limite_alumnas
+        )
+
+    if tarifa is not None:
+        alumna.tarifa_id = tarifa.id
+    alumna.estado = "activa"
+
+    hoy = ahora_utc().date()
+    dias = tarifa.dias if tarifa is not None else 30
+    precio = tarifa.precio if tarifa is not None else coach.precio_ciclo
+
+    ciclo = Ciclo(
+        coach_id=solicitud.coach_id,
+        alumna_id=alumna.id,
+        numero=1,
+        inicia_en=hoy,
+        termina_en=hoy + timedelta(days=dias),
+        estado="pendiente_pago",
+        precio=precio,
+    )
+    s.add(ciclo)
+
+    # Sin esta fila vería que debe pagar su ciclo y no tendría contra qué subir nada.
+    if precio > 0:
+        s.add(
+            CobroProgramado(
+                coach_id=solicitud.coach_id,
+                alumna_id=alumna.id,
+                fecha=hoy,
+                motivo="mensualidad",
+                concepto=f"Mensualidad · {tarifa.nombre}" if tarifa is not None else "Mensualidad",
+                monto=precio,
+                estado="pendiente",
+            )
+        )
+
+    solicitud.estado = dom.Estado.ACEPTADA.value
+    solicitud.decidida_en = ahora_utc()
+    s.flush()
+    return ciclo
+
+
+def descartar(s: Session, solicitud: SolicitudDeRegistro, alumna: Alumna, motivo: str) -> None:
+    """Le corta el acceso hoy y libera lo que tenía tomado. El borrado va aparte, a los
+    siete días, para que un clic equivocado tenga vuelta atrás."""
+    dom.exigir_decidible(dom.Estado(solicitud.estado))
+    if not motivo.strip():
+        raise ErrorDeDominio(Codigo.MOTIVO_DE_RECHAZO_REQUERIDO)
+
+    solicitud.estado = dom.Estado.DESCARTADA.value
+    solicitud.decidida_en = ahora_utc()
+    solicitud.motivo_descarte = motivo.strip()[:255]
+    alumna.estado = "descartada"
+
+    # La cita se borra en lugar de cancelarse: es un hueco que otra puede tomar hoy, y
+    # una consulta cancelada de alguien que no es alumna no le dice nada a la coach.
+    for cita in s.scalars(select(Cita).where(Cita.alumna_id == alumna.id)):
+        s.delete(cita)
+
+    usuario = s.get(Usuario, alumna.usuario_id)
+    if usuario is not None:
+        usuario.estado = "inactivo"
+        for sesion in s.scalars(select(Sesion).where(Sesion.usuario_id == usuario.id)):
+            if sesion.revocada_en is None:
+                sesion.revocada_en = ahora_utc()
+    s.flush()
 
 
 #: Todo lo que puede colgar de una solicitante y se va con ella. La lista está completa a
@@ -324,13 +441,17 @@ def borrar(s: Session, solicitud: SolicitudDeRegistro) -> None:
     s.flush()
 
 
-def abandonadas(s: Session, ahora: datetime) -> list[SolicitudDeRegistro]:
-    """Las que ya vencieron. La consulta trae las abandonables y el dominio decide."""
+def borrables(s: Session, ahora: datetime) -> list[SolicitudDeRegistro]:
+    """Las que ya vencieron: abandonadas a los 7 días y descartadas a los 7 de decidirlas.
+
+    La consulta trae las candidatas y el plazo lo decide el dominio, que es donde vive.
+    """
+    estados = [e.value for e in dom.ABANDONABLES] + [dom.Estado.DESCARTADA.value]
     candidatas = s.scalars(
-        select(SolicitudDeRegistro).where(
-            SolicitudDeRegistro.estado.in_([e.value for e in dom.ABANDONABLES])
-        )
+        select(SolicitudDeRegistro).where(SolicitudDeRegistro.estado.in_(estados))
     )
     return [
-        x for x in candidatas if dom.esta_vencida(dom.Estado(x.estado), x.creado_en, ahora)
+        x
+        for x in candidatas
+        if dom.esta_vencida(dom.Estado(x.estado), x.creado_en, ahora, x.decidida_en)
     ]

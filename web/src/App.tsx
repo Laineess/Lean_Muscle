@@ -30,6 +30,7 @@ import { Cartera } from "@/coach/Cartera";
 import { Constructor } from "@/coach/Constructor";
 import { MarcoCoach } from "@/coach/Marco";
 import { Panel } from "@/coach/Panel";
+import { Solicitudes } from "@/coach/Solicitudes";
 import { Validacion } from "@/coach/Validacion";
 import { api } from "@/lib/api";
 import { registrarTrabajador } from "@/lib/push";
@@ -164,6 +165,7 @@ export function App() {
       >
         <Route path="/coach" element={<Panel />} />
         <Route path="/coach/alumnas" element={<Cartera />} />
+        <Route path="/coach/solicitudes" element={<Solicitudes />} />
         <Route path="/coach/agenda" element={<Agenda />} />
         <Route path="/coach/finanzas" element={<Finanzas />} />
         <Route path="/coach/ajustes" element={<Ajustes />} />

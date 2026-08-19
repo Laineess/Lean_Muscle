@@ -1040,3 +1040,7 @@ class CobroProgramado(BaseMultiInquilino):
     #: Lo lee la alumna tal cual.
     motivo_rechazo: Mapped[str | None] = mapped_column(Text)
     revisado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
+
+    #: Cuando se borro la imagen por antiguedad. La fila se queda: el monto, la fecha y lo
+    #: que leyo el OCR son la contabilidad, y esa no se purga con el archivo.
+    comprobante_purgado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)

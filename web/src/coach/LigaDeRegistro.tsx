@@ -7,6 +7,7 @@
 
 import { Check, Copy, Link2 } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { Apoyo, Aviso, Boton, Chip, Titulo } from "@/componentes/primitivas";
 import { ErrorApi, api, type RegistroDeCoachApi } from "@/lib/api";
@@ -56,11 +57,13 @@ export function LigaDeRegistro() {
             <Titulo>Tu liga de registro</Titulo>
             {r.abierto ? <Chip tono="exito">Abierta</Chip> : <Chip>Apagada</Chip>}
             {r.solicitudesPendientes > 0 ? (
-              <Chip tono="espera">
-                {r.solicitudesPendientes === 1
-                  ? "1 solicitud esperando"
-                  : `${r.solicitudesPendientes} solicitudes esperando`}
-              </Chip>
+              <Link to="/coach/solicitudes" className="no-underline">
+                <Chip tono="espera">
+                  {r.solicitudesPendientes === 1
+                    ? "1 solicitud esperando"
+                    : `${r.solicitudesPendientes} solicitudes esperando`}
+                </Chip>
+              </Link>
             ) : null}
           </div>
           <Apoyo>
@@ -69,14 +72,19 @@ export function LigaDeRegistro() {
           </Apoyo>
         </div>
 
-        <Boton
-          tono={r.abierto ? "contorno" : "solido"}
-          medida="chica"
-          disabled={ocupado || (!r.abierto && !r.puedeEncenderse)}
-          onClick={() => void cambiar(!r.abierto)}
-        >
-          {r.abierto ? "Apagar" : "Encender"}
-        </Boton>
+        <div className="flex items-center gap-2">
+          <Boton asChild tono="discreto" medida="chica">
+            <Link to="/coach/solicitudes">Ver solicitudes</Link>
+          </Boton>
+          <Boton
+            tono={r.abierto ? "contorno" : "solido"}
+            medida="chica"
+            disabled={ocupado || (!r.abierto && !r.puedeEncenderse)}
+            onClick={() => void cambiar(!r.abierto)}
+          >
+            {r.abierto ? "Apagar" : "Encender"}
+          </Boton>
+        </div>
       </div>
 
       {r.puedeEncenderse ? null : (

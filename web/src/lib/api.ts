@@ -1058,6 +1058,31 @@ export interface EstadoDeSolicitudApi {
   citaIniciaEn: string | null;
 }
 
+export interface SolicitudEnBandejaApi {
+  ulid: string;
+  alumnaUlid: string;
+  nombre: string;
+  correo: string;
+  whatsapp: string | null;
+  edad: number;
+  estado: string;
+  paso: PasoDeSolicitud;
+  registradaEn: string;
+  /** Cuándo desaparece sola si nadie hace nada. */
+  borraEn: string | null;
+  cuestionarioCompleto: boolean;
+  planPedido: string | null;
+  planPedidoUlid: string | null;
+  precioPlan: number | null;
+  citaIniciaEn: string | null;
+  citaModalidad: string | null;
+  cobroUlid: string | null;
+  montoInscripcion: number | null;
+  estadoDelPago: "pendiente" | "en_revision" | "pagado" | null;
+  montoLeido: number | null;
+  motivoDescarte: string | null;
+}
+
 export interface RegistroDeCoachApi {
   abierto: boolean;
   liga: string;
@@ -1281,6 +1306,19 @@ export const api = {
       pedir<HorarioDeCoachApi>("/coach/horario", senal ? { senal } : {}),
     registro: (senal?: AbortSignal) =>
       pedir<RegistroDeCoachApi>("/coach/registro", senal ? { senal } : {}),
+    solicitudes: (senal?: AbortSignal) =>
+      pedir<SolicitudEnBandejaApi[]>("/coach/solicitudes", senal ? { senal } : {}),
+    /** La acepta: confirma su cita, abre su ciclo y le deja el chequeo disponible. */
+    aceptarSolicitud: (ulid: string, tarifaUlid: string | null, validarPago: boolean) =>
+      pedir<SolicitudEnBandejaApi>(`/coach/solicitudes/${ulid}/aceptar`, {
+        metodo: "POST",
+        cuerpo: { tarifaUlid, validarPago },
+      }),
+    descartarSolicitud: (ulid: string, motivo: string) =>
+      pedir<SolicitudEnBandejaApi>(`/coach/solicitudes/${ulid}/descartar`, {
+        metodo: "POST",
+        cuerpo: { motivo },
+      }),
     abrirRegistro: (abierto: boolean) =>
       pedir<RegistroDeCoachApi>("/coach/registro", { metodo: "PUT", cuerpo: { abierto } }),
     /** Reemplaza el horario entero: hay que mandar todos los tramos, no solo el que cambió. */

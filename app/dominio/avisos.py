@@ -28,10 +28,16 @@ class Aviso(StrEnum):
     la pantalla, y la cola sale cada cinco minutos."""
     REGISTRO_SIN_TERMINAR = "registro_sin_terminar"
     """Dejó su registro a medias y se borra en dos días."""
+    SOLICITUD_RECIBIDA = "solicitud_recibida"
+    """Va **a la coach**: alguien terminó su registro y le toca decidir."""
+    SOLICITUD_ACEPTADA = "solicitud_aceptada"
+    SOLICITUD_DESCARTADA = "solicitud_descartada"
 
     # --- Chequeo ---
     RECORDATORIO_CHEQUEO = "recordatorio_chequeo"
     CHEQUEO_RECIBIDO = "chequeo_recibido"
+    CHEQUEO_LISTO = "chequeo_listo"
+    """Va **a la coach**: hay un chequeo esperando su validación."""
     CHEQUEO_VALIDADO = "chequeo_validado"
     CHEQUEO_RECHAZADO = "chequeo_rechazado"
     INACTIVIDAD = "inactividad"
@@ -81,6 +87,12 @@ CANALES: dict[Aviso, frozenset[Canal]] = {
     # pudiera llegarle una notificación.
     Aviso.CODIGO_DE_REGISTRO: frozenset({Canal.CORREO}),
     Aviso.REGISTRO_SIN_TERMINAR: frozenset({Canal.CORREO}),
+    # A la coach, dentro de la plataforma: es trabajo suyo, no algo que pueda perderse.
+    Aviso.SOLICITUD_RECIBIDA: frozenset({Canal.PUSH}),
+    Aviso.CHEQUEO_LISTO: frozenset({Canal.PUSH}),
+    # A la alumna, y por correo: que la acepten o no decide si tiene servicio.
+    Aviso.SOLICITUD_ACEPTADA: frozenset({Canal.PUSH, Canal.CORREO}),
+    Aviso.SOLICITUD_DESCARTADA: frozenset({Canal.CORREO}),
     Aviso.RECORDATORIO_CHEQUEO: frozenset({Canal.PUSH}),
     Aviso.CHEQUEO_RECIBIDO: frozenset({Canal.PUSH}),
     Aviso.CHEQUEO_VALIDADO: frozenset({Canal.PUSH}),

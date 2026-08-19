@@ -52,6 +52,9 @@ class Ajustes(BaseSettings):
 
     conservar_foto_linea_base: bool = False
     retencion_fotos_meses: int = 4
+    #: Cuanto se guarda la **imagen** del comprobante. El registro del pago se queda;
+    #: lo que ocupa disco es el archivo. El plazo fiscal lo confirma el contador.
+    retencion_comprobantes_meses: int = 12
 
     #: Con la que nace toda cuenta. Se configura para poder rotarla sin desplegar.
     contrasena_inicial: str = "Myfittplan2026"

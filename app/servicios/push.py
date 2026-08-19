@@ -160,6 +160,21 @@ TEXTOS: dict[Aviso, tuple[str, str, str]] = {
     Aviso.CITA_CANCELADA: ("Se canceló tu consulta", "{motivo}", "/inicio"),
     Aviso.CITA_REAGENDADA: ("Cambió tu consulta", "Ahora es el {fecha}.", "/inicio"),
     # El único que va a la coach: por eso su ruta es la de ella.
+    Aviso.SOLICITUD_RECIBIDA: (
+        "{alumna} terminó su registro",
+        "Te toca aceptarla o descartarla.",
+        "/coach/alumnas",
+    ),
+    Aviso.SOLICITUD_ACEPTADA: (
+        "{coach} te aceptó",
+        "Ya puedes hacer tu primer chequeo.",
+        "/inicio",
+    ),
+    Aviso.CHEQUEO_LISTO: (
+        "Chequeo de {alumna}",
+        "Listo para que lo valides.",
+        "/coach",
+    ),
     Aviso.CONSULTA_RESERVADA: (
         "{alumna} reservó consulta",
         "{fecha} a las {hora_inicio}.",

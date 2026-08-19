@@ -11,6 +11,7 @@ endpoints que ya existen para la alumna. Lo que la distingue mientras tanto es s
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -18,27 +19,41 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
-from app.compartido.fechas import ahora_utc
+from app.compartido.fechas import ahora_utc, edad_en, en_zona
 from app.config import ajustes
 from app.datos.alcance import motor, sesion_con_alcance
-from app.datos.modelos import Alumna, Cita, Coach, CobroProgramado, SolicitudDeRegistro, Usuario
+from app.datos.modelos import (
+    Alumna,
+    Cita,
+    Coach,
+    CobroProgramado,
+    SolicitudDeRegistro,
+    Tarifa,
+    Usuario,
+)
 from app.datos.repos import consultas as q
 from app.dominio import registro as dom
+from app.dominio.avisos import Aviso
 from app.rutas import archivos
+from app.rutas.api_comprobantes import validar as validar_comprobante
 from app.rutas.auth import actor_publico, crear_sesion
 from app.rutas.esquemas import (
+    AceptacionDeSolicitud,
     ActorPublico,
     CodigoDeRegistro,
     CorreoDeRegistro,
+    DescarteDeSolicitud,
     EstadoDeSolicitud,
     InterruptorDeRegistro,
     LigaDeRegistro,
     RegistroAceptado,
     RegistroDeCoach,
     RegistroNuevo,
+    SolicitudEnBandeja,
 )
 from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_alumna, solo_coach
-from app.servicios import limites, registro
+from app.servicios import avisos as cola
+from app.servicios import bitacora, limites, registro
 
 ruteador = APIRouter(prefix="/api", tags=["registro abierto"], route_class=RutaQueConfirma)
 
@@ -222,6 +237,23 @@ def reenviar_codigo(slug: str, cuerpo: CorreoDeRegistro) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _avisar_a_la_coach(s: Session, coach_id: int, alumna: Alumna) -> None:
+    """Termino su parte: sin esto la coach se entera al abrir la bandeja por casualidad."""
+    usuario = q.usuario_de_coach(s)
+    if usuario is None:  # pragma: no cover - defensivo
+        return
+
+    cola.encolar(
+        s,
+        Aviso.SOLICITUD_RECIBIDA,
+        coach_id=coach_id,
+        llave=f"solicitud:{alumna.ulid}:recibida",
+        para=usuario.email,
+        contexto={"alumna": alumna.nombre},
+        destinatario_id=usuario.id,
+    )
+
+
 @ruteador.get("/mi/solicitud", response_model=EstadoDeSolicitud)
 def mi_solicitud(
     actor: Annotated[Actor, Depends(solo_alumna)],
@@ -236,11 +268,13 @@ def mi_solicitud(
     coach = s.get(Coach, actor.coach_id)
     nombre_coach = (coach.marca or coach.nombre) if coach else ""
 
+    # Una solicitud ya decidida deja de serlo: la fila se queda hasta la purga, pero la
+    # alumna aceptada tiene que salir de la pantalla de espera y entrar a su panel.
     solicitud = registro.solicitud_de_alumna(s, alumna.id)
-    if solicitud is None:
+    if solicitud is None or dom.Estado(solicitud.estado) in dom.CERRADAS:
         return EstadoDeSolicitud(
             es_solicitud=False,
-            estado="",
+            estado=solicitud.estado if solicitud is not None else "",
             paso=dom.Paso.LISTA.value,
             coach=nombre_coach,
             cuestionario_completo=alumna.cuestionario_completo,
@@ -253,11 +287,13 @@ def mi_solicitud(
         .where(Cita.alumna_id == alumna.id, Cita.estado != "cancelada")
         .order_by(Cita.inicia_en)
     ).first()
+    # Rechazado cuenta como no subido: la coach lo devolvió y le toca mandar otro. El
+    # archivo se conserva —es la prueba de lo que mandó—, así que mirar la llave mentiría.
     comprobante = s.scalars(
         select(CobroProgramado).where(
             CobroProgramado.alumna_id == alumna.id,
             CobroProgramado.motivo == "inscripcion",
-            CobroProgramado.comprobante_key.is_not(None),
+            CobroProgramado.estado.in_(("en_revision", "pagado")),
         )
     ).first()
 
@@ -267,7 +303,8 @@ def mi_solicitud(
         tiene_cita=cita is not None,
         comprobante_subido=comprobante is not None,
     )
-    registro.marcar_si_termino(s, solicitud, paso)
+    if registro.marcar_si_termino(s, solicitud, paso):
+        _avisar_a_la_coach(s, actor.coach_id, alumna)
 
     return EstadoDeSolicitud(
         es_solicitud=True,
@@ -342,3 +379,219 @@ def guardar_registro(
     coach.registro_abierto = cuerpo.abierto
     s.flush()
     return ver_registro(actor, s)
+
+
+# ---------------------------------------------------------------------------
+# La bandeja de la coach
+# ---------------------------------------------------------------------------
+
+
+def _fila_de_bandeja(s: Session, solicitud: SolicitudDeRegistro) -> SolicitudEnBandeja | None:
+    alumna = s.get(Alumna, solicitud.alumna_id)
+    if alumna is None:  # pragma: no cover - defensivo
+        return None
+
+    usuario = s.get(Usuario, alumna.usuario_id)
+    tarifa = s.get(Tarifa, alumna.tarifa_id) if alumna.tarifa_id else None
+
+    cita = s.scalars(
+        select(Cita)
+        .where(Cita.alumna_id == alumna.id, Cita.estado != "cancelada")
+        .order_by(Cita.inicia_en)
+    ).first()
+    cobro = s.scalars(
+        select(CobroProgramado).where(
+            CobroProgramado.alumna_id == alumna.id, CobroProgramado.motivo == "inscripcion"
+        )
+    ).first()
+
+    leido = (cobro.ocr or {}).get("monto") if cobro else None
+    paso = dom.paso_actual(
+        estado=dom.Estado(solicitud.estado),
+        cuestionario_completo=alumna.cuestionario_completo,
+        tiene_cita=cita is not None,
+        comprobante_subido=cobro is not None and cobro.estado in ("en_revision", "pagado"),
+    )
+
+    return SolicitudEnBandeja(
+        ulid=solicitud.ulid,
+        alumna_ulid=alumna.ulid,
+        nombre=alumna.nombre,
+        correo=usuario.email if usuario else "",
+        whatsapp=alumna.whatsapp,
+        edad=edad_en(alumna.fecha_nacimiento, ahora_utc().date()),
+        estado=solicitud.estado,
+        paso=paso.value,
+        registrada_en=solicitud.creado_en,
+        borra_en=dom.borra_el(
+            dom.Estado(solicitud.estado), solicitud.creado_en, solicitud.decidida_en
+        ),
+        cuestionario_completo=alumna.cuestionario_completo,
+        plan_pedido=tarifa.nombre if tarifa else None,
+        plan_pedido_ulid=tarifa.ulid if tarifa else None,
+        precio_plan=tarifa.precio if tarifa else None,
+        cita_inicia_en=cita.inicia_en if cita else None,
+        cita_modalidad=cita.modalidad if cita else None,
+        cobro_ulid=cobro.ulid if cobro else None,
+        monto_inscripcion=cobro.monto if cobro else None,
+        estado_del_pago=cobro.estado if cobro else None,
+        monto_leido=Decimal(str(leido)) if leido not in (None, "") else None,
+        motivo_descarte=solicitud.motivo_descarte,
+    )
+
+
+@ruteador.get("/coach/solicitudes", response_model=list[SolicitudEnBandeja])
+def bandeja(
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> list[SolicitudEnBandeja]:
+    """Quién llegó por su liga y todavía no está decidido.
+
+    Trae también las que van a medias: saber que hay tres empezadas y una lista es parte de
+    decidir, y sin eso la coach solo ve las que ya terminaron.
+    """
+    _ = actor
+    filas = [_fila_de_bandeja(s, x) for x in registro.esperando(s)]
+    return [f for f in filas if f is not None]
+
+
+@ruteador.post("/coach/solicitudes/{ulid}/aceptar", response_model=SolicitudEnBandeja)
+def aceptar_solicitud(
+    ulid: str,
+    cuerpo: AceptacionDeSolicitud,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> SolicitudEnBandeja:
+    """La acepta: confirma su cita, abre su ciclo y le deja el chequeo disponible."""
+    solicitud = registro.por_ulid(s, ulid)
+    if solicitud is None:
+        raise HTTPException(404, "No existe esa solicitud")
+
+    alumna = s.get(Alumna, solicitud.alumna_id)
+    if alumna is None:  # pragma: no cover - defensivo
+        raise HTTPException(404, "No existe esa solicitud")
+    if not alumna.cuestionario_completo:
+        raise HTTPException(409, "Todavía no contesta su cuestionario")
+
+    tarifa = None
+    if cuerpo.tarifa_ulid:
+        tarifa = s.scalars(select(Tarifa).where(Tarifa.ulid == cuerpo.tarifa_ulid)).first()
+        if tarifa is None or not tarifa.activa:
+            raise HTTPException(422, "Ese plan ya no está disponible")
+    elif alumna.tarifa_id:
+        tarifa = s.get(Tarifa, alumna.tarifa_id)
+
+    registro.aceptar(s, solicitud, alumna, tarifa)
+
+    # La cita queda en firme: hasta ahora estaba agendada por ella, no confirmada por nadie.
+    cita = s.scalars(
+        select(Cita)
+        .where(Cita.alumna_id == alumna.id, Cita.estado == "agendada")
+        .order_by(Cita.inicia_en)
+    ).first()
+    if cita is not None:
+        cita.estado = "confirmada"
+
+    cobro = s.scalars(
+        select(CobroProgramado).where(
+            CobroProgramado.alumna_id == alumna.id,
+            CobroProgramado.motivo == "inscripcion",
+        )
+    ).first()
+    if cuerpo.validar_pago and cobro is not None and cobro.estado != "pagado":
+        # La misma puerta que la bandeja de comprobantes: registra el ingreso, salda el
+        # cobro y le avisa. Duplicar eso aquí es como se descuadra la contabilidad.
+        validar_comprobante(cobro.ulid, actor, s)
+
+    _avisar_de_la_decision(s, actor, alumna, Aviso.SOLICITUD_ACEPTADA, tarifa, cita)
+
+    bitacora.registrar(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        actor_tipo="coach",
+        accion=bitacora.Accion.SOLICITUD_ACEPTADA,
+        entidad="alumna",
+        entidad_id=alumna.id,
+        detalle={"campos_cambiados": "estado,tarifa_id"},
+    )
+
+    fila = _fila_de_bandeja(s, solicitud)
+    if fila is None:  # pragma: no cover - defensivo
+        raise HTTPException(404, "No existe esa solicitud")
+    return fila
+
+
+@ruteador.post("/coach/solicitudes/{ulid}/descartar", response_model=SolicitudEnBandeja)
+def descartar_solicitud(
+    ulid: str,
+    cuerpo: DescarteDeSolicitud,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> SolicitudEnBandeja:
+    """La descarta con su motivo. Pierde el acceso hoy y su expediente se borra a los 7 días."""
+    solicitud = registro.por_ulid(s, ulid)
+    if solicitud is None:
+        raise HTTPException(404, "No existe esa solicitud")
+
+    alumna = s.get(Alumna, solicitud.alumna_id)
+    if alumna is None:  # pragma: no cover - defensivo
+        raise HTTPException(404, "No existe esa solicitud")
+
+    registro.descartar(s, solicitud, alumna, cuerpo.motivo)
+    _avisar_de_la_decision(
+        s, actor, alumna, Aviso.SOLICITUD_DESCARTADA, None, None, cuerpo.motivo.strip()
+    )
+
+    bitacora.registrar(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        actor_tipo="coach",
+        accion=bitacora.Accion.SOLICITUD_DESCARTADA,
+        entidad="alumna",
+        entidad_id=alumna.id,
+        detalle={"campos_cambiados": "estado"},
+    )
+
+    fila = _fila_de_bandeja(s, solicitud)
+    if fila is None:  # pragma: no cover - defensivo
+        raise HTTPException(404, "No existe esa solicitud")
+    return fila
+
+
+def _avisar_de_la_decision(
+    s: Session,
+    actor: Actor,
+    alumna: Alumna,
+    aviso: Aviso,
+    tarifa: Tarifa | None,
+    cita: Cita | None,
+    motivo: str = "",
+) -> None:
+    usuario = s.get(Usuario, alumna.usuario_id)
+    coach = s.get(Coach, actor.coach_id)
+    if usuario is None or coach is None:  # pragma: no cover - defensivo
+        return
+
+    cuando = "la que acuerden"
+    if cita is not None:
+        local = en_zona(cita.inicia_en, alumna.zona_horaria)
+        cuando = f"{local:%d/%m/%Y} a las {local:%H:%M}"
+
+    cola.encolar(
+        s,
+        aviso,
+        coach_id=actor.coach_id,
+        llave=f"solicitud:{alumna.ulid}:{aviso.value}",
+        para=usuario.email,
+        contexto={
+            "nombre": alumna.nombre.split(" ")[0],
+            "coach": coach.marca or coach.nombre,
+            "plan": tarifa.nombre if tarifa is not None else "el que acuerden",
+            "cita": cuando,
+            "motivo": motivo,
+            "dias": dom.GRACIA_TRAS_DESCARTAR.days,
+        },
+        destinatario_id=usuario.id,
+    )

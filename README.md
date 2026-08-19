@@ -127,7 +127,7 @@ resultante.
 ## Verificar
 
 ```powershell
-.\.venv\Scripts\python -m pytest pruebas -q        # 955 pruebas
+.\.venv\Scripts\python -m pytest pruebas -q        # 982 pruebas
 .\.venv\Scripts\python -m ruff check app pruebas
 .\.venv\Scripts\python -m mypy app
 
@@ -222,6 +222,8 @@ más); topbar y hamburguesa para la coach, más un buscador global con `⌘K`.
 | Registro abierto | Liga propia por coach (`/r/{slug}`) con interruptor. La solicitud no es alumna |
 | Precio de inscripción | El único `Servicio` con motivo `inscripcion`. Con cero o dos, la liga no enciende |
 | Registro a medias | Se borra solo a los 7 días, con recordatorio dos días antes |
+| Solicitud descartada | Pierde el acceso hoy; su expediente se borra a los 7 días |
+| Imagen del comprobante | 12 meses. Se borra la imagen, **no** el registro del pago |
 | Almacenamiento | Disco del VPS. Sin transferencia internacional que declarar |
 
 ---
@@ -316,6 +318,7 @@ está en [`nginx-myfittplan.conf`](despliegue/nginx-myfittplan.conf).
 
 ## Comprobantes: el OCR sugiere, la coach confirma
 
+
 `pytesseract` corre contra el binario del sistema: sin costo por documento y, sobre todo, **el
 comprobante nunca sale del servidor**. Mandarlo a un servicio externo sería una transferencia
 de datos financieros que habría que declarar en el aviso de privacidad.
@@ -324,6 +327,14 @@ Lo que devuelve es una sugerencia. Un comprobante es una imagen que cualquiera p
 así que ningún grado de confianza automática sustituye a que alguien mire su estado de cuenta:
 el pago queda pendiente hasta que la coach lo valida. Si tesseract no está instalado, la
 lectura sale vacía y el flujo sigue — un comprobante ilegible no debe impedir cobrar.
+
+**La imagen se borra a los 12 meses; el cobro no.** Es lo que más pesa por alumna después de
+las fotos, y lo que sostiene la contabilidad es el monto, la fecha y el concepto de la fila,
+no la captura de pantalla. Queda `comprobante_purgado_en`, que distingue «nunca subió nada»
+de «lo subió y su imagen ya venció»: al pedirla se responde 410 y no 404, porque llevan a la
+coach a hacer cosas distintas. El plazo es `LM_RETENCION_COMPROBANTES_MESES` y **está
+pendiente de que lo confirme un contador**: los cuatro documentos legales dicen 12 meses
+para la imagen y remiten a la ley fiscal para el registro del pago.
 
 ## Notificaciones push
 
@@ -399,6 +410,16 @@ El código de seis dígitos **no pasa por la cola**: quien lo espera está miran
 la cola sale cada cinco minutos. Se manda dentro de la transacción, así que un correo que no
 sale deshace el registro entero en lugar de dejar una cuenta que nadie puede verificar.
 
+**Aceptar hace tres cosas de un golpe**: confirma su consulta, abre su primer ciclo con el
+plan que la coach confirme —que puede no ser el que ella pidió— y le deja el chequeo
+disponible. El límite de alumnas se cuenta aquí y no al registrarse, que es lo que permite
+dejar la liga abierta con el cupo lleno. Puede aceptarla sin validar el pago: quien pagó en
+efectivo no tiene comprobante que subir, y el adeudo sigue visible en su expediente.
+
+**Descartar le corta el acceso hoy** y su expediente se borra a los siete días, con el
+motivo por correo escrito para ella. La consulta que había reservado se borra en lugar de
+cancelarse: es un hueco que otra puede tomar hoy.
+
 ## Bitácora: quién vio qué y quién cambió qué
 
 Son dos registros distintos, y el Anexo Legal §6 exige ambos:
@@ -424,7 +445,7 @@ una prueba que borra las que ya no corresponden a ningún endpoint.
 | Unidad | Cuándo | Qué hace |
 |---|---|---|
 | [`myfittplan-recordatorios.timer`](despliegue/myfittplan-recordatorios.timer) | 07:00 diario | Calcula y **encola** avisos de pago próximo, pago vencido, cita de mañana, inactividad y purga de fotos |
-| [`myfittplan-purga.timer`](despliegue/myfittplan-purga.timer) | cada 30 min | **Borra** las imágenes vencidas —fotos de comida a las 36 h, fotos de chequeo al cumplir su retención— y los registros abandonados a los 7 días |
+| [`myfittplan-purga.timer`](despliegue/myfittplan-purga.timer) | cada 30 min | **Borra** lo vencido: fotos de comida a las 36 h, fotos de chequeo al cumplir su retención, imágenes de comprobantes a los 12 meses y registros abandonados a los 7 días |
 | [`myfittplan-correo.timer`](despliegue/myfittplan-correo.timer) | cada 5 min | **Envía** lo encolado —correo y push—, con espaciado y hasta 5 reintentos |
 | [`myfittplan-respaldo.timer`](despliegue/myfittplan-respaldo.timer) | 03:30 diario | Volcado de la base y de los archivos, cifrado con GPG, rotación de 30 días |
 

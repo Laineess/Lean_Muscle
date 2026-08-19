@@ -34,6 +34,9 @@ CONTEXTO = {
     "minutos": 15,
     "dias": 2,
     "pendiente": "reservar tu primera consulta",
+    "plan": "Completo",
+    "cita": "lunes 24 de agosto a las 09:00",
+    "alumna": "Valeria Ruiz",
 }
 
 POR_CORREO = [a for a in Aviso if Canal.CORREO in canales_de(a)]

@@ -76,6 +76,27 @@ PLANTILLAS: dict[Aviso, Plantilla] = {
         ),
         boton=("Terminar mi registro", f"{SITIO}/acceso"),
     ),
+    Aviso.SOLICITUD_ACEPTADA: Plantilla(
+        asunto="{coach} te aceptó: ya eres su alumna",
+        texto=(
+            "Hola {nombre}:\n\n"
+            "{coach} revisó tu solicitud y te aceptó.\n\n"
+            "Tu plan es {plan}. Tu primera consulta queda en firme: {cita}.\n\n"
+            "Lo que sigue es tu primer chequeo: peso, medidas y fotos, en ayunas y al "
+            "despertar. De ahí sale tu plan."
+        ),
+        boton=("Hacer mi chequeo", f"{SITIO}/chequeo"),
+    ),
+    Aviso.SOLICITUD_DESCARTADA: Plantilla(
+        asunto="Sobre tu solicitud con {coach}",
+        texto=(
+            "Hola {nombre}:\n\n"
+            "{coach} no va a poder tomarte como alumna por ahora.\n\n"
+            "Lo que dice: {motivo}\n\n"
+            "Tu registro y todo lo que capturaste se borran en {dias} días. Si pagaste "
+            "algo, escríbele directamente a tu coach."
+        ),
+    ),
     Aviso.CITA_AGENDADA: Plantilla(
         asunto="Tu consulta con {coach}: {fecha}",
         texto=(
