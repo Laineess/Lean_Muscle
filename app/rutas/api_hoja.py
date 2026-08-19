@@ -32,10 +32,10 @@ from app.dominio.calculadora import (
     proyectar_perdida,
 )
 from app.rutas.esquemas import BloqueDeHoja, CeldaDeHoja, HojaDeCalculo, TablaDeHoja
-from app.rutas.sesion import Actor, datos, solo_coach
+from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_coach
 from app.servicios import bitacora, hoja
 
-ruteador = APIRouter(prefix="/api/coach", tags=["hoja"])
+ruteador = APIRouter(prefix="/api/coach", tags=["hoja"], route_class=RutaQueConfirma)
 
 #: Horizonte de la proyección de ganancia, celda H20.
 SEMANAS_GANANCIA = 20

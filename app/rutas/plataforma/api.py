@@ -37,10 +37,10 @@ from app.rutas.esquemas import (
     SaludPublica,
     SuscripcionPublica,
 )
-from app.rutas.sesion import Actor, solo_admin
+from app.rutas.sesion import Actor, RutaQueConfirma, solo_admin
 from app.servicios import cuentas
 
-ruteador = APIRouter(prefix="/api/plataforma", tags=["plataforma"])
+ruteador = APIRouter(prefix="/api/plataforma", tags=["plataforma"], route_class=RutaQueConfirma)
 
 #: Tras estos días sin que nadie entre a una cuenta, conviene preguntar si sigue viva.
 DIAS_INACTIVA = 30

@@ -40,3 +40,9 @@ def edad_en(nacimiento: date, referencia: date) -> int:
     """Edad cumplida en anios."""
     cumplio = (referencia.month, referencia.day) >= (nacimiento.month, nacimiento.day)
     return referencia.year - nacimiento.year - (0 if cumplio else 1)
+
+
+def en_zona(momento: datetime, zona: str = ZONA_POR_DEFECTO) -> datetime:
+    """El mismo instante visto desde `zona`. Para escribirlo en un correo o un aviso:
+    formatear el UTC directo le decia a la alumna una hora que no era la suya."""
+    return a_utc(momento).astimezone(ZoneInfo(zona))

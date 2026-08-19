@@ -22,11 +22,11 @@ from app.datos.modelos import Alumna, Anuncio, Notificacion, Usuario
 from app.datos.repos import consultas as q
 from app.dominio.avisos import Aviso
 from app.rutas.esquemas import AnuncioNuevo, AnuncioPublico, AvisoDeAlumna
-from app.rutas.sesion import Actor, datos, solo_alumna, solo_coach
+from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_alumna, solo_coach
 from app.servicios import avisos as cola
 from app.servicios import bitacora
 
-ruteador = APIRouter(prefix="/api", tags=["avisos de la coach"])
+ruteador = APIRouter(prefix="/api", tags=["avisos de la coach"], route_class=RutaQueConfirma)
 
 #: Cuántos anuncios se le muestran a la coach en su historial.
 HISTORIAL = 30

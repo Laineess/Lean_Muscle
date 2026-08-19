@@ -26,12 +26,12 @@ from app.dominio.avisos import Aviso
 from app.rutas import archivos
 from app.rutas.api_cobros import MOTIVOS, cobro_publico
 from app.rutas.esquemas import CobroDeAlumna, ComprobantePorRevisar, RechazoDeComprobante
-from app.rutas.sesion import Actor, actor_actual, datos, solo_alumna, solo_coach
+from app.rutas.sesion import Actor, RutaQueConfirma, actor_actual, datos, solo_alumna, solo_coach
 from app.servicios import almacenamiento, bitacora, imagenes, ocr
 from app.servicios import avisos as cola
 from app.servicios.almacenamiento import almacen
 
-ruteador = APIRouter(prefix="/api", tags=["comprobantes"])
+ruteador = APIRouter(prefix="/api", tags=["comprobantes"], route_class=RutaQueConfirma)
 
 
 def _mi_alumna(s: Session, actor: Actor) -> Alumna:

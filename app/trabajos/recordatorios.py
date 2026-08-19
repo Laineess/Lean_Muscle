@@ -15,7 +15,7 @@ from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.compartido.fechas import ahora_utc
+from app.compartido.fechas import ahora_utc, en_zona
 from app.config import ajustes
 from app.datos.modelos import (
     Alumna,
@@ -169,9 +169,10 @@ def correr() -> Resultado:
                 contexto={
                     "nombre": nombre,
                     "coach": coach_nombre,
-                    "fecha": f"{cita.inicia_en:%d/%m/%Y}",
-                    "hora_inicio": f"{cita.inicia_en:%H:%M}",
-                    "hora_fin": f"{cita.termina_en:%H:%M}",
+                    # En la hora de ella: el UTC crudo le corría la consulta seis horas.
+                    "fecha": f"{en_zona(cita.inicia_en, alumna.zona_horaria):%d/%m/%Y}",
+                    "hora_inicio": f"{en_zona(cita.inicia_en, alumna.zona_horaria):%H:%M}",
+                    "hora_fin": f"{en_zona(cita.termina_en, alumna.zona_horaria):%H:%M}",
                     "modalidad": cita.modalidad,
                     "detalle": cita.notas or "",
                 },

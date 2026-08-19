@@ -30,11 +30,11 @@ from app.rutas.esquemas import (
     MensajePublico,
     SuscripcionNueva,
 )
-from app.rutas.sesion import Actor, actor_actual, datos, solo_alumna
+from app.rutas.sesion import Actor, RutaQueConfirma, actor_actual, datos, solo_alumna
 from app.servicios import almacenamiento, bitacora, imagenes
 from app.servicios.almacenamiento import almacen
 
-ruteador = APIRouter(prefix="/api", tags=["medios"])
+ruteador = APIRouter(prefix="/api", tags=["medios"], route_class=RutaQueConfirma)
 
 
 def _mi_alumna(s: Session, actor: Actor) -> Alumna:

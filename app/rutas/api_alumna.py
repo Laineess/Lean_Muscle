@@ -28,9 +28,9 @@ from app.rutas.esquemas import (
     PlanPublico,
     ResumenDePlan,
 )
-from app.rutas.sesion import Actor, datos, solo_alumna
+from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_alumna
 
-ruteador = APIRouter(prefix="/api/mi", tags=["alumna"])
+ruteador = APIRouter(prefix="/api/mi", tags=["alumna"], route_class=RutaQueConfirma)
 
 
 def _mi_alumna(s: Session, actor: Actor) -> Alumna:

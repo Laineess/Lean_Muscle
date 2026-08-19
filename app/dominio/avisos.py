@@ -39,6 +39,8 @@ class Aviso(StrEnum):
     CITA_RECORDATORIO = "cita_recordatorio"
     CITA_CANCELADA = "cita_cancelada"
     CITA_REAGENDADA = "cita_reagendada"
+    CONSULTA_RESERVADA = "consulta_reservada"
+    """Va **a la coach**: la alumna tomó un hueco de su horario y ella no lo agendó."""
 
     # --- Dinero ---
     PAGO_PROXIMO = "pago_proximo"
@@ -80,6 +82,8 @@ CANALES: dict[Aviso, frozenset[Canal]] = {
     Aviso.CITA_RECORDATORIO: frozenset({Canal.PUSH}),
     Aviso.CITA_CANCELADA: frozenset({Canal.PUSH, Canal.CORREO}),
     Aviso.CITA_REAGENDADA: frozenset({Canal.PUSH, Canal.CORREO}),
+    # A la coach, y solo por push: es su agenda, no es dinero ni acceso.
+    Aviso.CONSULTA_RESERVADA: frozenset({Canal.PUSH}),
     Aviso.PAGO_PROXIMO: frozenset({Canal.PUSH}),
     Aviso.PAGO_RECIBIDO: frozenset({Canal.PUSH}),
     Aviso.PAGO_VALIDADO: frozenset({Canal.PUSH, Canal.CORREO}),

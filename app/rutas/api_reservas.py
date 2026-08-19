@@ -15,11 +15,12 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
-from app.compartido.fechas import ahora_utc
-from app.datos.modelos import Cita, Coach, HorarioDeAtencion
+from app.compartido.fechas import ahora_utc, en_zona
+from app.datos.modelos import Alumna, Cita, Coach, HorarioDeAtencion, Usuario
 from app.datos.repos import consultas as q
 from app.dominio import huecos as h
 from app.dominio.agenda import EstadoCita, Franja, Modalidad, TipoCita
+from app.dominio.avisos import Aviso
 from app.rutas.esquemas import (
     CitaDeAlumna,
     HorarioDeCoach,
@@ -27,10 +28,11 @@ from app.rutas.esquemas import (
     ReservaDeConsulta,
     TramoDeHorario,
 )
-from app.rutas.sesion import Actor, datos, solo_alumna, solo_coach
+from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_alumna, solo_coach
+from app.servicios import avisos as cola
 from app.servicios import bitacora
 
-ruteador = APIRouter(prefix="/api", tags=["reserva de consultas"])
+ruteador = APIRouter(prefix="/api", tags=["reserva de consultas"], route_class=RutaQueConfirma)
 
 #: Cuántos huecos se le enseñan. Más que esto no se recorre en un teléfono.
 TOPE_DE_HUECOS = 120
@@ -121,6 +123,7 @@ def guardar_horario(
         h.Bloque(dia=t.dia_semana, desde=_hora(t.desde), hasta=_hora(t.hasta))
         for t in cuerpo.tramos
     ]
+    h.revisar_horario(nuevos)
     reglas = h.Reglas(
         duracion_min=cuerpo.duracion_consulta_min,
         margen_min=cuerpo.margen_consulta_min,
@@ -153,6 +156,30 @@ def guardar_horario(
 # ---------------------------------------------------------------------------
 # Lo usa la alumna
 # ---------------------------------------------------------------------------
+
+
+def _avisar_a_la_coach(
+    s: Session, coach_id: int, coach: Coach, alumna: Alumna, cita: Cita
+) -> None:
+    """La alumna agenda sola: sin esto, la coach se entera al abrir su calendario."""
+    usuario = s.scalars(select(Usuario).where(Usuario.rol == "coach")).first()
+    if usuario is None:  # pragma: no cover - defensivo
+        return
+
+    inicia = en_zona(cita.inicia_en, coach.zona_horaria)
+    cola.encolar(
+        s,
+        Aviso.CONSULTA_RESERVADA,
+        coach_id=coach_id,
+        llave=f"cita:{cita.ulid}:reservada",
+        para=usuario.email,
+        contexto={
+            "alumna": alumna.nombre,
+            "fecha": f"{inicia:%d/%m/%Y}",
+            "hora_inicio": f"{inicia:%H:%M}",
+        },
+        destinatario_id=usuario.id,
+    )
 
 
 @ruteador.get("/mi/huecos", response_model=list[HuecoPublico])
@@ -221,6 +248,8 @@ def reservar_consulta(
         entidad_id=cita.id,
         detalle={"inicia_en": hueco.inicia_en.isoformat()},
     )
+
+    _avisar_a_la_coach(s, actor.coach_id, coach, alumna, cita)
 
     return CitaDeAlumna(
         ulid=cita.ulid,

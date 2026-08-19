@@ -39,10 +39,10 @@ from app.rutas.esquemas import (
     RespuestaDeAlumna,
     RespuestaDePregunta,
 )
-from app.rutas.sesion import Actor, datos, solo_alumna, solo_coach
+from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_alumna, solo_coach
 from app.servicios import bitacora, legales
 
-ruteador = APIRouter(prefix="/api", tags=["cuestionario"])
+ruteador = APIRouter(prefix="/api", tags=["cuestionario"], route_class=RutaQueConfirma)
 
 TIPOS = {"texto", "texto_largo", "numero", "opcion", "si_no"}
 

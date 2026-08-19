@@ -19,7 +19,7 @@ from app.datos.modelos import Alumna, ClaveTemporal, Coach, Usuario
 from app.datos.modelos import Sesion as FilaSesion
 from app.dominio.avisos import Aviso as AvisoDominio
 from app.rutas.esquemas import ActorPublico, CambioDeContrasena, Credenciales
-from app.rutas.sesion import NOMBRE_COOKIE, Actor, actor_actual
+from app.rutas.sesion import NOMBRE_COOKIE, Actor, RutaQueConfirma, actor_actual
 from app.servicios import avisos as cola
 from app.servicios import cuentas, limites
 from app.servicios.seguridad import (
@@ -31,7 +31,7 @@ from app.servicios.seguridad import (
     verificar_contrasena,
 )
 
-ruteador = APIRouter(prefix="/api/auth", tags=["acceso"])
+ruteador = APIRouter(prefix="/api/auth", tags=["acceso"], route_class=RutaQueConfirma)
 
 #: Sesión corta por defecto; «recordarme» la lleva a 30 días.
 VIGENCIA_CORTA = timedelta(hours=12)

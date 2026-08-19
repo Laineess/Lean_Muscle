@@ -38,12 +38,12 @@ from app.rutas.esquemas import (
     GuardadoDeChequeo,
     PesajePublico,
 )
-from app.rutas.sesion import Actor, datos, solo_alumna
+from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_alumna
 from app.rutas.traduccion import respuesta_para
 from app.servicios import avisos as cola
 from app.servicios import bitacora
 
-ruteador = APIRouter(prefix="/api/mi", tags=["chequeo"])
+ruteador = APIRouter(prefix="/api/mi", tags=["chequeo"], route_class=RutaQueConfirma)
 
 #: Tope de pesajes por ciclo. El promedio quita el ruido de un día de retención.
 MAX_PESAJES = 3

@@ -85,6 +85,23 @@ class Hueco:
     termina_en: datetime
 
 
+def revisar_horario(bloques: list[Bloque]) -> None:
+    """Falla si dos tramos del mismo día se pisan.
+
+    Encimados, la misma hora sale dos veces en la lista de la alumna: reserva una y la otra
+    se queda ahí, ofreciendo un rato que ya no existe.
+    """
+    for i, a in enumerate(bloques):
+        for b in bloques[i + 1 :]:
+            if a.dia == b.dia and a.desde < b.hasta and b.desde < a.hasta:
+                raise ErrorDeDominio(
+                    Codigo.TRAMOS_ENCIMADOS,
+                    dia=DIAS[a.dia],
+                    desde=str(max(a.desde, b.desde)),
+                    hasta=str(min(a.hasta, b.hasta)),
+                )
+
+
 def ventana(reglas: Reglas, ahora: datetime) -> tuple[datetime, datetime]:
     """Desde cuándo y hasta cuándo se puede reservar."""
     inicio = a_utc(ahora) + timedelta(hours=reglas.antelacion_horas)

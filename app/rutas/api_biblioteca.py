@@ -30,10 +30,10 @@ from app.rutas.esquemas import (
     PlanPublico,
     RepartoDeMacros,
 )
-from app.rutas.sesion import Actor, datos, solo_coach
+from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_coach
 from app.servicios import bitacora
 
-ruteador = APIRouter(prefix="/api/coach", tags=["biblioteca"])
+ruteador = APIRouter(prefix="/api/coach", tags=["biblioteca"], route_class=RutaQueConfirma)
 
 LIMITE_BUSQUEDA = 30
 

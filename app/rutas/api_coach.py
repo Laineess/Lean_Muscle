@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
-from app.compartido.fechas import ahora_utc
+from app.compartido.fechas import ahora_utc, en_zona
 from app.config import ajustes
 from app.datos.modelos import Alumna, Chequeo, Cita, Coach, Tarifa, Usuario
 from app.datos.repos import consultas as q
@@ -43,13 +43,13 @@ from app.rutas.esquemas import (
     ResumenPanel,
     ValidacionChequeo,
 )
-from app.rutas.sesion import Actor, datos, solo_coach
+from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_coach
 from app.servicios import almacenamiento, bitacora, cuentas, imagenes
 from app.servicios import avisos as cola
 from app.servicios.almacenamiento import almacen
 from app.servicios.seguridad import VIGENCIA_CLAVE_TEMPORAL
 
-ruteador = APIRouter(prefix="/api/coach", tags=["coach"])
+ruteador = APIRouter(prefix="/api/coach", tags=["coach"], route_class=RutaQueConfirma)
 
 DIAS_INACTIVIDAD = 3
 
@@ -692,6 +692,9 @@ def _avisar_de_cita(
         return
 
     coach = s.get(Coach, actor.coach_id)
+    # En la hora de ella, no en UTC: el correo le decia las 15:00 de una consulta de las 9.
+    inicia = en_zona(cita.inicia_en, alumna.zona_horaria)
+    termina = en_zona(cita.termina_en, alumna.zona_horaria)
     cola.encolar(
         s,
         aviso,
@@ -701,9 +704,9 @@ def _avisar_de_cita(
         contexto={
             "nombre": alumna.nombre.split(" ")[0],
             "coach": (coach.marca or coach.nombre) if coach else "tu coach",
-            "fecha": f"{cita.inicia_en:%d/%m/%Y}",
-            "hora_inicio": f"{cita.inicia_en:%H:%M}",
-            "hora_fin": f"{cita.termina_en:%H:%M}",
+            "fecha": f"{inicia:%d/%m/%Y}",
+            "hora_inicio": f"{inicia:%H:%M}",
+            "hora_fin": f"{termina:%H:%M}",
             "modalidad": cita.modalidad,
             "detalle": cita.titulo,
             "motivo": motivo,

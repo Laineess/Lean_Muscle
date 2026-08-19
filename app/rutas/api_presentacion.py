@@ -22,11 +22,11 @@ from app.rutas.esquemas import (
     EdicionDePresentacion,
     PresentacionPublica,
 )
-from app.rutas.sesion import Actor, actor_actual, datos, solo_alumna, solo_coach
+from app.rutas.sesion import Actor, RutaQueConfirma, actor_actual, datos, solo_alumna, solo_coach
 from app.servicios import almacenamiento, imagenes
 from app.servicios.almacenamiento import almacen
 
-ruteador = APIRouter(prefix="/api", tags=["presentacion"])
+ruteador = APIRouter(prefix="/api", tags=["presentacion"], route_class=RutaQueConfirma)
 
 #: Tope del texto libre. Suficiente para dos o tres párrafos; más que eso nadie lo lee antes
 #: de un formulario.

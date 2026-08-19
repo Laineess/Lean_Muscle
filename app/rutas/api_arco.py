@@ -18,10 +18,10 @@ from app.datos.modelos import Alumna, SolicitudArco
 from app.datos.repos import consultas as q
 from app.dominio import arco
 from app.rutas.esquemas import RespuestaArco, SolicitudArcoNueva, SolicitudArcoPublica
-from app.rutas.sesion import Actor, datos, solo_alumna, solo_coach
+from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_alumna, solo_coach
 from app.servicios import bitacora
 
-ruteador = APIRouter(prefix="/api", tags=["derechos arco"])
+ruteador = APIRouter(prefix="/api", tags=["derechos arco"], route_class=RutaQueConfirma)
 
 
 def _publica(s: SolicitudArco, nombre: str | None = None) -> SolicitudArcoPublica:

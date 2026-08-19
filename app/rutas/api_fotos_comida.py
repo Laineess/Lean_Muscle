@@ -28,11 +28,11 @@ from app.rutas.esquemas import (
     FotoDeComidaPublica,
     FotosDeComidaDeAlumna,
 )
-from app.rutas.sesion import Actor, actor_actual, datos, solo_alumna, solo_coach
+from app.rutas.sesion import Actor, RutaQueConfirma, actor_actual, datos, solo_alumna, solo_coach
 from app.servicios import almacenamiento, bitacora, imagenes
 from app.servicios.almacenamiento import almacen
 
-ruteador = APIRouter(prefix="/api", tags=["fotos de comida"])
+ruteador = APIRouter(prefix="/api", tags=["fotos de comida"], route_class=RutaQueConfirma)
 
 #: Tope por periodo. Suficiente para tres comidas y un antojo; evita que una tarde de
 #: aburrimiento llene el disco.

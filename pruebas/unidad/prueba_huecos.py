@@ -12,7 +12,7 @@ import pytest
 
 from app.compartido.errores import ErrorDeDominio
 from app.dominio.agenda import EstadoCita, Franja
-from app.dominio.huecos import Bloque, Reglas, libres, reservable, ventana
+from app.dominio.huecos import Bloque, Reglas, libres, reservable, revisar_horario, ventana
 
 CDMX = "America/Mexico_City"
 
@@ -170,3 +170,42 @@ class TestReglas:
     def test_lo_absurdo_no_se_configura(self, kwargs: dict) -> None:
         with pytest.raises(ErrorDeDominio):
             Reglas(**kwargs)
+
+
+class TestTramosEncimados:
+    def test_dos_tramos_que_se_pisan_no_pasan(self) -> None:
+        con_pisada = [
+            Bloque(dia=0, desde=time(9), hasta=time(14)),
+            Bloque(dia=0, desde=time(13), hasta=time(18)),
+        ]
+        with pytest.raises(ErrorDeDominio):
+            revisar_horario(con_pisada)
+
+    def test_pegados_no_es_encimados(self) -> None:
+        # Terminar a las 14:00 y arrancar a las 14:00 es una jornada partida, no un error.
+        revisar_horario(
+            [
+                Bloque(dia=0, desde=time(9), hasta=time(14)),
+                Bloque(dia=0, desde=time(14), hasta=time(18)),
+            ]
+        )
+
+    def test_la_misma_hora_en_dias_distintos_convive(self) -> None:
+        revisar_horario(
+            [
+                Bloque(dia=0, desde=time(9), hasta=time(14)),
+                Bloque(dia=1, desde=time(9), hasta=time(14)),
+            ]
+        )
+
+    def test_uno_dentro_de_otro_tampoco_pasa(self) -> None:
+        with pytest.raises(ErrorDeDominio):
+            revisar_horario(
+                [
+                    Bloque(dia=3, desde=time(8), hasta=time(20)),
+                    Bloque(dia=3, desde=time(10), hasta=time(12)),
+                ]
+            )
+
+    def test_sin_tramos_no_se_queja(self) -> None:
+        revisar_horario([])

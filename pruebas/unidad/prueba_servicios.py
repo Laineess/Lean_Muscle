@@ -141,6 +141,7 @@ CONTEXTO = {
     "motivo": "Se empalmó una urgencia.",
     "titulo": "Lunes de arranque",
     "cuerpo": "No tiene que ser perfecto, tiene que ser hoy.",
+    "alumna": "Andrea Sáenz",
 }
 
 POR_PUSH = [a for a in Aviso if Canal.PUSH in canales_de(a)]
@@ -283,3 +284,12 @@ class TestImagenes:
         assert salida.format == "WEBP"
         # Sin EXIF: la geolocalización de una foto corporal es más peligrosa que la foto.
         assert not salida.getexif()
+
+
+def test_bajo_pruebas_el_correo_nunca_sale_de_verdad(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Un `.env` con el envío encendido no debe convertir la suite en un emisor de correo:
+    aquí se dan de alta alumnas con direcciones que parecen reales."""
+    from app.servicios import correo as mod
+
+    monkeypatch.setattr(mod, "_emisor", None)
+    assert isinstance(mod.emisor(), mod.EmisorEnMemoria)

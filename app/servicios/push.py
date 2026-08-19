@@ -159,6 +159,12 @@ TEXTOS: dict[Aviso, tuple[str, str, str]] = {
     Aviso.CITA_RECORDATORIO: ("Mañana tienes consulta", "A las {hora_inicio}.", "/inicio"),
     Aviso.CITA_CANCELADA: ("Se canceló tu consulta", "{motivo}", "/inicio"),
     Aviso.CITA_REAGENDADA: ("Cambió tu consulta", "Ahora es el {fecha}.", "/inicio"),
+    # El único que va a la coach: por eso su ruta es la de ella.
+    Aviso.CONSULTA_RESERVADA: (
+        "{alumna} reservó consulta",
+        "{fecha} a las {hora_inicio}.",
+        "/coach/agenda",
+    ),
     Aviso.PAGO_PROXIMO: ("Tu ciclo termina pronto", "Vence el {vence}.", "/inicio"),
     Aviso.PAGO_RECIBIDO: ("Comprobante recibido", "{coach} lo va a validar.", "/inicio"),
     Aviso.PAGO_VALIDADO: ("Pago validado", "Tu plan ya está disponible.", "/plan"),

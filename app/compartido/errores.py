@@ -49,6 +49,7 @@ class Codigo(StrEnum):
     HORARIO_INVALIDO = "HORARIO_INVALIDO"
     HUECO_NO_DISPONIBLE = "HUECO_NO_DISPONIBLE"
     SIN_HORARIO_DE_ATENCION = "SIN_HORARIO_DE_ATENCION"
+    TRAMOS_ENCIMADOS = "TRAMOS_ENCIMADOS"
 
     # --- Finanzas -----------------------------------------------------------
     MONTO_INVALIDO = "MONTO_INVALIDO"

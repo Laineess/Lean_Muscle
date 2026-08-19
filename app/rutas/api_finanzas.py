@@ -27,9 +27,9 @@ from app.rutas.esquemas import (
     ResumenMes,
     TotalPorCategoria,
 )
-from app.rutas.sesion import Actor, datos, solo_coach
+from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_coach
 
-ruteador = APIRouter(prefix="/api/coach/finanzas", tags=["finanzas"])
+ruteador = APIRouter(prefix="/api/coach/finanzas", tags=["finanzas"], route_class=RutaQueConfirma)
 
 #: Ventana por defecto del panel. Doce meses es lo que hace visible la estacionalidad del
 #: negocio: enero y septiembre no se parecen a agosto.

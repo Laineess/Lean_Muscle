@@ -13,9 +13,10 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from app.rutas.esquemas import DocumentoLegal
+from app.rutas.sesion import RutaQueConfirma
 from app.servicios import legales
 
-ruteador = APIRouter(prefix="/api/legales", tags=["legales"])
+ruteador = APIRouter(prefix="/api/legales", tags=["legales"], route_class=RutaQueConfirma)
 
 
 @ruteador.get("/{clave}", response_model=DocumentoLegal)

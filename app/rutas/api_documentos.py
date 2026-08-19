@@ -19,11 +19,11 @@ from sqlalchemy.orm import Session
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.datos.modelos import Alumna, Coach
 from app.datos.repos import consultas as q
-from app.rutas.sesion import Actor, actor_actual, datos
+from app.rutas.sesion import Actor, RutaQueConfirma, actor_actual, datos
 from app.servicios import bitacora, pdf
 from app.servicios.almacenamiento import almacen
 
-ruteador = APIRouter(prefix="/api/documentos", tags=["documentos"])
+ruteador = APIRouter(prefix="/api/documentos", tags=["documentos"], route_class=RutaQueConfirma)
 
 
 def _respuesta(documento: pdf.Documento) -> Response:

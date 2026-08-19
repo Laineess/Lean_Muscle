@@ -7,11 +7,12 @@ endpoints internos.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Coroutine, Iterator
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import Cookie, Depends, HTTPException
+from fastapi import Cookie, Depends, HTTPException, Request, Response
+from fastapi.routing import APIRoute
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -105,10 +106,38 @@ def actor_establecido(actor: Annotated[Actor, Depends(actor_actual)]) -> Actor:
     return actor
 
 
-def datos(actor: Annotated[Actor, Depends(actor_establecido)]) -> Iterator[Session]:
-    """Sesion de base ya atada al inquilino del actor. Es la unica puerta de las rutas."""
+def datos(
+    peticion: Request, actor: Annotated[Actor, Depends(actor_establecido)]
+) -> Iterator[Session]:
+    """Sesion de base ya atada al inquilino del actor. Es la unica puerta de las rutas.
+
+    Queda anotada en la peticion para que `RutaQueConfirma` la confirme antes de responder.
+    """
     with sesion_con_alcance(actor.coach_id) as s:
+        peticion.state.sesion = s
         yield s
+
+
+class RutaQueConfirma(APIRoute):
+    """Confirma la sesion antes de mandar la respuesta.
+
+    El cierre de una dependencia con `yield` corre **despues** de responder, asi que el
+    commit quedaba fuera de la peticion: quien pedia lo recien creado a vuelta de correo
+    recibia un 404 una de cada cuatro veces. Aqui se confirma con la respuesta todavia en
+    la mano, y un commit que revienta sale como 500 en lugar de como un «guardado» falso.
+    """
+
+    def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+        original = super().get_route_handler()
+
+        async def con_commit(peticion: Request) -> Response:
+            respuesta = await original(peticion)
+            sesion: Session | None = getattr(peticion.state, "sesion", None)
+            if sesion is not None:
+                sesion.commit()
+            return respuesta
+
+        return con_commit
 
 
 def solo_coach(actor: Annotated[Actor, Depends(actor_establecido)]) -> Actor:

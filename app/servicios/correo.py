@@ -123,11 +123,15 @@ def emisor() -> Emisor:
     lo contrario con `LM_CORREO_REAL=true`: es la única forma de probar el envío en local
     sin declararse en producción, que además marca la cookie de sesión como `secure` y la
     rompe sobre `http://localhost`.
+
+    **Bajo `pytest` nunca sale nada**, ni con `LM_CORREO_REAL=true`. La suite dispara altas,
+    claves temporales y códigos de verificación contra direcciones que parecen reales, y
+    basta un `.env` con el envío encendido para mandárselos a gente de verdad.
     """
     global _emisor
     if _emisor is None:
         cfg = ajustes()
-        real = cfg.es_produccion or cfg.correo_real
+        real = (cfg.es_produccion or cfg.correo_real) and cfg.entorno != "pruebas"
         _emisor = EmisorSmtp() if real else EmisorEnMemoria()
     return _emisor
 

@@ -10,9 +10,11 @@ Esta prueba no necesita base de datos: lee el arbol sintactico de los archivos.
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from fastapi.routing import APIRoute
 
 RAIZ = Path(__file__).resolve().parents[2]
 APP = RAIZ / "app"
@@ -133,3 +135,30 @@ def test_el_modelo_y_las_migraciones_declaran_los_mismos_estados() -> None:
     for estado in ("en_revision",):
         assert estado in modelos, f"«{estado}» está en una migración y no en los modelos"
         assert estado in migraciones
+
+
+def _rutas_de(nodo: object) -> Iterator[APIRoute]:
+    """Recorre el arbol de ruteadores. FastAPI ya no copia las rutas al incluirlas: las
+    anida, asi que quedan a dos niveles de `app.routes`."""
+    if isinstance(nodo, APIRoute):
+        yield nodo
+        return
+    hijos = getattr(nodo, "routes", None) or getattr(
+        getattr(nodo, "original_router", None), "routes", []
+    )
+    for hijo in hijos:
+        yield from _rutas_de(hijo)
+
+
+def test_toda_ruta_de_api_confirma_antes_de_responder() -> None:
+    """El cierre de una dependencia con `yield` corre despues de responder, asi que sin
+    `RutaQueConfirma` el commit queda fuera de la peticion y la siguiente lectura no ve lo
+    recien guardado. Un ruteador nuevo que olvide la clase lo revive en silencio."""
+    from app.main import app
+    from app.rutas.sesion import RutaQueConfirma
+
+    de_api = [r for r in _rutas_de(app) if r.path.startswith("/api")]
+    assert len(de_api) > 100, "no se encontraron las rutas: el recorrido quedo vacio"
+
+    sueltas = [r.path for r in de_api if not isinstance(r, RutaQueConfirma)]
+    assert not sueltas, f"rutas sin RutaQueConfirma: {sorted(set(sueltas))}"

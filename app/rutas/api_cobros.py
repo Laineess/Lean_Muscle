@@ -32,9 +32,9 @@ from app.rutas.esquemas import (
     ServicioNuevo,
     ServicioPublico,
 )
-from app.rutas.sesion import Actor, datos, solo_coach
+from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_coach
 
-ruteador = APIRouter(prefix="/api/coach", tags=["cobros"])
+ruteador = APIRouter(prefix="/api/coach", tags=["cobros"], route_class=RutaQueConfirma)
 
 INTENSIDADES = {"baja", "media", "alta"}
 
