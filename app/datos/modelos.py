@@ -6,7 +6,7 @@ y lleva `coach_id`; el aislamiento lo aplica `alcance.py` en cada consulta.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any
 
@@ -21,6 +21,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    Time,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.mysql import JSON, TINYINT
@@ -55,6 +56,14 @@ class Coach(Base):
 
     precio_ciclo: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     dia_chequeo: Mapped[int] = mapped_column(TINYINT, default=1, nullable=False)
+
+    # --- Reserva de consultas ---
+    #: Minutos que dura una consulta y respiro entre una y la siguiente.
+    duracion_consulta_min: Mapped[int] = mapped_column(Integer, default=60, nullable=False)
+    margen_consulta_min: Mapped[int] = mapped_column(Integer, default=15, nullable=False)
+    #: Con cuanto aire se reserva y hasta que tan lejos.
+    antelacion_horas: Mapped[int] = mapped_column(Integer, default=24, nullable=False)
+    horizonte_semanas: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
     zona_horaria: Mapped[str] = mapped_column(
         String(60), default="America/Mexico_City", nullable=False
     )
@@ -529,6 +538,27 @@ class Cita(BaseMultiInquilino):
     recordatorio_enviado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     cancelada_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     motivo_cancelacion: Mapped[str | None] = mapped_column(String(255))
+
+
+class HorarioDeAtencion(BaseMultiInquilino):
+    """Un tramo en que la coach atiende, en su hora local.
+
+    Varios por dia: una consulta con hora de comida son dos tramos, no uno. De aqui salen
+    los huecos que ve la alumna.
+    """
+
+    __tablename__ = "horario_atencion"
+    __table_args__ = (
+        CheckConstraint("dia_semana between 0 and 6", name="dia_semana_valido"),
+        CheckConstraint("hasta > desde", name="tramo_valido"),
+        Index("ix_horario_coach_dia", "coach_id", "dia_semana"),
+        ARGS_DE_TABLA,
+    )
+
+    #: Lunes es 0, como `date.weekday()`.
+    dia_semana: Mapped[int] = mapped_column(TINYINT, nullable=False)
+    desde: Mapped[time] = mapped_column(Time, nullable=False)
+    hasta: Mapped[time] = mapped_column(Time, nullable=False)
 
 
 class Tarifa(BaseMultiInquilino):

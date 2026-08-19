@@ -1001,6 +1001,38 @@ class ComentarioDeFoto(Esquema):
 
 
 # ---------------------------------------------------------------------------
+# Horario de atención y reserva de consultas
+# ---------------------------------------------------------------------------
+
+
+class TramoDeHorario(Esquema):
+    """Un rato en que la coach atiende, en su hora local. `HH:MM`."""
+
+    dia_semana: Annotated[int, Field(ge=0, le=6)]
+    desde: Annotated[str, Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")]
+    hasta: Annotated[str, Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")]
+
+
+class HorarioDeCoach(Esquema):
+    tramos: Annotated[list[TramoDeHorario], Field(max_length=60)]
+    duracion_consulta_min: Annotated[int, Field(ge=15, le=240)] = 60
+    margen_consulta_min: Annotated[int, Field(ge=0, le=120)] = 15
+    antelacion_horas: Annotated[int, Field(ge=0, le=720)] = 24
+    horizonte_semanas: Annotated[int, Field(ge=1, le=26)] = 8
+    zona_horaria: Texto60 = "America/Mexico_City"
+
+
+class HuecoPublico(Esquema):
+    inicia_en: datetime
+    termina_en: datetime
+
+
+class ReservaDeConsulta(Esquema):
+    inicia_en: datetime
+    modalidad: Texto20 = "video"
+
+
+# ---------------------------------------------------------------------------
 # Derechos ARCO
 # ---------------------------------------------------------------------------
 

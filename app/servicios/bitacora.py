@@ -58,6 +58,7 @@ class Accion(StrEnum):
     ARCO_RECIBIDA = "arco_recibida"
     ARCO_RESPONDIDA = "arco_respondida"
     ARCO_RESUELTA = "arco_resuelta"
+    CITA_RESERVADA = "cita_reservada"
 
 
 def registrar_acceso(
