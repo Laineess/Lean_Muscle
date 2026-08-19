@@ -42,7 +42,7 @@ def pedir(op, ruta: str, metodo: str, cuerpo: Any = None) -> tuple[int, str]:
             return r.status, r.read().decode()
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode()
-    except Exception as causa:  # noqa: BLE001
+    except Exception as causa:
         return 0, f"{type(causa).__name__}: {causa}"
 
 

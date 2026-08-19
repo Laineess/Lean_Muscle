@@ -48,7 +48,7 @@ def pedir(op, ruta: str, metodo: str = "GET", cuerpo: Any = None) -> tuple[int, 
             return r.status, r.read().decode(errors="replace")
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode(errors="replace")
-    except Exception as causa:  # noqa: BLE001
+    except Exception as causa:
         return 0, f"{type(causa).__name__}: {causa}"
 
 
@@ -66,7 +66,7 @@ def subir(op, ruta: str, contenido: bytes, nombre: str, metodo: str = "PUT") -> 
             return r.status, r.read().decode(errors="replace")[:120]
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode(errors="replace")[:200]
-    except Exception as causa:  # noqa: BLE001
+    except Exception as causa:
         return 0, f"{type(causa).__name__}: {causa}"
 
 
@@ -133,6 +133,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    import urllib.parse  # noqa: E402
+    import urllib.parse
 
     main()

@@ -200,7 +200,7 @@ def main() -> None:
     boton("Agenda · cargar semana", pide(coach, "/api/coach/agenda?desde=2026-09-01&dias=7"))
 
     # ---- Cobros y finanzas ----
-    cobro = boton("Cobros · Programar",
+    boton("Cobros · Programar",
                   pide(coach, f"/api/coach/alumnas/{una}/cobros", "POST",
                        {"fecha": "2026-09-05", "motivo": "mensualidad",
                         "concepto": "Mensualidad de septiembre", "monto": 1200, "nota": None}))
@@ -286,7 +286,7 @@ def main() -> None:
                 pide(alumna, "/api/mi/arco", "POST",
                      {"derecho": "A", "detalle": "Quiero ver todo lo que tienen de mí."}))
     boton("Alumna · sus solicitudes", pide(alumna, "/api/mi/arco"))
-    lista = boton("Coach · bandeja ARCO", pide(coach, "/api/coach/arco"))
+    boton("Coach · bandeja ARCO", pide(coach, "/api/coach/arco"))
     if isinstance(sol, dict):
         boton("Coach · Contestar ARCO",
               pide(coach, f"/api/coach/arco/{sol['ulid']}/responder", "POST",

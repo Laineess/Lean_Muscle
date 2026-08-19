@@ -39,7 +39,7 @@ def pedir(op, ruta: str, metodo: str = "GET", cuerpo: Any = None) -> int:
             return r.status
     except urllib.error.HTTPError as e:
         return e.code
-    except Exception:  # noqa: BLE001
+    except Exception:
         return 0
 
 
