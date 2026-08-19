@@ -127,7 +127,7 @@ resultante.
 ## Verificar
 
 ```powershell
-.\.venv\Scripts\python -m pytest pruebas -q        # 1014 pruebas
+.\.venv\Scripts\python -m pytest pruebas -q        # 1043 pruebas
 .\.venv\Scripts\python -m ruff check app pruebas
 .\.venv\Scripts\python -m mypy app
 
@@ -325,6 +325,14 @@ está en [`nginx-myfittplan.conf`](despliegue/nginx-myfittplan.conf).
 `pytesseract` corre contra el binario del sistema: sin costo por documento y, sobre todo, **el
 comprobante nunca sale del servidor**. Mandarlo a un servicio externo sería una transferencia
 de datos financieros que habría que declarar en el aviso de privacidad.
+
+**El recibo no siempre es de un ciclo.** Una inscripción se paga antes de que exista
+ninguno, así que el PDF imprime el concepto que se cobró y omite la línea de vigencia
+cuando no hay. Antes pedía un número de ciclo obligatorio, y por eso **ningún recibo se
+enviaba**: el correo moría con un `KeyError` en el trabajo de las tres de la mañana, fuera
+de la petición y fuera de todos los barridos. Ahora
+[`prueba_contexto_de_avisos.py`](pruebas/aislamiento/prueba_contexto_de_avisos.py) compara
+lo que cada sitio encola contra los huecos de su plantilla.
 
 Lo que devuelve es una sugerencia. Un comprobante es una imagen que cualquiera puede editar,
 así que ningún grado de confianza automática sustituye a que alguien mire su estado de cuenta:

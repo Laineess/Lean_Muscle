@@ -51,8 +51,9 @@ def _adjuntos_de(aviso: Aviso, contexto: dict[str, object], s: Session) -> list[
     if aviso is Aviso.PAGO_VALIDADO:
         from datetime import date
 
-        def _fecha(clave: str) -> date:
-            return date.fromisoformat(str(contexto[clave]))
+        def _fecha(clave: str) -> date | None:
+            crudo = str(contexto.get(clave) or "")
+            return date.fromisoformat(crudo) if crudo else None
 
         documento = pdf.recibo(
             folio=str(contexto["folio"]),
@@ -61,10 +62,12 @@ def _adjuntos_de(aviso: Aviso, contexto: dict[str, object], s: Session) -> list[
             # Sin logo: el contexto del aviso lleva el nombre comercial, no el archivo, y
             # abrir el almacén desde el emisor por un recibo no compensa.
             marca=pdf.Marca(nombre=str(contexto["coach"])),
-            ciclo=int(str(contexto["ciclo"])),
+            concepto=str(contexto["concepto"]),
             monto=Decimal(str(contexto["monto_numero"])),
             metodo=str(contexto["metodo"]),
-            pagado_el=_fecha("pagado_el"),
+            pagado_el=_fecha("pagado_el") or date.today(),
+            # Una inscripción se paga antes de que exista ningún ciclo: sin vigencia,
+            # el recibo simplemente no imprime esa línea.
             vigencia_inicia=_fecha("vigencia_inicia"),
             vigencia_termina=_fecha("vigencia_termina"),
         )

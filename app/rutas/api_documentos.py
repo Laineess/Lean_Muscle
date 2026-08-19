@@ -249,7 +249,7 @@ def recibo(
             alumna=alumna.nombre,
             coach=coach.nombre if coach else "",
             marca=_marca(s, actor.coach_id),
-            ciclo=ciclo.numero,
+            concepto=f"Ciclo {ciclo.numero} de acompañamiento",
             monto=pago.monto,
             metodo=pago.metodo or "Transferencia",
             pagado_el=(pago.validado_en or pago.creado_en).date(),

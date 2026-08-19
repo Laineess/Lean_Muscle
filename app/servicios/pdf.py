@@ -522,30 +522,32 @@ def recibo(
     alumna: str,
     coach: str,
     marca: Marca,
-    ciclo: int,
+    concepto: str,
     monto: Decimal,
     metodo: str,
     pagado_el: date,
-    vigencia_inicia: date,
-    vigencia_termina: date,
+    vigencia_inicia: date | None = None,
+    vigencia_termina: date | None = None,
 ) -> Documento:
     """Recibo de gestión, no comprobante fiscal. Va dicho en el propio documento para que
-    nadie lo presente como CFDI."""
+    nadie lo presente como CFDI.
+
+    El concepto entra tal cual y la vigencia es opcional: no todo lo que se cobra es un
+    ciclo. Una inscripción se paga antes de que exista ninguno, y un recibo que dijera
+    «Ciclo 0 de acompañamiento» sería mentira impresa.
+    """
     bloques: list[Flowable] = _encabezado("Recibo", f"Folio {folio} · {coach}", marca)
+    filas = [["Alumna", alumna], ["Concepto", concepto]]
+    if vigencia_inicia is not None and vigencia_termina is not None:
+        filas.append(
+            ["Vigencia", f"{vigencia_inicia:%d/%m/%Y} al {vigencia_termina:%d/%m/%Y}"]
+        )
+    filas += [["Método de pago", metodo], ["Fecha de pago", f"{pagado_el:%d/%m/%Y}"]]
+
     bloques += [
         Paragraph(f"${monto:,.2f} MXN", CIFRA_GRANDE),
         Spacer(1, 12),
-        _tabla(
-            None,
-            [
-                ["Alumna", alumna],
-                ["Concepto", f"Ciclo {ciclo} de acompañamiento"],
-                ["Vigencia", f"{vigencia_inicia:%d/%m/%Y} al {vigencia_termina:%d/%m/%Y}"],
-                ["Método de pago", metodo],
-                ["Fecha de pago", f"{pagado_el:%d/%m/%Y}"],
-            ],
-            [ANCHO_UTIL * 0.35, ANCHO_UTIL * 0.65],
-        ),
+        _tabla(None, filas, [ANCHO_UTIL * 0.35, ANCHO_UTIL * 0.65]),
         Spacer(1, 14),
         _bloque_aviso(
             "<b>Este recibo no es un comprobante fiscal.</b> Es constancia de que tu pago fue "

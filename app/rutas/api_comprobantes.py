@@ -277,7 +277,17 @@ def _avisar(s: Session, actor: Actor, cobro: CobroProgramado, aviso: Aviso, hoy:
         return
 
     coach = s.get(Coach, actor.coach_id)
-    usuario = s.get(Usuario, alumna.usuario_id)
+    usuario = s.get(Usuario, alumna.usuario_id) if alumna.usuario_id else None
+    concepto = cobro.concepto or MOTIVOS.get(cobro.motivo, cobro.motivo)
+
+    # El recibo se arma al enviar, con lo que va aquí. Faltaba todo esto y el correo moría
+    # con un KeyError en el trabajo de las 3 de la mañana: la coach validaba el pago y la
+    # alumna no recibía nada.
+    ciclo = q.ciclo_vigente(s, alumna.id)
+    vigencia = ""
+    if ciclo is not None:
+        vigencia = f"Tu acceso queda activo hasta el {ciclo.termina_en:%d/%m/%Y}."
+
     cola.encolar(
         s,
         aviso,
@@ -289,7 +299,16 @@ def _avisar(s: Session, actor: Actor, cobro: CobroProgramado, aviso: Aviso, hoy:
             "coach": (coach.marca or coach.nombre) if coach else "tu coach",
             "monto": f"{cobro.monto:,.2f}",
             "motivo": cobro.motivo_rechazo or "",
-            "concepto": cobro.concepto or MOTIVOS.get(cobro.motivo, cobro.motivo),
+            "concepto": concepto,
+            "vigencia": vigencia,
+            # Lo que el PDF adjunto necesita para armarse.
+            "folio": cobro.ulid[-8:].upper(),
+            "alumna": alumna.nombre,
+            "monto_numero": str(cobro.monto),
+            "metodo": "Transferencia",
+            "pagado_el": hoy.isoformat(),
+            "vigencia_inicia": ciclo.inicia_en.isoformat() if ciclo else "",
+            "vigencia_termina": ciclo.termina_en.isoformat() if ciclo else "",
         },
         destinatario_id=alumna.usuario_id,
     )

@@ -129,12 +129,11 @@ PLANTILLAS: dict[Aviso, Plantilla] = {
         boton=("Ver en mi cuenta", f"{SITIO}/inicio"),
     ),
     Aviso.PAGO_VALIDADO: Plantilla(
-        asunto="Recibo de tu pago · ciclo {ciclo}",
+        asunto="Recibo de tu pago · {concepto}",
         texto=(
             "Hola {nombre}:\n\n"
-            "{coach} validó tu pago de {monto}. Tu acceso queda activo hasta el {vence}.\n\n"
-            "Te adjuntamos el recibo en PDF.\n\n"
-            "Tu plan ya está disponible."
+            "{coach} validó tu pago de ${monto}. {vigencia}\n\n"
+            "Te adjuntamos el recibo en PDF."
         ),
         boton=("Ver mi plan", f"{SITIO}/plan"),
     ),

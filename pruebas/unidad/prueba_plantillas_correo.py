@@ -37,6 +37,8 @@ CONTEXTO = {
     "plan": "Completo",
     "cita": "lunes 24 de agosto a las 09:00",
     "alumna": "Valeria Ruiz",
+    "concepto": "Mensualidad de agosto",
+    "vigencia": "Tu acceso queda activo hasta el 18/09/2026.",
 }
 
 POR_CORREO = [a for a in Aviso if Canal.CORREO in canales_de(a)]
