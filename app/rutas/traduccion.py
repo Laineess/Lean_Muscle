@@ -131,6 +131,15 @@ RESPUESTAS: dict[Codigo, tuple[int, str]] = {
         403,
         "Tu coach todavía no acepta tu solicitud. Esto se abre en cuanto lo haga.",
     ),
+    # Baja
+    Codigo.CONFIRMACION_NO_COINCIDE: (
+        422,
+        "Escribe el nombre tal como aparece: la baja no se puede deshacer.",
+    ),
+    Codigo.CUENTA_SOLO_LECTURA: (
+        403,
+        "Tu cuenta está dada de baja. Puedes descargar lo tuyo, pero ya no capturar.",
+    ),
     # Finanzas
     Codigo.MONTO_INVALIDO: (422, "El monto tiene que ser mayor que cero."),
     Codigo.MONTO_FUERA_DE_RANGO: (422, "Ese monto está fuera de lo razonable. Revisa los ceros."),

@@ -211,7 +211,7 @@ def verificar_codigo(
         solicitud = _solicitud_por_correo(s, coach_id, cuerpo.correo)
         registro.verificar(s, solicitud, cuerpo.codigo)
         alumna = s.get(Alumna, solicitud.alumna_id)
-        if alumna is None:  # pragma: no cover - defensivo
+        if alumna is None or alumna.usuario_id is None:  # pragma: no cover - defensivo
             raise ErrorDeDominio(Codigo.SIN_PERMISO)
         usuario_id = alumna.usuario_id
         crear_sesion(s, coach_id, usuario_id, peticion, respuesta)

@@ -127,7 +127,7 @@ resultante.
 ## Verificar
 
 ```powershell
-.\.venv\Scripts\python -m pytest pruebas -q        # 982 pruebas
+.\.venv\Scripts\python -m pytest pruebas -q        # 1014 pruebas
 .\.venv\Scripts\python -m ruff check app pruebas
 .\.venv\Scripts\python -m mypy app
 
@@ -170,6 +170,7 @@ app/
     ciclo.py        vigencia de 30 días y bloqueos por pago
     huecos.py       horas libres para reservar consulta
     registro.py     el recorrido de una solicitud y sus plazos
+    baja.py         los quince días de lectura y la confirmación por nombre
   datos/            modelos, alcance por inquilino, consultas
   rutas/            auth, API de alumna, captura del chequeo, API de coach, medios
     plataforma/     panel del superadmin: único paquete que puede consultar sin inquilino
@@ -224,6 +225,8 @@ más); topbar y hamburguesa para la coach, más un buscador global con `⌘K`.
 | Registro a medias | Se borra solo a los 7 días, con recordatorio dos días antes |
 | Solicitud descartada | Pierde el acceso hoy; su expediente se borra a los 7 días |
 | Imagen del comprobante | 12 meses. Se borra la imagen, **no** el registro del pago |
+| Baja de una alumna | Fuera de la cartera hoy; 15 días de lectura; borrado total después |
+| Confirmar la baja | Tecleando su nombre. No tiene deshacer |
 | Almacenamiento | Disco del VPS. Sin transferencia internacional que declarar |
 
 ---
@@ -420,6 +423,38 @@ efectivo no tiene comprobante que subir, y el adeudo sigue visible en su expedie
 motivo por correo escrito para ella. La consulta que había reservado se borra en lugar de
 cancelarse: es un hueco que otra puede tomar hoy.
 
+## La baja borra de verdad, quince días después
+
+Dar de baja a una alumna son dos momentos, y separarlos es lo que hace que ninguno de
+los dos sea injusto:
+
+- **Hoy** sale de la cartera y deja de tener servicio. Se le manda su expediente en PDF
+  —lo que capturó es suyo, y la baja no puede ser la forma de quedárselo— y conserva
+  **quince días de solo lectura** para descargar lo que quiera.
+- **A los quince días** se borra todo: fotos, medidas, pesos, historial clínico,
+  respuestas, mensajes, y la cuenta con su correo. Puede volver a registrarse después,
+  porque ese correo vuelve a estar libre.
+
+La regla de la lectura es **el método de la petición**, no una lista de rutas: se le
+corta escribir, y una lista de rutas se queda corta en cuanto alguien agrega un endpoint.
+
+**Lo único que sobrevive es el dinero y lo que la ley obliga a guardar.** La ficha de
+`alumna` no se borra: se vacía. Sin ella no habría dónde colgar los consentimientos, la
+bitácora de accesos y los movimientos —cinco años los tres— y con ella vacía ninguno
+identifica ya a nadie: la coach lee «Alumna dada de baja» en sus finanzas de hace dos
+años y su contabilidad sigue cuadrando. Sus propias lecturas sí se van con ella: la
+bitácora existe para responder «¿quién **más** vio mi expediente?».
+
+Que ese «todo» siga siendo cierto lo vigila una prueba que compara contra las llaves
+foráneas de la base. Lo que sobrevive se declara con el motivo por el que la ley lo pide,
+y una tabla nueva que cuelgue de la alumna falla hasta que alguien decida cuál de las dos
+cosas es.
+
+**Se confirma tecleando su nombre**, y antes se le enseña lo que debe: darla de baja no
+cobra ni cancela sus adeudos, así que esa decisión se toma mirándolos. La baja no está en
+el formulario de edición como un estado más —lo estuvo, y ahí era un cambio de campo
+cualquiera—: tiene su propio endpoint porque arranca un plazo que no se deshace.
+
 ## Bitácora: quién vio qué y quién cambió qué
 
 Son dos registros distintos, y el Anexo Legal §6 exige ambos:
@@ -445,7 +480,7 @@ una prueba que borra las que ya no corresponden a ningún endpoint.
 | Unidad | Cuándo | Qué hace |
 |---|---|---|
 | [`myfittplan-recordatorios.timer`](despliegue/myfittplan-recordatorios.timer) | 07:00 diario | Calcula y **encola** avisos de pago próximo, pago vencido, cita de mañana, inactividad y purga de fotos |
-| [`myfittplan-purga.timer`](despliegue/myfittplan-purga.timer) | cada 30 min | **Borra** lo vencido: fotos de comida a las 36 h, fotos de chequeo al cumplir su retención, imágenes de comprobantes a los 12 meses y registros abandonados a los 7 días |
+| [`myfittplan-purga.timer`](despliegue/myfittplan-purga.timer) | cada 30 min | **Borra** lo vencido: fotos de comida a las 36 h, fotos de chequeo al cumplir su retención, imágenes de comprobantes a los 12 meses, registros abandonados a los 7 días y expedientes de bajas a los 15 |
 | [`myfittplan-correo.timer`](despliegue/myfittplan-correo.timer) | cada 5 min | **Envía** lo encolado —correo y push—, con espaciado y hasta 5 reintentos |
 | [`myfittplan-respaldo.timer`](despliegue/myfittplan-respaldo.timer) | 03:30 diario | Volcado de la base y de los archivos, cifrado con GPG, rotación de 30 días |
 

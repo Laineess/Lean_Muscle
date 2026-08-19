@@ -10,6 +10,7 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
@@ -17,18 +18,22 @@ from app.compartido.fechas import ahora_utc, en_zona
 from app.config import ajustes
 from app.datos.modelos import Alumna, Chequeo, Cita, Coach, Tarifa, Usuario
 from app.datos.repos import consultas as q
+from app.dominio import baja as dominio_baja
 from app.dominio.agenda import EstadoCita, Franja, agendar, transicionar
 from app.dominio.avisos import Aviso
 from app.rutas.esquemas import (
     AgendaDeCoach,
     AltaDeAlumna,
     AlumnaDadaDeAlta,
+    AvisoDeBaja,
+    BajaHecha,
     CancelacionCita,
     ChequeoDeValidacion,
     CitaNueva,
     CitaPublica,
     ClaveTemporalEmitida,
     ClaveTemporalPedida,
+    ConfirmacionDeBaja,
     EdicionDeAlumna,
     EdicionDeMarca,
     EstimacionGrasa,
@@ -46,6 +51,7 @@ from app.rutas.esquemas import (
 from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_coach
 from app.servicios import almacenamiento, bitacora, cuentas, imagenes
 from app.servicios import avisos as cola
+from app.servicios import baja as servicio_baja
 from app.servicios.almacenamiento import almacen
 from app.servicios.seguridad import VIGENCIA_CLAVE_TEMPORAL
 
@@ -97,7 +103,7 @@ def _filas_de_cartera(s: Session) -> list[FilaCartera]:
     for a in alumnas:
         ciclo = ciclos.get(a.id)
         chequeo = ultimos.get(a.id)
-        acceso = accesos.get(a.usuario_id)
+        acceso = accesos.get(a.usuario_id) if a.usuario_id is not None else None
         acceso_dia = acceso.date() if acceso else None
 
         # Primero lo que bloquea el método, luego lo que cuesta dinero, al final el empujón.
@@ -295,7 +301,10 @@ def editar_alumna(
     if cuerpo.zona_horaria:
         alumna.zona_horaria = cuerpo.zona_horaria
     alumna.porcentaje_grasa_objetivo = cuerpo.porcentaje_grasa_objetivo
-    if cuerpo.estado in {"activa", "pausa", "baja"}:
+    # La baja **no** se cambia desde aquí: tiene su propio endpoint porque arranca un plazo
+    # de quince días y un borrado que no se deshace. Un formulario de edición que la ofrezca
+    # como una opción más la convierte en un cambio de campo, y no lo es.
+    if cuerpo.estado in {"activa", "pausa"}:
         alumna.estado = cuerpo.estado
 
     # Solo los nombres de los campos: copiar los valores duplicaría el dato sensible en un
@@ -335,22 +344,73 @@ def editar_alumna(
     return fila
 
 
-@ruteador.delete("/alumnas/{ulid}", status_code=204)
-def dar_de_baja_alumna(
+@ruteador.get("/alumnas/{ulid}/baja", response_model=AvisoDeBaja)
+def revisar_baja(
     ulid: str,
     actor: Annotated[Actor, Depends(solo_coach)],
     s: Annotated[Session, Depends(datos)],
-) -> None:
-    """Marca la baja; no borra. El borrado real es un derecho de la alumna (Cancelación,
-    ARCO) y va por ese flujo, con su constancia."""
+) -> AvisoDeBaja:
+    """Lo que hay que mirar antes de darla de baja: lo que debe y lo que se va a borrar."""
+    _ = actor
     alumna = q.alumna_por_ulid(s, ulid)
     if alumna is None:
         raise HTTPException(404, "No existe esa alumna")
 
-    alumna.estado = "baja"
-    usuario = s.get(Usuario, alumna.usuario_id)
-    if usuario is not None:
-        usuario.estado = "inactivo"
+    debe, cuantos = servicio_baja.adeudo(s, alumna.id, ahora_utc().date())
+    chequeos = len(list(s.scalars(select(Chequeo).where(Chequeo.alumna_id == alumna.id))))
+
+    return AvisoDeBaja(
+        nombre=alumna.nombre,
+        adeudo=debe,
+        cobros_vencidos=cuantos,
+        chequeos=chequeos,
+        borraria_el=dominio_baja.borra_el(ahora_utc()),
+    )
+
+
+@ruteador.post("/alumnas/{ulid}/baja", response_model=BajaHecha)
+def dar_de_baja_alumna(
+    ulid: str,
+    cuerpo: ConfirmacionDeBaja,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> BajaHecha:
+    """La saca de la cartera hoy y programa el borrado de su expediente a los quince días.
+
+    En medio ella conserva acceso de lectura para bajar lo suyo, y se le manda su expediente
+    en PDF: lo que capturó es suyo, y la baja no puede ser la forma de quedárselo.
+    """
+    alumna = q.alumna_por_ulid(s, ulid)
+    if alumna is None:
+        raise HTTPException(404, "No existe esa alumna")
+    if alumna.estado in (
+        dominio_baja.EstadoDeAlumna.BAJA.value,
+        dominio_baja.EstadoDeAlumna.BORRADA.value,
+    ):
+        raise HTTPException(409, "Esa alumna ya está dada de baja")
+
+    nombre = alumna.nombre
+    borra_el = servicio_baja.dar_de_baja(s, alumna, cuerpo.nombre)
+
+    usuario = s.get(Usuario, alumna.usuario_id) if alumna.usuario_id else None
+    coach = s.get(Coach, actor.coach_id)
+    if usuario is not None and coach is not None:
+        cola.encolar(
+            s,
+            Aviso.BAJA_CONFIRMADA,
+            coach_id=actor.coach_id,
+            llave=f"alumna:{alumna.ulid}:baja",
+            para=usuario.email,
+            contexto={
+                "nombre": nombre.split(" ")[0],
+                "coach": coach.marca or coach.nombre,
+                "dias": dominio_baja.GRACIA_DE_LECTURA.days,
+                "fecha": f"{en_zona(borra_el, alumna.zona_horaria):%d/%m/%Y}",
+                # Lo lee el emisor para armar el PDF que va adjunto.
+                "alumna_id": alumna.id,
+            },
+            destinatario_id=usuario.id,
+        )
 
     bitacora.registrar(
         s,
@@ -360,7 +420,10 @@ def dar_de_baja_alumna(
         accion=bitacora.Accion.ALUMNA_DADA_DE_BAJA,
         entidad="alumna",
         entidad_id=alumna.id,
+        detalle={"campos_cambiados": "estado,baja_en"},
     )
+
+    return BajaHecha(borra_el=borra_el)
 
 
 @ruteador.post("/alumnas/{ulid}/clave-temporal", response_model=ClaveTemporalEmitida)

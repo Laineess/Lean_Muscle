@@ -77,9 +77,11 @@ class TestCanales:
         que sí importa —acceso, dinero— también se aprende a ignorar."""
         assert canales_de(Aviso.MENSAJE_DE_COACH) == frozenset({Canal.PUSH})
 
-    def test_solo_el_pago_validado_lleva_adjunto(self) -> None:
-        con_adjunto = [a for a in Aviso if lleva_adjunto(a)]
-        assert con_adjunto == [Aviso.PAGO_VALIDADO]
+    def test_solo_llevan_adjunto_los_dos_que_entregan_algo(self) -> None:
+        """El recibo de un pago y el expediente de una baja. Nada más: cada adjunto es un
+        PDF que se genera al enviar y un correo que pesa diez veces más."""
+        con_adjunto = {a for a in Aviso if lleva_adjunto(a)}
+        assert con_adjunto == {Aviso.PAGO_VALIDADO, Aviso.BAJA_CONFIRMADA}
 
 
 class TestRecordatorioDeCita:

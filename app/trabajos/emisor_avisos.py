@@ -10,13 +10,16 @@ reintentando contra un correo inexistente solo quema reputación de envío.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.compartido.fechas import ahora_utc
 from app.datos.modelos import AvisoEnviado
 from app.datos.sin_alcance import sesion_sin_alcance
 from app.dominio.avisos import Aviso, lleva_adjunto
+from app.servicios import pdf
 from app.servicios.correo import Adjunto, Correo, emisor
 from app.servicios.plantillas_correo import redactar
 
@@ -32,7 +35,7 @@ class Resultado:
     agotados: int
 
 
-def _adjuntos_de(aviso: Aviso, contexto: dict[str, object]) -> list[Adjunto]:
+def _adjuntos_de(aviso: Aviso, contexto: dict[str, object], s: Session) -> list[Adjunto]:
     """Genera el PDF que acompaña al aviso, si lleva uno.
 
     Se genera al enviar y no al encolar: un recibo pesa, y guardarlo en la cola multiplicaría
@@ -67,7 +70,54 @@ def _adjuntos_de(aviso: Aviso, contexto: dict[str, object]) -> list[Adjunto]:
         )
         return [Adjunto(nombre=documento.nombre, contenido=documento.contenido)]
 
+    if aviso is Aviso.BAJA_CONFIRMADA:
+        # Se arma aquí y no al dar de baja porque la cola guarda JSON, no archivos. Los
+        # datos siguen ahí: el borrado es quince días después.
+        documento = _expediente(s, int(str(contexto["alumna_id"])), str(contexto["coach"]))
+        return [Adjunto(nombre=documento.nombre, contenido=documento.contenido)]
+
     return []
+
+
+def _expediente(s: Session, alumna_id: int, coach: str) -> pdf.Documento:
+    """Su historial de chequeos, el mismo que puede descargar desde su cuenta.
+
+    Sin fotografías: un PDF sale de la plataforma y las imágenes tienen que quedarse donde
+    se pueden purgar.
+    """
+    from app.datos.modelos import Alumna, Chequeo
+    from app.datos.repos import consultas as q
+
+    alumna = s.get(Alumna, alumna_id)
+    chequeos = list(
+        s.scalars(
+            select(Chequeo)
+            .where(Chequeo.alumna_id == alumna_id, Chequeo.estado == "validado")
+            .order_by(Chequeo.fecha)
+        )
+    )
+    pesos = q.peso_de_chequeo(s, [c.id for c in chequeos])
+    medidas = q.medidas_de(s, [c.id for c in chequeos])
+
+    filas: list[dict[str, Any]] = [
+        {
+            "numero": i + 1,
+            "fecha": f"{c.fecha:%d/%m/%Y}",
+            "peso_kg": pesos.get(c.id),
+            "porcentaje_grasa": (c.porcentaje_grasa * 100) if c.porcentaje_grasa else None,
+            "medidas": medidas.get(c.id, {}),
+        }
+        for i, c in enumerate(chequeos)
+    ]
+
+    return pdf.evolucion(
+        alumna=alumna.nombre if alumna else "",
+        coach=coach,
+        marca=pdf.Marca(nombre=coach),
+        chequeos=filas,
+        medidas=sorted({t for m in medidas.values() for t in m}),
+        feedback=chequeos[-1].feedback if chequeos else None,
+    )
 
 
 def enviar_pendientes(lote: int = LOTE) -> Resultado:
@@ -98,7 +148,7 @@ def enviar_pendientes(lote: int = LOTE) -> Resultado:
                         asunto=asunto,
                         cuerpo_texto=texto,
                         cuerpo_html=html,
-                        adjuntos=_adjuntos_de(aviso, dict(fila.contexto)),
+                        adjuntos=_adjuntos_de(aviso, dict(fila.contexto), s),
                     )
                 )
                 fila.enviado_en = ahora_utc()

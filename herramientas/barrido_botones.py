@@ -179,6 +179,19 @@ def main() -> None:
         boton("Alumnas · Recuperar acceso",
               pide(coach, f"/api/coach/alumnas/{nueva_ulid}/clave-temporal", "POST",
                    {"motivoVerificacion": "Videollamada"}))
+        # La baja va sobre la alumna que este barrido creó, nunca sobre una de la semilla.
+        boton("Baja · lo que hay que mirar antes",
+              pide(coach, f"/api/coach/alumnas/{nueva_ulid}/baja"))
+        boton("Baja · con el nombre mal (rechaza)",
+              pide(coach, f"/api/coach/alumnas/{nueva_ulid}/baja", "POST", {"nombre": "Otra"}),
+              esperados=(422,))
+        boton("Baja · Dar de baja",
+              pide(coach, f"/api/coach/alumnas/{nueva_ulid}/baja", "POST",
+                   {"nombre": "Prueba De Botones"}))
+        boton("Baja · dos veces (rechaza)",
+              pide(coach, f"/api/coach/alumnas/{nueva_ulid}/baja", "POST",
+                   {"nombre": "Prueba De Botones"}),
+              esperados=(409,))
 
     # ---- Agenda ----
     cita = boton("Agenda · Agendar",

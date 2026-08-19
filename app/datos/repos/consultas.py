@@ -134,9 +134,10 @@ def ultimo_aviso_sin_leer(s: Session, usuario_id: int) -> Notificacion | None:
     ).first()
 
 
-#: Estados de `alumna` que **no** son cartera: el registro abierto antes de aceptarlo y lo
-#: que quedó descartado. Aparecer aquí las contaría como alumnas suyas sin serlo.
-FUERA_DE_CARTERA = ("solicitud", "descartada")
+#: Estados de `alumna` que **no** son cartera: el registro abierto antes de aceptarlo, lo
+#: descartado y lo que ya se dio de baja. Aparecer aquí las contaría como alumnas suyas sin
+#: serlo, y la baja saca de la cartera el mismo día.
+FUERA_DE_CARTERA = ("solicitud", "descartada", "baja", "borrada")
 
 
 def usuario_de_coach(s: Session) -> Usuario | None:
@@ -155,7 +156,9 @@ def cartera(s: Session) -> list[Alumna]:
     )
 
 
-def ultimo_acceso_de(s: Session, usuario_ids: list[int]) -> dict[int, datetime | None]:
+def ultimo_acceso_de(s: Session, usuario_ids: list[int | None]) -> dict[int, datetime | None]:
+    """Una ficha ya borrada no tiene cuenta, y por eso los nulos se descartan aquí."""
+    usuario_ids = [x for x in usuario_ids if x is not None]
     if not usuario_ids:
         return {}
     return {

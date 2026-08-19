@@ -153,21 +153,35 @@ def solo_alumna(actor: Annotated[Actor, Depends(actor_establecido)]) -> Actor:
 
 
 def solo_alumna_aceptada(
+    peticion: Request,
     actor: Annotated[Actor, Depends(solo_alumna)],
     s: Annotated[Session, Depends(datos)],
 ) -> Actor:
-    """Alumna de verdad, no una solicitud del registro abierto.
+    """Alumna de verdad: ni una solicitud sin aceptar, ni una cuenta ya dada de baja.
 
     Mientras la coach no la acepte, la relacion no existe: no hay chequeo que abrir ni plan
     que leer, y sobre todo no se le piden fotografias corporales. Todo lo que necesita el
     recorrido de registro usa `solo_alumna` a secas; lo demas pasa por aqui.
+
+    Dada de baja conserva quince dias de **lectura** para descargar lo suyo. Por eso la
+    regla es el metodo de la peticion y no una lista de rutas: lo que se le corta es
+    escribir, y una lista se queda corta en cuanto alguien agrega un endpoint.
     """
     from app.datos.repos import consultas as q
+    from app.dominio import baja as dom
 
     alumna = q.alumna_de_usuario(s, actor.usuario_id)
-    if alumna is None or alumna.estado == "solicitud":
+    if alumna is None or alumna.estado == dom.EstadoDeAlumna.SOLICITUD.value:
         raise _falla(Codigo.SOLICITUD_SIN_ACEPTAR)
-    return actor
+
+    if alumna.estado in {e.value for e in dom.EN_CARTERA}:
+        return actor
+
+    if peticion.method == "GET" and dom.puede_leer_lo_suyo(
+        alumna.estado, alumna.baja_en, ahora_utc()
+    ):
+        return actor
+    raise _falla(Codigo.CUENTA_SOLO_LECTURA)
 
 
 def solo_admin(actor: Annotated[Actor, Depends(actor_establecido)]) -> Actor:

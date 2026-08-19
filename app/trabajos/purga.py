@@ -9,6 +9,8 @@ Tres plazos y ninguno es decorativo:
   para siempre sería archivar lo que nació para durar un día.
 - **Registros a medias: 7 días.** Quien empezó y no terminó no dejó una cuenta: dejó nombre,
   correo y fecha de nacimiento. Se borra todo, con recordatorio dos días antes.
+- **Expedientes de bajas: 15 días.** La alumna tuvo ese plazo para descargar lo suyo. Se
+  borra todo menos la ficha vacía, que sostiene los consentimientos y los movimientos.
 - **Imágenes de comprobantes: 12 meses.** Es lo que más pesa por alumna después de las fotos.
   Aquí también se borra la imagen y no la fila: el monto, la fecha y lo que leyó el OCR son
   la contabilidad, y esa no se purga.
@@ -38,7 +40,7 @@ from app.datos.modelos import (
 )
 from app.datos.sin_alcance import sesion_sin_alcance
 from app.dominio.fotos_de_comida import VIGENCIA
-from app.servicios import registro
+from app.servicios import baja, registro
 from app.servicios.almacenamiento import almacen
 
 #: Cuántas se borran por corrida. Un tope evita que una purga atrasada monopolice el disco
@@ -60,11 +62,17 @@ class Resultado:
     avisos: int
     solicitudes: int = 0
     comprobantes: int = 0
+    expedientes: int = 0
 
     @property
     def total(self) -> int:
         return (
-            self.comidas + self.chequeos + self.avisos + self.solicitudes + self.comprobantes
+            self.comidas
+            + self.chequeos
+            + self.avisos
+            + self.solicitudes
+            + self.comprobantes
+            + self.expedientes
         )
 
 
@@ -149,6 +157,19 @@ def _comprobantes_vencidos(s: Session, ahora: datetime) -> int:
     return len(vencidos)
 
 
+def _expedientes_de_baja(s: Session, ahora: datetime) -> int:
+    """Borra lo de quien se dio de baja hace más de quince días.
+
+    Se cuenta desde la baja y no desde la última corrida: el plazo lo fija la fecha que se
+    le prometió a la alumna, no la puntualidad del servidor.
+    """
+    borradas = 0
+    for alumna in baja.vencidas(s, ahora)[:LOTE]:
+        baja.borrar_expediente(s, alumna)
+        borradas += 1
+    return borradas
+
+
 def correr() -> Resultado:
     ahora = ahora_utc()
     comidas = chequeos = avisos = 0
@@ -194,6 +215,7 @@ def correr() -> Resultado:
         avisos = _avisos_gastados(s, ahora) + _cola_despachada(s, ahora)
         solicitudes = _registros_vencidos(s, ahora)
         comprobantes = _comprobantes_vencidos(s, ahora)
+        expedientes = _expedientes_de_baja(s, ahora)
 
     return Resultado(
         comidas=comidas,
@@ -201,6 +223,7 @@ def correr() -> Resultado:
         avisos=avisos,
         solicitudes=solicitudes,
         comprobantes=comprobantes,
+        expedientes=expedientes,
     )
 
 
@@ -208,7 +231,8 @@ def main() -> None:  # pragma: no cover - punto de entrada del timer de systemd
     r = correr()
     print(
         f"purgadas={r.total} comidas={r.comidas} chequeos={r.chequeos} "
-        f"avisos={r.avisos} solicitudes={r.solicitudes} comprobantes={r.comprobantes}"
+        f"avisos={r.avisos} solicitudes={r.solicitudes} comprobantes={r.comprobantes} "
+        f"expedientes={r.expedientes}"
     )
 
 

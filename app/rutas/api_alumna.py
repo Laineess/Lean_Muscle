@@ -16,6 +16,7 @@ from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc, dia_calendario
 from app.datos.modelos import Alumna
 from app.datos.repos import consultas as q
+from app.dominio import baja as dominio_baja
 from app.dominio.ciclo import Ciclo as CicloDominio
 from app.dominio.ciclo import EstadoCiclo, EstadoPago, exigir_acceso_al_plan
 from app.rutas.esquemas import (
@@ -129,6 +130,10 @@ def inicio(
             hora_ref=alumna.hora_ref,
             zona_horaria=alumna.zona_horaria,
             cuestionario_completo=alumna.cuestionario_completo,
+            estado=alumna.estado,
+            # Solo cuando está dada de baja: es la fecha que la pantalla le tiene que poner
+            # enfrente, no un dato de su ficha.
+            borra_en=dominio_baja.borra_el(alumna.baja_en) if alumna.baja_en else None,
         ),
         ciclo=CicloPublico(
             numero=ciclo.numero,

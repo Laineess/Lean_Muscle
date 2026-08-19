@@ -217,6 +217,9 @@ export interface InicioAlumnaApi {
     zonaHoraria: string;
     /** Falso hasta que contesta el cuestionario inicial. */
     cuestionarioCompleto: boolean;
+    estado: string;
+    /** Cuándo se borra su expediente. Solo cuando está dada de baja. */
+    borraEn: string | null;
   };
   ciclo: {
     numero: number;
@@ -1058,6 +1061,15 @@ export interface EstadoDeSolicitudApi {
   citaIniciaEn: string | null;
 }
 
+export interface AvisoDeBajaApi {
+  nombre: string;
+  adeudo: number;
+  cobrosVencidos: number;
+  chequeos: number;
+  /** Cuándo se borraría su expediente si se confirma hoy. */
+  borrariaEl: string;
+}
+
 export interface SolicitudEnBandejaApi {
   ulid: string;
   alumnaUlid: string;
@@ -1356,7 +1368,15 @@ export const api = {
       pedir<PerfilEditableApi>(`/coach/alumnas/${ulid}`, senal ? { senal } : {}),
     editarAlumna: (ulid: string, alumna: EdicionDeAlumnaApi) =>
       pedir<FilaCarteraApi>(`/coach/alumnas/${ulid}`, { metodo: "PUT", cuerpo: alumna }),
-    darDeBaja: (ulid: string) => pedir<void>(`/coach/alumnas/${ulid}`, { metodo: "DELETE" }),
+    /** Lo que hay que mirar antes de darla de baja. No cambia nada. */
+    revisarBaja: (ulid: string, senal?: AbortSignal) =>
+      pedir<AvisoDeBajaApi>(`/coach/alumnas/${ulid}/baja`, senal ? { senal } : {}),
+    /** La baja de verdad. Pide el nombre tecleado porque no se puede deshacer. */
+    darDeBaja: (ulid: string, nombre: string) =>
+      pedir<{ borraEl: string }>(`/coach/alumnas/${ulid}/baja`, {
+        metodo: "POST",
+        cuerpo: { nombre },
+      }),
     claveTemporal: (ulid: string, motivoVerificacion: string) =>
       pedir<{ clave: string; venceEn: string }>(`/coach/alumnas/${ulid}/clave-temporal`, {
         metodo: "POST",

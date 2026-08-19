@@ -113,7 +113,9 @@ class Alumna(BaseMultiInquilino):
         ARGS_DE_TABLA,
     )
 
-    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=False)
+    #: Nulo cuando ya se borro su cuenta: la ficha vacia se queda para sostener las
+    #: constancias legales y los movimientos de dinero, y el correo queda libre otra vez.
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
     nombre: Mapped[str] = mapped_column(String(120), nullable=False)
     whatsapp: Mapped[str | None] = mapped_column(String(30))
     fecha_nacimiento: Mapped[date] = mapped_column(Date, nullable=False)
@@ -144,6 +146,9 @@ class Alumna(BaseMultiInquilino):
 
     cuestionario_completo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     estado: Mapped[str] = mapped_column(String(20), default="activa", nullable=False)
+
+    #: Cuando se dio de baja. De aqui salen los quince dias de lectura y el borrado.
+    baja_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
 
 
 class SolicitudDeRegistro(BaseMultiInquilino):

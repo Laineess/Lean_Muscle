@@ -157,6 +157,18 @@ PLANTILLAS: dict[Aviso, Plantilla] = {
         ),
         boton=("Reactivar mi plan", f"{SITIO}/inicio"),
     ),
+    Aviso.BAJA_CONFIRMADA: Plantilla(
+        asunto="Tu baja con {coach}",
+        texto=(
+            "Hola {nombre}:\n\n"
+            "{coach} dio de baja tu cuenta. Va adjunto tu expediente: es tuyo.\n\n"
+            "Tienes {dias} días para entrar y descargar lo que quieras conservar. El "
+            "{fecha} se borra todo: fotos, medidas, historial y esta cuenta con su "
+            "correo.\n\n"
+            "Después de esa fecha puedes volver a registrarte desde cero si quieres."
+        ),
+        boton=("Descargar lo mío", f"{SITIO}/cuenta"),
+    ),
     Aviso.PURGA_PROXIMA: Plantilla(
         asunto="Tus fotos de {mes} se borran en 15 días",
         texto=(

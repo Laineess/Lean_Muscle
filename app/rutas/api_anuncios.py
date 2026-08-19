@@ -121,7 +121,7 @@ def enviar_anuncio(
             Aviso.MENSAJE_DE_COACH,
             coach_id=actor.coach_id,
             llave=f"anuncio:{anuncio.ulid}:{alumna.id}",
-            para=correos.get(alumna.usuario_id, ""),
+            para=correos.get(alumna.usuario_id, "") if alumna.usuario_id else "",
             contexto={
                 "titulo": titulo,
                 "cuerpo": texto,

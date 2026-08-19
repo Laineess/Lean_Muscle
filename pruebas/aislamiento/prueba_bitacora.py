@@ -77,6 +77,9 @@ EXENTOS: dict[str, str] = {
     # fila por tecleo en una tabla de cinco años de retención: sería ruido, no auditoría.
     "abrir_chequeo": "abrir un borrador propio no mueve dato sensible; el rastro va al enviar",
     "guardar_chequeo": "borrador propio; el rastro va al enviar",
+    # Cuenta chequeos para decirle a la coach cuánto se va a borrar. No abre ninguno: no
+    # hay peso, ni medida, ni foto, ni feedback en la respuesta.
+    "revisar_baja": "solo cuenta cuántos chequeos se van a borrar",
 }
 
 

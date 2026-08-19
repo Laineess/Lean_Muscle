@@ -127,6 +127,9 @@ class PerfilAlumna(Esquema):
     zona_horaria: str
     #: Falso hasta que lo contesta; decide si al entrar ve primero la presentación.
     cuestionario_completo: bool = True
+    estado: str = "activa"
+    #: Cuándo se borra su expediente. Solo va cuando está dada de baja.
+    borra_en: datetime | None = None
 
 
 class CitaDeAlumna(Esquema):
@@ -1107,6 +1110,26 @@ class EstadoDeSolicitud(Esquema):
     #: Cuándo se borra sola si la deja a medias.
     vence_en: datetime | None = None
     cita_inicia_en: datetime | None = None
+
+
+class AvisoDeBaja(Esquema):
+    """Lo que la coach tiene que mirar antes de dar de baja. La baja no tiene deshacer."""
+
+    nombre: str
+    adeudo: Numero
+    cobros_vencidos: int
+    chequeos: int
+    #: Cuándo se borra su expediente si confirma hoy.
+    borraria_el: datetime
+
+
+class ConfirmacionDeBaja(Esquema):
+    #: El nombre de la alumna, tecleado. Es lo único que evita darle de baja a otra.
+    nombre: Texto120
+
+
+class BajaHecha(Esquema):
+    borra_el: datetime
 
 
 class SolicitudEnBandeja(Esquema):

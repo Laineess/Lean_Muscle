@@ -109,7 +109,7 @@ def correr() -> Resultado:
 
         def datos_de(alumna: Alumna) -> tuple[str, str, str] | None:
             """(correo, nombre de pila, nombre de la coach), o None si falta algo."""
-            usuario = usuarios.get(alumna.usuario_id)
+            usuario = usuarios.get(alumna.usuario_id) if alumna.usuario_id else None
             coach = coaches.get(alumna.coach_id)
             if usuario is None or coach is None or not usuario.email:
                 return None
@@ -201,7 +201,7 @@ def correr() -> Resultado:
 
         # ---- Inactividad --------------------------------------------------
         for alumna in alumnas.values():
-            usuario = usuarios.get(alumna.usuario_id)
+            usuario = usuarios.get(alumna.usuario_id) if alumna.usuario_id else None
             info = datos_de(alumna)
             if usuario is None or info is None:
                 continue
@@ -269,7 +269,11 @@ def correr() -> Resultado:
 
             candidata = s.get(Alumna, solicitud.alumna_id)
             coach = coaches.get(solicitud.coach_id)
-            usuario = usuarios.get(candidata.usuario_id) if candidata else None
+            usuario = (
+                usuarios.get(candidata.usuario_id)
+                if candidata is not None and candidata.usuario_id
+                else None
+            )
             if candidata is None or coach is None or usuario is None:
                 continue
 

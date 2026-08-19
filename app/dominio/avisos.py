@@ -69,6 +69,8 @@ class Aviso(StrEnum):
     # --- Privacidad ---
     PURGA_PROXIMA = "purga_proxima"
     """Quince días antes de borrar sus fotos, con enlace de descarga."""
+    BAJA_CONFIRMADA = "baja_confirmada"
+    """Su coach la dio de baja. Lleva su expediente adjunto: lo que capturó es suyo."""
 
 
 class Canal(StrEnum):
@@ -113,10 +115,12 @@ CANALES: dict[Aviso, frozenset[Canal]] = {
     # Una frase de ánimo por correo es correo basura. Push y la propia app, nada más.
     Aviso.MENSAJE_DE_COACH: frozenset({Canal.PUSH}),
     Aviso.PURGA_PROXIMA: frozenset({Canal.PUSH, Canal.CORREO}),
+    # Por correo sí o sí: es lo único que le queda cuando su cuenta se cierre.
+    Aviso.BAJA_CONFIRMADA: frozenset({Canal.CORREO}),
 }
 
 #: Avisos que llevan un PDF adjunto.
-CON_ADJUNTO: frozenset[Aviso] = frozenset({Aviso.PAGO_VALIDADO})
+CON_ADJUNTO: frozenset[Aviso] = frozenset({Aviso.PAGO_VALIDADO, Aviso.BAJA_CONFIRMADA})
 
 #: Anticipación de cada recordatorio.
 ANTICIPACION_CITA = timedelta(days=1)

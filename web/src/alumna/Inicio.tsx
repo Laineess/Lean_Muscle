@@ -38,6 +38,8 @@ const RESPALDO: InicioAlumnaApi = {
     horaRef: alumna.horaRef,
     zonaHoraria: alumna.zonaHoraria,
     cuestionarioCompleto: true,
+    estado: "activa",
+    borraEn: null,
   },
   ciclo: {
     numero: ciclo.numero,
@@ -104,6 +106,17 @@ export function Inicio() {
       </header>
 
       {sinServidor ? <AvisoSinServidor mensaje={mensaje} /> : null}
+
+      {/* Dada de baja: lo primero que tiene que ver es hasta cuándo puede bajar lo suyo. */}
+      {datos.perfil.estado === "baja" && datos.perfil.borraEn ? (
+        <Aviso tono="error" titulo={`Tu cuenta se cierra el ${fecha(datos.perfil.borraEn)}`}>
+          {nombreCoach} dio de baja tu cuenta. Hasta esa fecha puedes entrar y descargar lo
+          tuyo; después se borra todo, incluidas tus fotos y tu historial.{" "}
+          <a href="/api/documentos/evolucion" className="underline underline-offset-2">
+            Descargar mi expediente
+          </a>
+        </Aviso>
+      ) : null}
 
       {datos.avisosSinLeer > 0 ? (
         <Aviso

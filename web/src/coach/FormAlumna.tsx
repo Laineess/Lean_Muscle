@@ -372,7 +372,6 @@ export function FormAlumna({
             <Selector id="a-estado" value={b.estado} onChange={(e) => cambiar("estado", e.target.value)}>
               <option value="activa">Activa</option>
               <option value="pausa">En pausa</option>
-              <option value="baja">Dada de baja</option>
             </Selector>
           </Campo>
         </>

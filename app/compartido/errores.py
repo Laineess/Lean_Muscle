@@ -60,6 +60,10 @@ class Codigo(StrEnum):
     SOLICITUD_YA_DECIDIDA = "SOLICITUD_YA_DECIDIDA"
     SOLICITUD_SIN_ACEPTAR = "SOLICITUD_SIN_ACEPTAR"
 
+    # --- Baja ---------------------------------------------------------------
+    CONFIRMACION_NO_COINCIDE = "CONFIRMACION_NO_COINCIDE"
+    CUENTA_SOLO_LECTURA = "CUENTA_SOLO_LECTURA"
+
     # --- Finanzas -----------------------------------------------------------
     MONTO_INVALIDO = "MONTO_INVALIDO"
     MONTO_FUERA_DE_RANGO = "MONTO_FUERA_DE_RANGO"

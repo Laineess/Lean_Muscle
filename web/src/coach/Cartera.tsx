@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
+import { DarDeBaja } from "@/coach/DarDeBaja";
 import { FormAlumna, FormClaveTemporal } from "@/coach/FormAlumna";
 import { LigaDeRegistro } from "@/coach/LigaDeRegistro";
 import {
@@ -39,6 +40,7 @@ export function Cartera() {
   const [editando, setEditando] = useState<FilaCarteraApi | null>(null);
   const [dandoDeAlta, setDandoDeAlta] = useState(false);
   const [recuperando, setRecuperando] = useState<FilaCarteraApi | null>(null);
+  const [dandoDeBaja, setDandoDeBaja] = useState<FilaCarteraApi | null>(null);
   const { datos: alumnas, cargando, sinServidor, mensaje, recargar } = usarApiConRespaldo<FilaCarteraApi[]>(
     (senal) => api.coach.alumnas(senal),
     carteraEjemplo,
@@ -133,6 +135,14 @@ export function Cartera() {
                     <Boton tono="discreto" medida="chica" onClick={() => setRecuperando(a)}>
                       Clave
                     </Boton>
+                    <Boton
+                      tono="discreto"
+                      medida="chica"
+                      className="text-peligro"
+                      onClick={() => setDandoDeBaja(a)}
+                    >
+                      Baja
+                    </Boton>
                     <Boton asChild tono="discreto" medida="chica">
                       <Link to={`/coach/mensajes/${a.ulid}`}>Mensajes</Link>
                     </Boton>
@@ -169,6 +179,17 @@ export function Cartera() {
 
       {recuperando ? (
         <FormClaveTemporal alumna={recuperando} onCerrar={() => setRecuperando(null)} />
+      ) : null}
+
+      {dandoDeBaja ? (
+        <DarDeBaja
+          alumna={dandoDeBaja}
+          onCerrar={() => setDandoDeBaja(null)}
+          onHecho={() => {
+            setDandoDeBaja(null);
+            recargar();
+          }}
+        />
       ) : null}
     </div>
   );
