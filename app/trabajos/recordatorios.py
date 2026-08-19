@@ -23,13 +23,26 @@ from app.datos.modelos import (
     Ciclo,
     Cita,
     Coach,
+    CobroProgramado,
     Foto,
     Pago,
+    SolicitudDeRegistro,
     Usuario,
 )
 from app.datos.sin_alcance import sesion_sin_alcance
 from app.dominio import avisos as av
+from app.dominio import registro as reg
 from app.servicios import avisos as cola
+
+#: Cómo se le nombra a lo que le falta, para que el correo se lo diga con palabras suyas.
+PENDIENTE_DE = {
+    reg.Paso.CORREO: "confirmar tu correo con el código que te mandamos",
+    reg.Paso.CUESTIONARIO: "contestar el cuestionario de tu coach",
+    reg.Paso.CITA: "reservar tu primera consulta",
+    reg.Paso.COMPROBANTE: "subir tu comprobante de inscripción",
+    reg.Paso.ESPERA: "nada: ya está todo de tu lado",
+    reg.Paso.LISTA: "nada",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,11 +52,17 @@ class Resultado:
     citas: int
     inactividad: int
     purgas: int
+    registros: int = 0
 
     @property
     def total(self) -> int:
         return (
-            self.pagos_proximos + self.pagos_vencidos + self.citas + self.inactividad + self.purgas
+            self.pagos_proximos
+            + self.pagos_vencidos
+            + self.citas
+            + self.inactividad
+            + self.purgas
+            + self.registros
         )
 
 
@@ -81,7 +100,7 @@ def correr() -> Resultado:
     ahora = ahora_utc()
     retencion = ajustes().retencion_fotos_meses
 
-    pagos_proximos = pagos_vencidos = citas = inactividad = purgas = 0
+    pagos_proximos = pagos_vencidos = citas = inactividad = purgas = registros = 0
 
     with sesion_sin_alcance("recordatorios diarios; cruzan inquilinos") as s:
         coaches = {c.id: c for c in s.scalars(select(Coach))}
@@ -236,7 +255,68 @@ def correr() -> Resultado:
             ):
                 purgas += 1
 
-    return Resultado(pagos_proximos, pagos_vencidos, citas, inactividad, purgas)
+        # ---- Registros a medias -------------------------------------------
+        # Van aparte del bucle de alumnas: una solicitante no está en `alumnas`, que solo
+        # trae a las activas.
+        for solicitud in s.scalars(select(SolicitudDeRegistro)):
+            if not reg.toca_recordar(
+                reg.Estado(solicitud.estado),
+                solicitud.creado_en,
+                ahora,
+                solicitud.recordatorio_enviado_en is not None,
+            ):
+                continue
+
+            candidata = s.get(Alumna, solicitud.alumna_id)
+            coach = coaches.get(solicitud.coach_id)
+            usuario = usuarios.get(candidata.usuario_id) if candidata else None
+            if candidata is None or coach is None or usuario is None:
+                continue
+
+            # Se consulta lo suyo en lugar de suponerlo: el correo le nombra lo que le
+            # falta, y decirle que reserve una consulta que ya reservó la manda de vuelta
+            # a una pantalla donde no hay nada que hacer.
+            tiene_cita = (
+                s.scalars(
+                    select(Cita).where(
+                        Cita.alumna_id == candidata.id, Cita.estado != "cancelada"
+                    )
+                ).first()
+                is not None
+            )
+            comprobante = (
+                s.scalars(
+                    select(CobroProgramado).where(
+                        CobroProgramado.alumna_id == candidata.id,
+                        CobroProgramado.comprobante_key.is_not(None),
+                    )
+                ).first()
+                is not None
+            )
+            paso = reg.paso_actual(
+                estado=reg.Estado(solicitud.estado),
+                cuestionario_completo=candidata.cuestionario_completo,
+                tiene_cita=tiene_cita,
+                comprobante_subido=comprobante,
+            )
+            if cola.encolar(
+                s,
+                av.Aviso.REGISTRO_SIN_TERMINAR,
+                coach_id=solicitud.coach_id,
+                llave=f"solicitud:{solicitud.ulid}:sin-terminar",
+                para=usuario.email,
+                contexto={
+                    "nombre": candidata.nombre.split(" ")[0],
+                    "coach": coach.marca or coach.nombre,
+                    "pendiente": PENDIENTE_DE[paso],
+                    "dias": reg.AVISO_ANTES_DE_BORRAR.days,
+                },
+                destinatario_id=usuario.id,
+            ):
+                solicitud.recordatorio_enviado_en = ahora
+                registros += 1
+
+    return Resultado(pagos_proximos, pagos_vencidos, citas, inactividad, purgas, registros)
 
 
 def main() -> None:  # pragma: no cover - punto de entrada del timer de systemd

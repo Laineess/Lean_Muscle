@@ -135,7 +135,13 @@ def ultimo_aviso_sin_leer(s: Session, usuario_id: int) -> Notificacion | None:
 
 
 def cartera(s: Session) -> list[Alumna]:
-    return list(s.scalars(select(Alumna).order_by(Alumna.nombre)).all())
+    """Sus alumnas. Las solicitudes del registro abierto no son suyas todavía: viven en su
+    propia bandeja y aparecer aquí las contaria como cartera antes de que las acepte."""
+    return list(
+        s.scalars(
+            select(Alumna).where(Alumna.estado != "solicitud").order_by(Alumna.nombre)
+        ).all()
+    )
 
 
 def ultimo_acceso_de(s: Session, usuario_ids: list[int]) -> dict[int, datetime | None]:

@@ -136,13 +136,16 @@ def por_revisar(
 ) -> list[ComprobantePorRevisar]:
     """La bandeja. Trae lo esperado y lo leído para ver si cuadra sin abrir cada imagen."""
     _ = actor
+    # La cartera no trae solicitudes del registro abierto, y aquí eso es lo que se quiere:
+    # su comprobante de inscripción lo valida la coach al aceptarlas, junto con lo demás,
+    # no suelto en la bandeja de finanzas.
     alumnas = {a.id: a for a in q.cartera(s)}
     planes = {t.id: t.nombre for t in q.tarifas_de_coach(s)}
 
     filas: list[ComprobantePorRevisar] = []
     for c in q.comprobantes_por_revisar(s):
         alumna = alumnas.get(c.alumna_id)
-        if alumna is None:  # pragma: no cover - defensivo
+        if alumna is None:
             continue
 
         leido = (c.ocr or {}).get("monto")

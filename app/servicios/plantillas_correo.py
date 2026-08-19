@@ -57,6 +57,25 @@ PLANTILLAS: dict[Aviso, Plantilla] = {
             "tu cuenta, y ahí está tu historial de salud."
         ),
     ),
+    Aviso.CODIGO_DE_REGISTRO: Plantilla(
+        asunto="{codigo} es tu código para registrarte",
+        texto=(
+            "Hola:\n\n"
+            "Tu código para completar el registro con {coach} es {codigo}\n\n"
+            "Vence en {minutos} minutos. Si no lo pediste tú, ignora este correo: sin el "
+            "código nadie puede seguir con ese registro."
+        ),
+    ),
+    Aviso.REGISTRO_SIN_TERMINAR: Plantilla(
+        asunto="Te falta poco para entrar con {coach}",
+        texto=(
+            "Hola {nombre}:\n\n"
+            "Dejaste tu registro a medias y te falta {pendiente}.\n\n"
+            "Lo que capturaste se borra en {dias} días, y con ello tu cuenta: es tu dato y "
+            "no lo guardamos más de lo necesario. Si quieres seguir, retómalo cuando puedas."
+        ),
+        boton=("Terminar mi registro", f"{SITIO}/acceso"),
+    ),
     Aviso.CITA_AGENDADA: Plantilla(
         asunto="Tu consulta con {coach}: {fecha}",
         texto=(

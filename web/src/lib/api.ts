@@ -341,10 +341,14 @@ export interface CuestionarioApi {
   preguntas: PreguntaApi[];
   respuestas: { preguntaUlid: string; valor: string }[];
   consentimientosPendientes: string[];
+  planes: PlanParaElegirApi[];
+  planElegido: string | null;
 }
 
 export interface EnvioDeCuestionarioApi {
   nucleo: NucleoClinicoApi;
+  /** El plan que pide. Es una solicitud: el ciclo se crea con el que la coach confirme. */
+  tarifaUlid?: string | null;
   respuestas: { preguntaUlid: string; valor: string }[];
   consentimientos: string[];
 }
@@ -1012,6 +1016,67 @@ export interface HuecoApi {
   terminaEn: string;
 }
 
+export interface LigaDeRegistroApi {
+  coach: string;
+  marca: string;
+  colorAcento: string;
+  tieneLogo: boolean;
+  /** Falso cuando la coach la tiene apagada o le falta el precio de inscripción. */
+  abierta: boolean;
+  motivo: string | null;
+  precioInscripcion: number | null;
+  conceptoInscripcion: string | null;
+}
+
+export interface RegistroNuevoApi {
+  nombre: string;
+  correo: string;
+  contrasena: string;
+  fechaNacimiento: string;
+  whatsapp: string | null;
+  aceptaTerminos: boolean;
+  aceptaPrivacidad: boolean;
+}
+
+export interface RegistroAceptadoApi {
+  correo: string;
+  /** Solo fuera de producción: en local el correo no sale de ningún buzón. */
+  codigo: string | null;
+}
+
+export type PasoDeSolicitud = "correo" | "cuestionario" | "cita" | "comprobante" | "espera" | "lista";
+
+export interface EstadoDeSolicitudApi {
+  esSolicitud: boolean;
+  estado: string;
+  paso: PasoDeSolicitud;
+  coach: string;
+  cuestionarioCompleto: boolean;
+  tieneCita: boolean;
+  comprobanteSubido: boolean;
+  venceEn: string | null;
+  citaIniciaEn: string | null;
+}
+
+export interface RegistroDeCoachApi {
+  abierto: boolean;
+  liga: string;
+  puedeEncenderse: boolean;
+  motivo: string | null;
+  serviciosDeInscripcion: number;
+  precioInscripcion: number | null;
+  solicitudesPendientes: number;
+}
+
+export interface PlanParaElegirApi {
+  ulid: string;
+  nombre: string;
+  descripcion: string | null;
+  precio: number;
+  dias: number;
+  intensidad: string;
+}
+
 export interface MarcaApi {
   nombre: string;
   marca: string;
@@ -1120,6 +1185,8 @@ export const api = {
       pedir<AvisoDeAlumnaApi[]>("/mi/avisos", senal ? { senal } : {}),
 
     huecos: (senal?: AbortSignal) => pedir<HuecoApi[]>("/mi/huecos", senal ? { senal } : {}),
+    solicitud: (senal?: AbortSignal) =>
+      pedir<EstadoDeSolicitudApi>("/mi/solicitud", senal ? { senal } : {}),
     reservar: (iniciaEn: string, modalidad: string) =>
       pedir<CitaDeAlumnaApi>("/mi/citas", { metodo: "POST", cuerpo: { iniciaEn, modalidad } }),
 
@@ -1161,6 +1228,28 @@ export const api = {
       ),
   },
 
+  /** Sin sesión: es la puerta de entrada de quien llega por la liga de una coach. */
+  registro: {
+    liga: (slug: string, senal?: AbortSignal) =>
+      pedir<LigaDeRegistroApi>(`/registro/${encodeURIComponent(slug)}`, senal ? { senal } : {}),
+    registrarse: (slug: string, datos: RegistroNuevoApi) =>
+      pedir<RegistroAceptadoApi>(`/registro/${encodeURIComponent(slug)}`, {
+        metodo: "POST",
+        cuerpo: datos,
+      }),
+    /** Verifica el código y deja la sesión abierta: la cookie llega en la respuesta. */
+    verificar: (slug: string, correo: string, codigo: string) =>
+      pedir<ActorPublico>(`/registro/${encodeURIComponent(slug)}/codigo`, {
+        metodo: "POST",
+        cuerpo: { correo, codigo },
+      }),
+    reenviar: (slug: string, correo: string) =>
+      pedir<void>(`/registro/${encodeURIComponent(slug)}/codigo/reenviar`, {
+        metodo: "POST",
+        cuerpo: { correo },
+      }),
+  },
+
   /** Sin sesión: el aviso de privacidad se lee antes de entregar ningún dato. */
   legales: {
     documento: (clave: string, coach: string | null, senal?: AbortSignal) =>
@@ -1190,6 +1279,10 @@ export const api = {
       ),
     horario: (senal?: AbortSignal) =>
       pedir<HorarioDeCoachApi>("/coach/horario", senal ? { senal } : {}),
+    registro: (senal?: AbortSignal) =>
+      pedir<RegistroDeCoachApi>("/coach/registro", senal ? { senal } : {}),
+    abrirRegistro: (abierto: boolean) =>
+      pedir<RegistroDeCoachApi>("/coach/registro", { metodo: "PUT", cuerpo: { abierto } }),
     /** Reemplaza el horario entero: hay que mandar todos los tramos, no solo el que cambió. */
     guardarHorario: (h: HorarioDeCoachApi) =>
       pedir<HorarioDeCoachApi>("/coach/horario", { metodo: "PUT", cuerpo: h }),
@@ -1396,6 +1489,11 @@ export function urlDeComprobante(cobroUlid: string): string {
 }
 
 /** El logo de la marca del inquilino en curso. `v` fuerza recarga tras subir uno nuevo. */
+/** El logo de la coach en su página de registro. Sin sesión: quien la abre no tiene una. */
+export function urlDeLogoDeLiga(slug: string): string {
+  return `${BASE}/registro/${encodeURIComponent(slug)}/logo`;
+}
+
 export function urlDeLogo(version = 0): string {
   return `${BASE}/logo${version ? `?v=${version}` : ""}`;
 }

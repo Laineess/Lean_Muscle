@@ -60,6 +60,8 @@ export interface CargaConRespaldo<T> {
   /** El servidor no respondió: la pantalla está pintando datos de ejemplo. */
   sinServidor: boolean;
   mensaje: string | null;
+  /** El código del error, cuando lo hay: sirve para distinguir un 403 con motivo. */
+  codigo: string | null;
   recargar: () => void;
 }
 
@@ -80,6 +82,7 @@ export function usarApiConRespaldo<T>(
     cargando: cargando && datos === null,
     sinServidor: error !== null,
     mensaje: error?.message ?? null,
+    codigo: error?.codigo ?? null,
     recargar,
   };
 }

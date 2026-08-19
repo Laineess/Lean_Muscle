@@ -68,6 +68,9 @@ class Coach(Base):
         String(60), default="America/Mexico_City", nullable=False
     )
 
+    #: Interruptor de la liga publica `/r/{slug}`. Apagado, nadie se registra solo.
+    registro_abierto: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
 
 class Usuario(BaseMultiInquilino):
     """Credenciales. El rol determina que ve; el `coach_id` determina que existe para el."""
@@ -141,6 +144,42 @@ class Alumna(BaseMultiInquilino):
 
     cuestionario_completo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     estado: Mapped[str] = mapped_column(String(20), default="activa", nullable=False)
+
+
+class SolicitudDeRegistro(BaseMultiInquilino):
+    """Alguien que llego por la liga de la coach y todavia no es su alumna.
+
+    La fila de `alumna` existe desde el primer paso —de ella cuelgan el cuestionario, la
+    cita y el cobro de inscripcion— pero con `estado='solicitud'`, que es lo que la deja
+    fuera de la cartera y del limite de alumnas. Aqui vive lo que solo importa mientras
+    dura el registro: el codigo del correo y el plazo para abandonarlo.
+    """
+
+    __tablename__ = "solicitud_registro"
+    __table_args__ = (
+        CheckConstraint(
+            "estado in ('sin_verificar','en_curso','esperando','aceptada','descartada')",
+            name="estado_solicitud_valido",
+        ),
+        UniqueConstraint("alumna_id", name="uq_solicitud_alumna"),
+        Index("ix_solicitud_coach_estado", "coach_id", "estado"),
+        ARGS_DE_TABLA,
+    )
+
+    alumna_id: Mapped[int] = mapped_column(ForeignKey("alumna.id"), nullable=False)
+    estado: Mapped[str] = mapped_column(String(20), default="sin_verificar", nullable=False)
+
+    #: Del codigo de seis digitos solo se guarda el hash, como del token de sesion.
+    codigo_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    codigo_vence_en: Mapped[datetime] = mapped_column(MARCA_DE_TIEMPO, nullable=False)
+    intentos: Mapped[int] = mapped_column(TINYINT, default=0, nullable=False)
+
+    #: Desde donde se registro. Es lo que frena a quien llena la bandeja con basura.
+    ip: Mapped[str | None] = mapped_column(String(45))
+
+    recordatorio_enviado_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
+    decidida_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
+    motivo_descarte: Mapped[str | None] = mapped_column(String(255))
 
 
 # ---------------------------------------------------------------------------

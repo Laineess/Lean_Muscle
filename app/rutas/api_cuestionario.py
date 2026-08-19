@@ -28,12 +28,14 @@ from app.datos.modelos import (
     HistorialClinico,
     PreguntaCuestionario,
     RespuestaCuestionario,
+    Tarifa,
 )
 from app.datos.repos import consultas as q
 from app.rutas.esquemas import (
     CuestionarioParaAlumna,
     EnvioDeCuestionario,
     NucleoClinico,
+    PlanParaElegir,
     PreguntaNueva,
     PreguntaPublica,
     RespuestaDeAlumna,
@@ -238,7 +240,24 @@ def mi_cuestionario(
         )
     }
 
+    planes = s.scalars(
+        select(Tarifa).where(Tarifa.activa.is_(True)).order_by(Tarifa.precio)
+    ).all()
+    elegido = next((t.ulid for t in planes if t.id == alumna.tarifa_id), None)
+
     return CuestionarioParaAlumna(
+        planes=[
+            PlanParaElegir(
+                ulid=t.ulid,
+                nombre=t.nombre,
+                descripcion=t.descripcion,
+                precio=t.precio,
+                dias=t.dias,
+                intensidad=t.intensidad,
+            )
+            for t in planes
+        ],
+        plan_elegido=elegido,
         completo=alumna.cuestionario_completo,
         nucleo=NucleoClinico(
             lesiones=historial.lesiones if historial else None,
@@ -308,6 +327,14 @@ def enviar_cuestionario(
         fila.valor = enviada.valor.strip()[:4000]
 
     _registrar_consentimientos(s, actor, alumna, cuerpo.consentimientos, peticion)
+
+    # El plan que pide es una solicitud, no un contrato: el ciclo se crea cuando la coach
+    # acepta, con el plan que ella confirme.
+    if cuerpo.tarifa_ulid:
+        pedido = s.scalars(select(Tarifa).where(Tarifa.ulid == cuerpo.tarifa_ulid)).first()
+        if pedido is None or not pedido.activa:
+            raise HTTPException(422, "Ese plan ya no está disponible")
+        alumna.tarifa_id = pedido.id
 
     alumna.cuestionario_completo = True
     s.flush()

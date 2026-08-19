@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Acceso } from "@/Acceso";
 import { Legales } from "@/Legales";
 import { PrimerAcceso } from "@/PrimerAcceso";
+import { Registro } from "@/Registro";
 import { Avisos } from "@/alumna/Avisos";
 import { Bienvenida } from "@/alumna/Bienvenida";
 import { Chequeo } from "@/alumna/Chequeo";
@@ -14,6 +15,7 @@ import { MarcoAlumna } from "@/alumna/Marco";
 import { Mensajes } from "@/alumna/Mensajes";
 import { MiPlan } from "@/alumna/MiPlan";
 import { Reservar } from "@/alumna/Reservar";
+import { Solicitud } from "@/alumna/Solicitud";
 import { Agenda } from "@/coach/Agenda";
 import { Ajustes } from "@/coach/Ajustes";
 import { Apariencia } from "@/coach/Apariencia";
@@ -102,6 +104,9 @@ export function App() {
       {/* Fuera del guardia: el aviso de privacidad tiene que poder leerse sin haber entrado. */}
       <Route path="/legal/:documento" element={<Legales />} />
 
+      {/* La liga de registro de cada coach. Sin sesión: es la puerta de entrada. */}
+      <Route path="/r/:slug" element={<Registro />} />
+
       <Route
         element={
           <Exige rol="alumna">
@@ -136,6 +141,16 @@ export function App() {
         element={
           <Exige rol="alumna">
             <Chequeo />
+          </Exige>
+        }
+      />
+
+      {/* Mientras su coach no la acepte, esta es su pantalla de inicio. */}
+      <Route
+        path="/solicitud"
+        element={
+          <Exige rol="alumna">
+            <Solicitud />
           </Exige>
         }
       />

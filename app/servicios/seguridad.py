@@ -73,6 +73,11 @@ def nueva_clave_temporal() -> str:
     return f"{bruto[:4]}-{bruto[4:]}"
 
 
+def codigo_de_verificacion() -> str:
+    """Seis digitos para confirmar que el correo es suyo. Se guarda su hash, no el codigo."""
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
 def exigir_mayor_de_edad(edad: int) -> None:
     """El MVP no admite menores: sus fotos corporales exigirian consentimiento de quien
     ejerce la patria potestad, y ese flujo no existe (Anexo Legal, seccion 9)."""

@@ -38,7 +38,7 @@ from app.rutas.esquemas import (
     GuardadoDeChequeo,
     PesajePublico,
 )
-from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_alumna
+from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_alumna_aceptada
 from app.rutas.traduccion import respuesta_para
 from app.servicios import avisos as cola
 from app.servicios import bitacora
@@ -189,7 +189,7 @@ def _exigir_ventana_de_consulta(s: Session, alumna: Alumna, ciclo: Ciclo) -> Non
 
 @ruteador.post("/chequeo", response_model=BorradorChequeo)
 def abrir_chequeo(
-    actor: Annotated[Actor, Depends(solo_alumna)],
+    actor: Annotated[Actor, Depends(solo_alumna_aceptada)],
     s: Annotated[Session, Depends(datos)],
 ) -> BorradorChequeo:
     """Abre el chequeo del ciclo o devuelve el abierto. Idempotente: entrar dos veces no
@@ -236,7 +236,7 @@ def abrir_chequeo(
 def guardar_chequeo(
     ulid: str,
     cuerpo: GuardadoDeChequeo,
-    actor: Annotated[Actor, Depends(solo_alumna)],
+    actor: Annotated[Actor, Depends(solo_alumna_aceptada)],
     s: Annotated[Session, Depends(datos)],
 ) -> BorradorChequeo:
     """Guarda el avance; todo es opcional. Los rangos se validan igual: descubrir un peso
@@ -324,7 +324,7 @@ def _guardar_medidas(
 @ruteador.post("/chequeo/{ulid}/enviar", response_model=BorradorChequeo)
 def enviar_chequeo(
     ulid: str,
-    actor: Annotated[Actor, Depends(solo_alumna)],
+    actor: Annotated[Actor, Depends(solo_alumna_aceptada)],
     s: Annotated[Session, Depends(datos)],
 ) -> BorradorChequeo:
     """Cierra el chequeo y lo manda a evaluación. Devuelve todas las causas de rechazo

@@ -28,7 +28,14 @@ from app.rutas.esquemas import (
     FotoDeComidaPublica,
     FotosDeComidaDeAlumna,
 )
-from app.rutas.sesion import Actor, RutaQueConfirma, actor_actual, datos, solo_alumna, solo_coach
+from app.rutas.sesion import (
+    Actor,
+    RutaQueConfirma,
+    actor_actual,
+    datos,
+    solo_alumna_aceptada,
+    solo_coach,
+)
 from app.servicios import almacenamiento, bitacora, imagenes
 from app.servicios.almacenamiento import almacen
 
@@ -103,7 +110,7 @@ def _referencia(plan: Plan | None, alumna: Alumna) -> date:
 
 @ruteador.get("/mi/fotos-comida", response_model=FotosDeComidaDeAlumna)
 def mis_fotos(
-    actor: Annotated[Actor, Depends(solo_alumna)],
+    actor: Annotated[Actor, Depends(solo_alumna_aceptada)],
     s: Annotated[Session, Depends(datos)],
 ) -> FotosDeComidaDeAlumna:
     alumna = _mi_alumna(s, actor)
@@ -130,7 +137,7 @@ def mis_fotos(
 
 @ruteador.post("/mi/fotos-comida", response_model=FotoDeComidaPublica, status_code=201)
 async def subir_foto(
-    actor: Annotated[Actor, Depends(solo_alumna)],
+    actor: Annotated[Actor, Depends(solo_alumna_aceptada)],
     s: Annotated[Session, Depends(datos)],
     archivo: Annotated[UploadFile, File()],
     tiempo: Annotated[str, Form()] = "",
@@ -188,7 +195,7 @@ async def subir_foto(
 @ruteador.delete("/mi/fotos-comida/{ulid}", status_code=204)
 def borrar_foto(
     ulid: str,
-    actor: Annotated[Actor, Depends(solo_alumna)],
+    actor: Annotated[Actor, Depends(solo_alumna_aceptada)],
     s: Annotated[Session, Depends(datos)],
 ) -> None:
     """La alumna se arrepiente. Se borra ya, sin esperar las 36 horas."""

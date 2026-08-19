@@ -30,7 +30,7 @@ from app.rutas.esquemas import (
     MensajePublico,
     SuscripcionNueva,
 )
-from app.rutas.sesion import Actor, RutaQueConfirma, actor_actual, datos, solo_alumna
+from app.rutas.sesion import Actor, RutaQueConfirma, actor_actual, datos, solo_alumna_aceptada
 from app.servicios import almacenamiento, bitacora, imagenes
 from app.servicios.almacenamiento import almacen
 
@@ -61,7 +61,7 @@ class FotoSubida(Esquema):
 async def subir_foto(
     ulid: str,
     angulo: str,
-    actor: Annotated[Actor, Depends(solo_alumna)],
+    actor: Annotated[Actor, Depends(solo_alumna_aceptada)],
     s: Annotated[Session, Depends(datos)],
     archivo: Annotated[UploadFile, File()],
 ) -> FotoSubida:
@@ -135,7 +135,7 @@ async def subir_foto(
 def repetir_captura(
     ulid: str,
     angulo: str,
-    actor: Annotated[Actor, Depends(solo_alumna)],
+    actor: Annotated[Actor, Depends(solo_alumna_aceptada)],
     s: Annotated[Session, Depends(datos)],
 ) -> None:
     """«Repetir captura». Borra el archivo, no solo la fila."""
@@ -322,7 +322,7 @@ def _hilo(s: Session, alumna_id: int) -> list[Mensaje]:
 
 @ruteador.get("/mi/mensajes", response_model=list[MensajePublico])
 def mis_mensajes(
-    actor: Annotated[Actor, Depends(solo_alumna)],
+    actor: Annotated[Actor, Depends(solo_alumna_aceptada)],
     s: Annotated[Session, Depends(datos)],
 ) -> list[MensajePublico]:
     alumna = _mi_alumna(s, actor)
@@ -339,7 +339,7 @@ def mis_mensajes(
 @ruteador.post("/mi/mensajes", response_model=MensajePublico, status_code=201)
 def escribir_a_mi_coach(
     cuerpo: MensajeNuevo,
-    actor: Annotated[Actor, Depends(solo_alumna)],
+    actor: Annotated[Actor, Depends(solo_alumna_aceptada)],
     s: Annotated[Session, Depends(datos)],
 ) -> MensajePublico:
     if not cuerpo.cuerpo.strip():

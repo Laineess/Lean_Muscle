@@ -93,6 +93,36 @@ def registrar(s: Session, correo: str, ip: str | None, exitoso: bool) -> None:
             s.delete(fila)
 
 
+#: Registros nuevos por IP y por hora. Alto para una casa compartida, bajo para quien
+#: quiera llenarle la bandeja de solicitudes a una coach.
+LIMITE_DE_REGISTROS_POR_IP = 5
+VENTANA_DE_REGISTROS = timedelta(hours=1)
+
+
+def registros_agotados(s: Session, ip: str | None) -> bool:
+    """Si esta IP ya abrio demasiadas solicitudes en la ultima hora.
+
+    Se cuenta contra `solicitud_registro` y no contra los intentos de acceso: registrarse no
+    es equivocarse de contrasena, y mezclarlos dejaria a una casa entera sin poder entrar
+    por haber probado la liga de la coach.
+    """
+    if not ip:
+        return False
+
+    from app.datos.modelos import SolicitudDeRegistro
+
+    total = s.scalar(
+        select(func.count())
+        .select_from(SolicitudDeRegistro)
+        .where(
+            SolicitudDeRegistro.ip == ip,
+            SolicitudDeRegistro.creado_en >= ahora_utc() - VENTANA_DE_REGISTROS,
+        )
+        .execution_options(sin_alcance=True)
+    )
+    return int(total or 0) >= LIMITE_DE_REGISTROS_POR_IP
+
+
 def purgar(s: Session) -> int:
     """Borra los intentos viejos. Lo llama el trabajo de mantenimiento diario."""
     viejos = list(

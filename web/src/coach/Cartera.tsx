@@ -9,7 +9,17 @@ import { Link } from "react-router-dom";
 
 import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
 import { FormAlumna, FormClaveTemporal } from "@/coach/FormAlumna";
-import { Apoyo, Boton, Chip, Entrada, Etiqueta, Portada, Vacio } from "@/componentes/primitivas";
+import { LigaDeRegistro } from "@/coach/LigaDeRegistro";
+import {
+  Apoyo,
+  Boton,
+  Chip,
+  Entrada,
+  Etiqueta,
+  Portada,
+  Regla,
+  Vacio,
+} from "@/componentes/primitivas";
 import { api, type FilaCarteraApi } from "@/lib/api";
 import { cartera as carteraEjemplo, coach } from "@/lib/datos";
 import { delta, fecha, num } from "@/lib/formato";
@@ -52,6 +62,10 @@ export function Cartera() {
         </Etiqueta>
         <Portada>Mis alumnas</Portada>
       </header>
+
+      <LigaDeRegistro />
+
+      <Regla />
 
       <div className="flex flex-wrap items-center gap-3">
         <Entrada

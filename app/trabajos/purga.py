@@ -7,6 +7,8 @@ Tres plazos y ninguno es decorativo:
 - **Fotos de chequeo: cuatro meses.** Es lo que dice el aviso de privacidad.
 - **Avisos de la coach: en cuanto los leen, o a los 7 días.** Son frases de ánimo; guardarlas
   para siempre sería archivar lo que nació para durar un día.
+- **Registros a medias: 7 días.** Quien empezó y no terminó no dejó una cuenta: dejó nombre,
+  correo y fecha de nacimiento. Se borra todo, con recordatorio dos días antes.
 
 Con las fotos **la fila no se borra, la imagen sí**: `purgada_en` queda con la fecha, porque
 la bitácora tiene que poder decir que esa foto existió. Con los avisos se borra todo: no hay
@@ -26,6 +28,7 @@ from app.config import ajustes
 from app.datos.modelos import Anuncio, AvisoEnviado, Foto, FotoDeComida, Notificacion
 from app.datos.sin_alcance import sesion_sin_alcance
 from app.dominio.fotos_de_comida import VIGENCIA
+from app.servicios import registro
 from app.servicios.almacenamiento import almacen
 
 #: Cuántas se borran por corrida. Un tope evita que una purga atrasada monopolice el disco
@@ -45,10 +48,11 @@ class Resultado:
     comidas: int
     chequeos: int
     avisos: int
+    solicitudes: int = 0
 
     @property
     def total(self) -> int:
-        return self.comidas + self.chequeos + self.avisos
+        return self.comidas + self.chequeos + self.avisos + self.solicitudes
 
 
 def _borrar(llave: str | None) -> None:
@@ -99,6 +103,15 @@ def _cola_despachada(s: Session, ahora: datetime) -> int:
     return len(viejas)
 
 
+def _registros_abandonados(s: Session, ahora: datetime) -> int:
+    """Borra los registros que quedaron a medias, con su cuenta y todo lo que capturaron."""
+    borradas = 0
+    for solicitud in registro.abandonadas(s, ahora)[:LOTE]:
+        registro.borrar(s, solicitud)
+        borradas += 1
+    return borradas
+
+
 def correr() -> Resultado:
     ahora = ahora_utc()
     comidas = chequeos = avisos = 0
@@ -142,13 +155,19 @@ def correr() -> Resultado:
             chequeos += 1
 
         avisos = _avisos_gastados(s, ahora) + _cola_despachada(s, ahora)
+        solicitudes = _registros_abandonados(s, ahora)
 
-    return Resultado(comidas=comidas, chequeos=chequeos, avisos=avisos)
+    return Resultado(
+        comidas=comidas, chequeos=chequeos, avisos=avisos, solicitudes=solicitudes
+    )
 
 
 def main() -> None:  # pragma: no cover - punto de entrada del timer de systemd
     r = correr()
-    print(f"purgadas={r.total} comidas={r.comidas} chequeos={r.chequeos} avisos={r.avisos}")
+    print(
+        f"purgadas={r.total} comidas={r.comidas} chequeos={r.chequeos} "
+        f"avisos={r.avisos} solicitudes={r.solicitudes}"
+    )
 
 
 if __name__ == "__main__":  # pragma: no cover

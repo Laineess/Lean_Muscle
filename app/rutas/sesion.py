@@ -152,6 +152,24 @@ def solo_alumna(actor: Annotated[Actor, Depends(actor_establecido)]) -> Actor:
     return actor
 
 
+def solo_alumna_aceptada(
+    actor: Annotated[Actor, Depends(solo_alumna)],
+    s: Annotated[Session, Depends(datos)],
+) -> Actor:
+    """Alumna de verdad, no una solicitud del registro abierto.
+
+    Mientras la coach no la acepte, la relacion no existe: no hay chequeo que abrir ni plan
+    que leer, y sobre todo no se le piden fotografias corporales. Todo lo que necesita el
+    recorrido de registro usa `solo_alumna` a secas; lo demas pasa por aqui.
+    """
+    from app.datos.repos import consultas as q
+
+    alumna = q.alumna_de_usuario(s, actor.usuario_id)
+    if alumna is None or alumna.estado == "solicitud":
+        raise _falla(Codigo.SOLICITUD_SIN_ACEPTAR)
+    return actor
+
+
 def solo_admin(actor: Annotated[Actor, Depends(actor_establecido)]) -> Actor:
     """Superadmin. **Una coach no lo es aunque sea la unica del sistema.**"""
     if not actor.es_admin:

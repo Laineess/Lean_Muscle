@@ -16,6 +16,7 @@ PERDONADOS = {
     ("Credenciales", "contrasena"),
     ("CambioDeContrasena", "actual"),
     ("CambioDeContrasena", "nueva"),
+    ("RegistroNuevo", "contrasena"),
     ("PlanGuardado", "contenido"),
 }
 

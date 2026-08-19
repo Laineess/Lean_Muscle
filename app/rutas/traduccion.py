@@ -111,6 +111,26 @@ RESPUESTAS: dict[Codigo, tuple[int, str]] = {
         422,
         "Tienes dos tramos encimados el mismo día. Únelos o sepáralos.",
     ),
+    # Registro abierto
+    Codigo.REGISTRO_CERRADO: (
+        403,
+        "Esta liga de registro no está disponible. Pídele a tu coach que la active.",
+    ),
+    Codigo.SIN_PRECIO_DE_INSCRIPCION: (
+        409,
+        "Falta definir el precio de inscripción: tiene que haber uno y solo uno.",
+    ),
+    Codigo.CODIGO_INCORRECTO: (422, "Ese código no es. Revísalo y vuelve a escribirlo."),
+    Codigo.CODIGO_VENCIDO: (409, "El código caducó. Pide uno nuevo y te lo mandamos."),
+    Codigo.DEMASIADOS_REGISTROS: (
+        429,
+        "Ya hubo varios registros desde aquí. Inténtalo dentro de un rato.",
+    ),
+    Codigo.SOLICITUD_YA_DECIDIDA: (409, "Esa solicitud ya se resolvió."),
+    Codigo.SOLICITUD_SIN_ACEPTAR: (
+        403,
+        "Tu coach todavía no acepta tu solicitud. Esto se abre en cuanto lo haga.",
+    ),
     # Finanzas
     Codigo.MONTO_INVALIDO: (422, "El monto tiene que ser mayor que cero."),
     Codigo.MONTO_FUERA_DE_RANGO: (422, "Ese monto está fuera de lo razonable. Revisa los ceros."),

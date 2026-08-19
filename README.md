@@ -127,7 +127,7 @@ resultante.
 ## Verificar
 
 ```powershell
-.\.venv\Scripts\python -m pytest pruebas -q        # 537 pruebas
+.\.venv\Scripts\python -m pytest pruebas -q        # 955 pruebas
 .\.venv\Scripts\python -m ruff check app pruebas
 .\.venv\Scripts\python -m mypy app
 
@@ -168,6 +168,8 @@ app/
     agenda.py       solape de citas y estados
     plan.py         guardas de publicación
     ciclo.py        vigencia de 30 días y bloqueos por pago
+    huecos.py       horas libres para reservar consulta
+    registro.py     el recorrido de una solicitud y sus plazos
   datos/            modelos, alcance por inquilino, consultas
   rutas/            auth, API de alumna, captura del chequeo, API de coach, medios
     plataforma/     panel del superadmin: único paquete que puede consultar sin inquilino
@@ -217,6 +219,9 @@ más); topbar y hamburguesa para la coach, más un buscador global con `⌘K`.
 | Día calendario | En la zona horaria de la alumna |
 | Contraseña | Recuperación manual con clave temporal que emite la coach |
 | «Recordarme» | Guarda el correo y alarga la cookie. **Nunca la contraseña** |
+| Registro abierto | Liga propia por coach (`/r/{slug}`) con interruptor. La solicitud no es alumna |
+| Precio de inscripción | El único `Servicio` con motivo `inscripcion`. Con cero o dos, la liga no enciende |
+| Registro a medias | Se borra solo a los 7 días, con recordatorio dos días antes |
 | Almacenamiento | Disco del VPS. Sin transferencia internacional que declarar |
 
 ---
@@ -367,6 +372,33 @@ tendría que sincronizar el día que se conecte. Los cobros son **solo inserció
 uno mal capturado se hace con otro en negativo, porque un historial reescribible no sirve
 para cuadrar cuentas.
 
+## Registro abierto: una solicitud no es una alumna
+
+Cada coach tiene su liga, `/r/{slug}`, con un interruptor. Quien la abre se registra sola:
+correo, contraseña suya, código de seis dígitos, y de ahí el recorrido —presentación,
+cuestionario con el plan que pide, reserva de su primera consulta y comprobante de
+inscripción—. Al final espera a que la coach la acepte.
+
+**Hasta entonces no es alumna.** La fila de `alumna` existe desde el primer paso, porque de
+ella cuelgan el cuestionario, la cita y el cobro; lo que la distingue es `estado='solicitud'`,
+y eso la deja fuera de la cartera, del límite de alumnas y del chequeo. Que el chequeo venga
+después no es un detalle de orden: **son fotografías corporales, y no se le piden a alguien
+con quien todavía no existe una relación**.
+
+La guarda es una dependencia —`solo_alumna_aceptada`— y una dependencia se olvida con no
+escribirla, así que [`prueba_fronteras.py`](pruebas/aislamiento/prueba_fronteras.py) recorre
+los endpoints de `/api/mi` uno por uno y falla si aparece alguno que una solicitud alcanzaría.
+Las excepciones —su propio recorrido, sus derechos ARCO— se declaran ahí con su motivo.
+
+**Lo que deja a medias se borra solo a los siete días**, con recordatorio dos días antes: la
+cuenta, el correo, los consentimientos, la cita, el cobro y el archivo del comprobante. Que
+el borrado siga siendo completo lo vigila una prueba que compara contra las llaves foráneas
+de la base, y no contra la memoria de quien agregue la siguiente tabla.
+
+El código de seis dígitos **no pasa por la cola**: quien lo espera está mirando la pantalla y
+la cola sale cada cinco minutos. Se manda dentro de la transacción, así que un correo que no
+sale deshace el registro entero en lugar de dejar una cuenta que nadie puede verificar.
+
 ## Bitácora: quién vio qué y quién cambió qué
 
 Son dos registros distintos, y el Anexo Legal §6 exige ambos:
@@ -392,7 +424,7 @@ una prueba que borra las que ya no corresponden a ningún endpoint.
 | Unidad | Cuándo | Qué hace |
 |---|---|---|
 | [`myfittplan-recordatorios.timer`](despliegue/myfittplan-recordatorios.timer) | 07:00 diario | Calcula y **encola** avisos de pago próximo, pago vencido, cita de mañana, inactividad y purga de fotos |
-| [`myfittplan-purga.timer`](despliegue/myfittplan-purga.timer) | cada 30 min | **Borra** las imágenes vencidas: fotos de comida a las 36 h y fotos de chequeo al cumplir su retención |
+| [`myfittplan-purga.timer`](despliegue/myfittplan-purga.timer) | cada 30 min | **Borra** las imágenes vencidas —fotos de comida a las 36 h, fotos de chequeo al cumplir su retención— y los registros abandonados a los 7 días |
 | [`myfittplan-correo.timer`](despliegue/myfittplan-correo.timer) | cada 5 min | **Envía** lo encolado —correo y push—, con espaciado y hasta 5 reintentos |
 | [`myfittplan-respaldo.timer`](despliegue/myfittplan-respaldo.timer) | 03:30 diario | Volcado de la base y de los archivos, cifrado con GPG, rotación de 30 días |
 

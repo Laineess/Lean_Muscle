@@ -28,7 +28,7 @@ from app.rutas.esquemas import (
     PlanPublico,
     ResumenDePlan,
 )
-from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_alumna
+from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_alumna_aceptada
 
 ruteador = APIRouter(prefix="/api/mi", tags=["alumna"], route_class=RutaQueConfirma)
 
@@ -101,7 +101,7 @@ def _resumen_de_plan(s: Session, alumna_id: int, ciclo: object) -> ResumenDePlan
 
 @ruteador.get("/inicio", response_model=InicioAlumna)
 def inicio(
-    actor: Annotated[Actor, Depends(solo_alumna)],
+    actor: Annotated[Actor, Depends(solo_alumna_aceptada)],
     s: Annotated[Session, Depends(datos)],
 ) -> InicioAlumna:
     alumna = _mi_alumna(s, actor)
@@ -161,7 +161,7 @@ def inicio(
 
 @ruteador.get("/plan", response_model=PlanesDeAlumna)
 def plan(
-    actor: Annotated[Actor, Depends(solo_alumna)],
+    actor: Annotated[Actor, Depends(solo_alumna_aceptada)],
     s: Annotated[Session, Depends(datos)],
 ) -> PlanesDeAlumna:
     """Sin pago validado no hay plan.

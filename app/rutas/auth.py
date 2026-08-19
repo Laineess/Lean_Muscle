@@ -102,9 +102,6 @@ def entrar(datos: Credenciales, peticion: Request, respuesta: Response) -> Actor
         if requiere_rehash(usuario.hash_contrasena):
             usuario.hash_contrasena = hash_contrasena(datos.contrasena)
 
-        token, token_hash = nuevo_token_de_sesion()
-        vigencia = VIGENCIA_LARGA if datos.recordarme else VIGENCIA_CORTA
-
         # Antes del commit: esta sesión conserva `expire_on_commit=True`, así que después
         # tocar `usuario.rol` dispara una recarga sin la exención `sin_alcance` y falla.
         rol = usuario.rol
@@ -112,18 +109,36 @@ def entrar(datos: Credenciales, peticion: Request, respuesta: Response) -> Actor
         usuario_id = usuario.id
         debe_cambiar = usuario.debe_cambiar_contrasena
 
-        s.add(
-            FilaSesion(
-                coach_id=coach_id,
-                usuario_id=usuario_id,
-                token_hash=token_hash,
-                vence_en=ahora_utc() + vigencia,
-                ip=peticion.client.host if peticion.client else None,
-                user_agent=(peticion.headers.get("user-agent") or "")[:255],
-            )
-        )
+        crear_sesion(s, coach_id, usuario_id, peticion, respuesta, datos.recordarme)
         usuario.ultimo_acceso_en = ahora_utc()
         s.commit()
+
+    return actor_publico(coach_id, usuario_id, rol, debe_cambiar)
+
+
+def crear_sesion(
+    s: Session,
+    coach_id: int,
+    usuario_id: int,
+    peticion: Request,
+    respuesta: Response,
+    recordarme: bool = False,
+) -> None:
+    """Deja la fila de sesión y pone la cookie. Es la única puerta que abre una sesión, y
+    por eso la usan tanto el acceso como el registro abierto."""
+    token, token_hash = nuevo_token_de_sesion()
+    vigencia = VIGENCIA_LARGA if recordarme else VIGENCIA_CORTA
+
+    s.add(
+        FilaSesion(
+            coach_id=coach_id,
+            usuario_id=usuario_id,
+            token_hash=token_hash,
+            vence_en=ahora_utc() + vigencia,
+            ip=peticion.client.host if peticion.client else None,
+            user_agent=(peticion.headers.get("user-agent") or "")[:255],
+        )
+    )
 
     respuesta.set_cookie(
         NOMBRE_COOKIE,
@@ -134,8 +149,6 @@ def entrar(datos: Credenciales, peticion: Request, respuesta: Response) -> Actor
         secure=ajustes().es_produccion,
         path="/",
     )
-
-    return _actor_publico(coach_id, usuario_id, rol, debe_cambiar)
 
 
 @ruteador.post("/logout", status_code=204)
@@ -195,12 +208,12 @@ def cambiar_contrasena(
 @ruteador.get("/yo", response_model=ActorPublico)
 def yo(actor: Annotated[Actor, Depends(actor_actual)]) -> ActorPublico:
     """Quién soy. El frontend la llama al arrancar para saber si hay sesión viva."""
-    return _actor_publico(
+    return actor_publico(
         actor.coach_id, actor.usuario_id, actor.rol, actor.debe_cambiar_contrasena
     )
 
 
-def _actor_publico(
+def actor_publico(
     coach_id: int, usuario_id: int, rol: str, debe_cambiar: bool = False
 ) -> ActorPublico:
     with sesion_con_alcance(coach_id) as s:

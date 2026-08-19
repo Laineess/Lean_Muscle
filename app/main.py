@@ -34,6 +34,7 @@ from app.rutas import (
     api_legales,
     api_medios,
     api_presentacion,
+    api_registro,
     api_reservas,
     auth,
 )
@@ -115,6 +116,7 @@ app.include_router(api_fotos_comida.ruteador)
 app.include_router(api_anuncios.ruteador)
 app.include_router(api_arco.ruteador)
 app.include_router(api_reservas.ruteador)
+app.include_router(api_registro.ruteador)
 
 
 @app.get("/salud", tags=["sistema"])

@@ -23,6 +23,11 @@ class Aviso(StrEnum):
     CLAVE_TEMPORAL = "clave_temporal"
     CONTRASENA_CAMBIADA = "contrasena_cambiada"
     """Aviso de seguridad. Si no fue ella, es la señal de que alguien entró a su cuenta."""
+    CODIGO_DE_REGISTRO = "codigo_de_registro"
+    """Los seis dígitos del registro abierto. **No se encola**: quien lo espera está mirando
+    la pantalla, y la cola sale cada cinco minutos."""
+    REGISTRO_SIN_TERMINAR = "registro_sin_terminar"
+    """Dejó su registro a medias y se borra en dos días."""
 
     # --- Chequeo ---
     RECORDATORIO_CHEQUEO = "recordatorio_chequeo"
@@ -72,6 +77,10 @@ CANALES: dict[Aviso, frozenset[Canal]] = {
     Aviso.BIENVENIDA: frozenset({Canal.CORREO}),
     Aviso.CLAVE_TEMPORAL: frozenset({Canal.CORREO}),
     Aviso.CONTRASENA_CAMBIADA: frozenset({Canal.CORREO}),
+    # Los dos del registro van por correo y solo por correo: todavía no instaló nada donde
+    # pudiera llegarle una notificación.
+    Aviso.CODIGO_DE_REGISTRO: frozenset({Canal.CORREO}),
+    Aviso.REGISTRO_SIN_TERMINAR: frozenset({Canal.CORREO}),
     Aviso.RECORDATORIO_CHEQUEO: frozenset({Canal.PUSH}),
     Aviso.CHEQUEO_RECIBIDO: frozenset({Canal.PUSH}),
     Aviso.CHEQUEO_VALIDADO: frozenset({Canal.PUSH}),

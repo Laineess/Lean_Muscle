@@ -82,6 +82,8 @@ def jpg(ancho: int = 700, alto: int = 900) -> bytes:
 
 def main() -> None:
     coach = cliente("mariana@leanmuscle.mx")
+    # Sin sesión: la liga de registro es la única puerta que responde así.
+    anonimo = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
     admin = cliente("admin@myfittplan.com")
 
     cartera = boton("Cartera · cargar alumnas", pide(coach, "/api/coach/alumnas"))
@@ -199,6 +201,39 @@ def main() -> None:
               pide(coach, f"/api/coach/agenda/{cita['ulid']}", "DELETE"))
     boton("Agenda · cargar semana", pide(coach, "/api/coach/agenda?desde=2026-09-01&dias=7"))
 
+    # ---- Registro abierto ----
+    # Manda correo de verdad si el servidor tiene `LM_CORREO_REAL=true`: los barridos se
+    # corren con esa opción apagada, o cada corrida rebota un correo a una dirección falsa.
+    liga = boton("Registro · abrir la liga (coach)",
+                 pide(coach, "/api/coach/registro", "PUT", {"abierto": True}))
+    boton("Registro · liga pública", pide(anonimo, "/api/registro/leanmuscle"))
+
+    correo_nuevo = f"prueba.registro.{uuid.uuid4().hex[:8]}@ejemplo.mx"
+    alta_abierta = boton(
+        "Registro · Crear cuenta",
+        pide(anonimo, "/api/registro/leanmuscle", "POST",
+             {"nombre": "Prueba De Registro", "correo": correo_nuevo,
+              "contrasena": "Manzana8!", "fechaNacimiento": "1993-06-15",
+              "whatsapp": "5599887766", "aceptaTerminos": True, "aceptaPrivacidad": True}),
+    )
+    if isinstance(alta_abierta, dict) and alta_abierta.get("codigo"):
+        boton("Registro · Código equivocado (rechaza)",
+              pide(anonimo, "/api/registro/leanmuscle/codigo", "POST",
+                   {"correo": correo_nuevo, "codigo": "000000"}),
+              esperados=(422,))
+        solicitante = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(CookieJar())
+        )
+        boton("Registro · Verificar código",
+              pide(solicitante, "/api/registro/leanmuscle/codigo", "POST",
+                   {"correo": correo_nuevo, "codigo": alta_abierta["codigo"]}))
+        boton("Registro · su recorrido", pide(solicitante, "/api/mi/solicitud"))
+        boton("Registro · el chequeo sigue cerrado",
+              pide(solicitante, "/api/mi/chequeo", "POST"), esperados=(403,))
+    if isinstance(liga, dict):
+        boton("Registro · Apagar la liga",
+              pide(coach, "/api/coach/registro", "PUT", {"abierto": liga["abierto"]}))
+
     # ---- Horario de consultas ----
     horario = boton("Horario · leer", pide(coach, "/api/coach/horario"))
     if isinstance(horario, dict):
@@ -292,6 +327,7 @@ def main() -> None:
             esperados=(409,),
         )
 
+    boton("Alumna · su recorrido (ya es alumna)", pide(alumna, "/api/mi/solicitud"))
     cobros = boton("Alumna · sus cobros", pide(alumna, "/api/mi/cobros"))
     pendiente = next((c for c in cobros if c["estado"] != "pagado"), None) if isinstance(cobros, list) else None
     if pendiente:

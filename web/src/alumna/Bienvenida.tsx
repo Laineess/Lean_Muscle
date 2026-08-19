@@ -29,9 +29,12 @@ import {
   type CuestionarioApi,
   type NucleoClinicoApi,
   type PreguntaApi,
+  type EstadoDeSolicitudApi,
   type PresentacionApi,
 } from "@/lib/api";
+import { num } from "@/lib/formato";
 import { usarApi } from "@/lib/usarApi";
+import { cn } from "@/lib/utils";
 
 const ROTULO_CONSENTIMIENTO: Record<string, [string, string]> = {
   terminos: ["Términos y Condiciones", "/legal/terminos"],
@@ -51,9 +54,13 @@ export function Bienvenida() {
   const navegar = useNavigate();
   const presentacion = usarApi<PresentacionApi>((s) => api.alumna.presentacion(s));
   const cuestionario = usarApi<CuestionarioApi>((s) => api.alumna.cuestionario(s));
+  // Una solicitud del registro abierto todavía no tiene chequeo que abrir: al terminar
+  // vuelve a su recorrido, donde le toca reservar consulta.
+  const solicitud = usarApi<EstadoDeSolicitudApi>((s) => api.alumna.solicitud(s));
   const [paso, setPaso] = useState<"presentacion" | "cuestionario">("presentacion");
 
-  if (presentacion.cargando || cuestionario.cargando) return <Vacio>Un momento…</Vacio>;
+  if (presentacion.cargando || cuestionario.cargando || solicitud.cargando)
+    return <Vacio>Un momento…</Vacio>;
 
   const p = presentacion.datos;
   const c = cuestionario.datos;
@@ -71,14 +78,17 @@ export function Bienvenida() {
     return <Presentacion p={p} onSeguir={() => setPaso("cuestionario")} />;
   }
 
+  const esSolicitud = solicitud.datos?.esSolicitud ?? false;
+
   return (
     <Cuestionario
       c={c}
+      esSolicitud={esSolicitud}
       onListo={() => {
         cuestionario.recargar();
         // Directo a su primer chequeo, no al panel: sin peso ni medidas su coach no puede
         // calcular nada, y mandarla al inicio solo aplaza el único paso que falta.
-        void navegar("/chequeo", { replace: true });
+        void navegar(esSolicitud ? "/solicitud" : "/chequeo", { replace: true });
       }}
     />
   );
@@ -141,8 +151,18 @@ function Presentacion({ p, onSeguir }: { p: PresentacionApi; onSeguir: () => voi
 
 /* ------------------------------------------------------------ Cuestionario --- */
 
-function Cuestionario({ c, onListo }: { c: CuestionarioApi; onListo: () => void }) {
+function Cuestionario({
+  c,
+  esSolicitud,
+  onListo,
+}: {
+  c: CuestionarioApi;
+  /** Solo quien se registró sola elige plan: a las demás se lo asignó su coach al darlas de alta. */
+  esSolicitud: boolean;
+  onListo: () => void;
+}) {
   const [nucleo, setNucleo] = useState<NucleoClinicoApi>(c.nucleo);
+  const [plan, setPlan] = useState<string | null>(c.planElegido);
   const [respuestas, setRespuestas] = useState<Record<string, string>>(() =>
     Object.fromEntries(c.respuestas.map((r) => [r.preguntaUlid, r.valor])),
   );
@@ -156,7 +176,11 @@ function Cuestionario({ c, onListo }: { c: CuestionarioApi; onListo: () => void 
   const faltanObligatorias = c.preguntas.filter(
     (q) => q.obligatoria && !(respuestas[q.ulid] ?? "").trim(),
   );
-  const listo = faltanConsentimientos.length === 0 && faltanObligatorias.length === 0;
+  const eligePlan = esSolicitud && c.planes.length > 0;
+  const listo =
+    faltanConsentimientos.length === 0 &&
+    faltanObligatorias.length === 0 &&
+    (!eligePlan || plan !== null);
 
   async function enviar() {
     setFallo(null);
@@ -164,6 +188,7 @@ function Cuestionario({ c, onListo }: { c: CuestionarioApi; onListo: () => void 
     try {
       await api.alumna.enviarCuestionario({
         nucleo,
+        tarifaUlid: plan,
         respuestas: Object.entries(respuestas).map(([preguntaUlid, valor]) => ({
           preguntaUlid,
           valor,
@@ -221,6 +246,54 @@ function Cuestionario({ c, onListo }: { c: CuestionarioApi; onListo: () => void 
                 onCambio={(v) => setRespuestas((r) => ({ ...r, [q.ulid]: v }))}
               />
             ))}
+          </section>
+        </>
+      ) : null}
+
+      {/* ---- El plan que pide ---- */}
+      {eligePlan ? (
+        <>
+          <Regla />
+          <section className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <Titulo>Qué plan quieres</Titulo>
+              <Apoyo>
+                Es lo que le pides a tu coach. Ella lo confirma al aceptarte, y de ahí sale
+                tu primer ciclo.
+              </Apoyo>
+            </div>
+            <div className="flex flex-col gap-2">
+              {c.planes.map((t) => (
+                <label
+                  key={t.ulid}
+                  htmlFor={`pl-${t.ulid}`}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-marco border p-4 transition-colors",
+                    plan === t.ulid ? "border-acento bg-acento-sutil" : "border-linea hover:border-tinta",
+                  )}
+                >
+                  <input
+                    id={`pl-${t.ulid}`}
+                    type="radio"
+                    name="plan"
+                    checked={plan === t.ulid}
+                    onChange={() => setPlan(t.ulid)}
+                    className="mt-0.5 size-5 shrink-0 accent-[var(--acento-texto)]"
+                  />
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="text-menor font-semibold">{t.nombre}</span>
+                      <span className="cifra text-menor">
+                        ${num(t.precio)} · {t.dias} días
+                      </span>
+                    </span>
+                    {t.descripcion ? (
+                      <span className="text-micro text-tinta-suave">{t.descripcion}</span>
+                    ) : null}
+                  </span>
+                </label>
+              ))}
+            </div>
           </section>
         </>
       ) : null}

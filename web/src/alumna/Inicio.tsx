@@ -57,12 +57,16 @@ const RESPALDO: InicioAlumnaApi = {
 
 export function Inicio() {
   const navegar = useNavigate();
-  const { datos, cargando, sinServidor, mensaje } = usarApiConRespaldo<InicioAlumnaApi>(
+  const { datos, cargando, sinServidor, mensaje, codigo } = usarApiConRespaldo<InicioAlumnaApi>(
     (senal) => api.alumna.inicio(senal),
     RESPALDO,
   );
 
   if (cargando) return <Cargando que="tu inicio" />;
+
+  // Se registró sola y su coach todavía no la acepta: su recorrido está en otra pantalla,
+  // y el panel entero le respondería 403.
+  if (codigo === "SOLICITUD_SIN_ACEPTAR") return <Navigate to="/solicitud" replace />;
 
   // Antes que nada: quién es su coach y qué necesita saber de ella. Sin esto el plan se
   // arma a ciegas, y pedirlo después es pedirlo cuando ya nadie lo contesta.

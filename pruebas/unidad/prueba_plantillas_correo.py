@@ -30,6 +30,10 @@ CONTEXTO = {
     "vence": "14 de septiembre de 2026",
     "ciclo": 5,
     "mes": "abril",
+    "codigo": "418093",
+    "minutos": 15,
+    "dias": 2,
+    "pendiente": "reservar tu primera consulta",
 }
 
 POR_CORREO = [a for a in Aviso if Canal.CORREO in canales_de(a)]

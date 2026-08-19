@@ -162,3 +162,66 @@ def test_toda_ruta_de_api_confirma_antes_de_responder() -> None:
 
     sueltas = [r.path for r in de_api if not isinstance(r, RutaQueConfirma)]
     assert not sueltas, f"rutas sin RutaQueConfirma: {sorted(set(sueltas))}"
+
+
+#: Lo que una solicitud del registro abierto **sí** puede usar antes de que la acepten: su
+#: propio recorrido, sus derechos ARCO y los avisos de la coach. Cada excepción va con su
+#: motivo, para que agregar una obligue a pensarlo.
+ABIERTAS_A_UNA_SOLICITUD = {
+    "/api/mi/solicitud": "es la pantalla que le dice qué le falta",
+    "/api/mi/presentacion": "conocer a la coach es el primer paso del recorrido",
+    "/api/mi/cuestionario": "contestarlo es parte del registro",
+    "/api/mi/huecos": "ahí elige la hora de su primera consulta",
+    "/api/mi/citas": "reservarla es el paso siguiente",
+    "/api/mi/cobros": "de ahí sale el cobro de inscripción",
+    "/api/mi/cobros/{ulid}/comprobante": "subirlo es el último paso que le toca",
+    "/api/mi/arco": "sus derechos no dependen de que la acepten",
+    "/api/mi/avisos": "si la coach le escribe algo, tiene que poder leerlo",
+    "/api/mi/push": "para enterarse en cuanto la acepten",
+}
+
+
+def test_una_solicitud_no_alcanza_lo_que_es_de_una_alumna() -> None:
+    """Mientras la coach no la acepte no hay chequeo, ni plan, ni fotos, ni conversación.
+
+    La guarda es una dependencia y se olvida con no escribirla, así que aquí se comprueba
+    endpoint por endpoint en lugar de confiar en la memoria de quien agregue el siguiente.
+    """
+    from app.main import app
+    from app.rutas.sesion import solo_alumna, solo_alumna_aceptada
+
+    def dependencias(dependant: object) -> set[str]:
+        nombres: set[str] = set()
+        for d in getattr(dependant, "dependencies", []):
+            llamada = getattr(d, "call", None)
+            if llamada is not None:
+                nombres.add(getattr(llamada, "__name__", ""))
+            nombres |= dependencias(d)
+        return nombres
+
+    sueltas = []
+    for ruta in _rutas_de(app):
+        if not ruta.path.startswith("/api/mi"):
+            continue
+        usadas = dependencias(ruta.dependant)
+        if solo_alumna.__name__ not in usadas and solo_alumna_aceptada.__name__ not in usadas:
+            continue
+        if solo_alumna_aceptada.__name__ in usadas:
+            continue
+        if ruta.path in ABIERTAS_A_UNA_SOLICITUD:
+            continue
+        sueltas.append(ruta.path)
+
+    assert not sueltas, (
+        f"estos endpoints los alcanzaría una solicitud sin aceptar: {sorted(set(sueltas))}. "
+        "Si es a propósito, decláralo en ABIERTAS_A_UNA_SOLICITUD con su motivo."
+    )
+
+
+def test_no_sobran_excepciones_declaradas() -> None:
+    """Una excepción que ya no corresponde a ningún endpoint es una puerta que nadie revisa."""
+    from app.main import app
+
+    rutas = {r.path for r in _rutas_de(app)}
+    sobrantes = set(ABIERTAS_A_UNA_SOLICITUD) - rutas
+    assert not sobrantes, f"excepciones sin endpoint: {sorted(sobrantes)}"

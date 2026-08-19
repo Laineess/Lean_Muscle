@@ -568,6 +568,9 @@ def sembrar_coach(
         color_acento=color,
         precio_ciclo=Decimal("1200.00"),
         dia_chequeo=1,
+        # Solo la primera lleva la liga encendida: la segunda sirve para ver que apagada
+        # no deja registrar a nadie.
+        registro_abierto=con_historial,
     )
     sesion.add(coach)
     sesion.flush()

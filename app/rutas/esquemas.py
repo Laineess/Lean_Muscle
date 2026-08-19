@@ -945,6 +945,17 @@ class RespuestaDePregunta(Esquema):
     valor: TextoLargo
 
 
+class PlanParaElegir(Esquema):
+    """Un plan visto por quien todavía no lo contrata: sin `alumnas` ni código interno."""
+
+    ulid: str
+    nombre: str
+    descripcion: str | None
+    precio: Numero
+    dias: int
+    intensidad: str
+
+
 class CuestionarioParaAlumna(Esquema):
     """El cuestionario tal como lo ve la alumna, con lo que ya hubiera contestado."""
 
@@ -954,10 +965,15 @@ class CuestionarioParaAlumna(Esquema):
     respuestas: list[RespuestaDePregunta]
     #: Los que todavía tiene que aceptar. Vacío si ya los aceptó todos.
     consentimientos_pendientes: list[str]
+    #: Los planes que vende su coach. Se le enseñan mientras no tenga uno elegido.
+    planes: list[PlanParaElegir] = []
+    plan_elegido: str | None = None
 
 
 class EnvioDeCuestionario(Esquema):
     nucleo: NucleoClinico
+    #: El plan que pide. Es una solicitud: el ciclo se crea con el que la coach confirme.
+    tarifa_ulid: Texto30 | None = None
     respuestas: Annotated[list[RespuestaDePregunta], Field(max_length=200)] = []
     #: Tipos de consentimiento que acepta en este envío.
     consentimientos: Annotated[list[Texto30], Field(max_length=20)] = []
@@ -1030,6 +1046,83 @@ class HuecoPublico(Esquema):
 class ReservaDeConsulta(Esquema):
     inicia_en: datetime
     modalidad: Texto20 = "video"
+
+
+# ---------------------------------------------------------------------------
+# Registro abierto
+# ---------------------------------------------------------------------------
+
+
+class LigaDeRegistro(Esquema):
+    """Lo que ve quien abre la liga de una coach, antes de escribir nada."""
+
+    coach: Texto120
+    marca: Texto120
+    color_acento: Texto10
+    tiene_logo: bool
+    abierta: bool
+    #: Por qué no está disponible, cuando no lo está. Nulo si todo está en orden.
+    motivo: str | None = None
+    precio_inscripcion: Numero | None = None
+    concepto_inscripcion: Texto120 | None = None
+
+
+class RegistroNuevo(Esquema):
+    nombre: Texto120
+    correo: Texto180
+    #: Sin tope: se cifra antes de guardarse y el hash de Argon2 siempre mide lo mismo.
+    contrasena: str
+    fecha_nacimiento: date
+    whatsapp: Texto30 | None = None
+    #: Los dos van juntos y los dos son obligatorios: aquí es donde entrega sus datos.
+    acepta_terminos: bool = False
+    acepta_privacidad: bool = False
+
+
+class RegistroAceptado(Esquema):
+    correo: str
+    #: Solo fuera de producción, para poder terminar el recorrido sin buzón de correo.
+    codigo: str | None = None
+
+
+class CodigoDeRegistro(Esquema):
+    correo: Texto180
+    codigo: Annotated[str, Field(pattern=r"^\d{6}$")]
+
+
+class CorreoDeRegistro(Esquema):
+    correo: Texto180
+
+
+class EstadoDeSolicitud(Esquema):
+    """En qué punto va su registro. Es lo que dibuja la pantalla de la solicitante."""
+
+    es_solicitud: bool
+    estado: str
+    paso: str
+    coach: str
+    cuestionario_completo: bool
+    tiene_cita: bool
+    comprobante_subido: bool
+    #: Cuándo se borra sola si la deja a medias.
+    vence_en: datetime | None = None
+    cita_inicia_en: datetime | None = None
+
+
+class RegistroDeCoach(Esquema):
+    """El interruptor de la liga, con lo que le falta para poder encenderla."""
+
+    abierto: bool
+    liga: str
+    puede_encenderse: bool
+    motivo: str | None = None
+    servicios_de_inscripcion: int
+    precio_inscripcion: Numero | None = None
+    solicitudes_pendientes: int = 0
+
+
+class InterruptorDeRegistro(Esquema):
+    abierto: bool
 
 
 # ---------------------------------------------------------------------------
