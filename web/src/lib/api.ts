@@ -1007,7 +1007,7 @@ export interface DocumentoLegalApi {
   titulo: string;
   version: string;
   actualizado: string;
-  /** Markdown tal cual está en `docs/`. */
+  /** Markdown tal cual está en `app/legales/`. */
   contenido: string;
   /** Huecos sin rellenar. Vacío = el documento está completo. */
   marcadores: string[];

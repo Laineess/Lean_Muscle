@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.datos.alcance import motor
 
-DESTINO = "docs/esquema.sql"
+DESTINO = "esquema.sql"
 
 CABECERA = """-- Esquema de MyProgressPlan
 --

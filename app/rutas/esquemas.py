@@ -1338,7 +1338,7 @@ class ExpedienteDeValidacion(Esquema):
 
 
 class DocumentoLegal(Esquema):
-    """El Markdown tal cual está en `docs/`. `marcadores` lleva los huecos sin rellenar: un
+    """El Markdown tal cual está en `app/legales/`. `marcadores` lleva los huecos sin rellenar: un
     aviso de privacidad con huecos no cumple la LFPDPPP y la pantalla lo dice."""
 
     clave: str

@@ -1,8 +1,12 @@
 """Entrega de los documentos legales que lee la alumna.
 
-Se sirven desde `docs/` en lugar de duplicarlos en la base: el texto que firma una persona y
-el que está en el repositorio tienen que ser el mismo archivo, o tarde o temprano dejan de
-serlo.
+Se sirven desde `app/legales/` en lugar de duplicarlos en la base: el texto que firma una
+persona y el que está en el repositorio tienen que ser el mismo archivo, o tarde o temprano
+dejan de serlo.
+
+Viven dentro de `app/` y no en `docs/` porque no son documentación: son contenido que la
+aplicación sirve en tiempo de ejecución. En `docs/` quedaban a merced de una limpieza de
+documentación, y perderlos deja el alta sin la pantalla de consentimiento.
 
 **Los marcadores sin rellenar se devuelven, no se esconden.** Los documentos traen huecos
 —`[RFC_PENDIENTE]`, el domicilio fiscal— y una advertencia de que son plantilla de trabajo.
@@ -18,7 +22,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parents[2] / "docs"
+RAIZ = Path(__file__).resolve().parents[1] / "legales"
 
 #: Qué documento es cada cual. La clave es lo que viaja en la URL.
 DOCUMENTOS: dict[str, tuple[str, str]] = {

@@ -4,7 +4,7 @@
 privacidad: la LFPDPPP exige que sea accesible antes de entregar ningún dato, y un documento
 que solo se ve tras iniciar sesión no cumple eso.
 
-El texto sale de `docs/`, que es el mismo archivo que se revisa y se versiona. Duplicarlo en
+El texto sale de `app/legales/`, el mismo archivo que se revisa y se versiona. Duplicarlo en
 la base garantizaría que un día dejaran de coincidir.
 """
 

@@ -1,7 +1,7 @@
 /** Renderiza el Markdown de los documentos legales.
  *
  *  Escrito a mano y no con una librería porque el subconjunto es conocido y nuestro: los
- *  documentos viven en `docs/` y usan encabezados, negritas, enlaces, listas, citas, tablas
+ *  documentos viven en `app/legales/` y usan encabezados, negritas, enlaces, listas, citas, tablas
  *  y filetes. Nada más. Una dependencia de 40 KB para eso no se paga sola.
  *
  *  El texto viene de nuestro repositorio, no de una usuaria, así que no hay HTML que
