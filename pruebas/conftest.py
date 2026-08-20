@@ -37,6 +37,10 @@ if os.environ.get("LM_ENTORNO") != "pruebas":
 from sqlalchemy import create_engine, text  # noqa: E402
 from sqlalchemy.exc import OperationalError  # noqa: E402
 
+# Importar los modelos puebla `Base.metadata`. Sin esta linea `create_all` no creaba nada:
+# se llamaba sobre un metadata vacio y no fallaba, asi que parecia preparar la base sin
+# hacerlo. Las pruebas con MySQL sobrevivian porque cada una arma su propio esquema.
+import app.datos.modelos  # noqa: E402,F401
 from app.config import ajustes  # noqa: E402
 from app.datos.base import Base  # noqa: E402
 

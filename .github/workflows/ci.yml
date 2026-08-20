@@ -57,13 +57,16 @@ jobs:
       - name: Tipos
         run: mypy app
 
-      # Las reglas de negocio no tocan la base: corren primero porque son las más rápidas
+      # Antes que cualquier prueba, y con la base todavía intacta: es lo único que
+      # comprueba que el esquema se levanta desde cero, y una suite que ya preparó tablas
+      # lo convertiría en un «ya existe» en lugar de en una comprobación.
+      - name: Migraciones desde cero
+        run: alembic upgrade head
+
+      # Las reglas de negocio no tocan la base: corren pronto porque son las más rápidas
       # y las que más rompen.
       - name: Pruebas de dominio
         run: pytest pruebas/unidad -q
-
-      - name: Migraciones desde cero
-        run: alembic upgrade head
 
       # `pruebas/integracion` y `pruebas/recorridos` siguen vacías desde el andamiaje
       # inicial. Pytest sale con 5 cuando no colecta nada, y eso tumbaba el job entero. Se
