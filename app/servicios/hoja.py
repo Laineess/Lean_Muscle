@@ -25,12 +25,17 @@ from app.dominio.calculadora import (
     RANGO_GKG,
     BaseProteina,
     Composicion,
+    Energia,
     Macros,
     NivelActividad,
     Prescripcion,
     ProyeccionGanancia,
     ProyeccionPerdida,
     RelacionGanancia,
+    Sexo,
+    clasificar_imc,
+    deficit_promedio_semanal,
+    proyectar_ganancia,
 )
 
 
@@ -56,13 +61,42 @@ class Bloque:
 
 
 @dataclass(frozen=True, slots=True)
+class Fila:
+    """Una fila de tabla.
+
+    `suya` es la fila que le toca a esta alumna. `fuera` es distinto: la fila sí es suya,
+    pero su valor se salió del rango. Son dos avisos diferentes y se pintan diferente; si
+    compartieran marca, «esta es tu fila» y «esto está mal» se leerían igual.
+    """
+
+    celdas: list[str]
+    suya: bool = False
+    fuera: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class Tabla:
-    """Una de las tablas de consulta de la hoja: actividad, IMC, refeeds, rangos."""
+    """Una tabla de consulta: actividad, refeeds, rangos, proyección de volumen."""
 
     titulo: str
-    rango: str
     encabezados: list[str]
-    filas: list[list[str]] = field(default_factory=list)
+    filas: list[Fila] = field(default_factory=list)
+    nota: str = ""
+    #: Cuando lo que le toca a la alumna es una columna y no una fila, su índice.
+    columna_suya: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class TramoDeImc:
+    """Un tramo de la escala con sus valores enteros, de `desde` a `hasta` inclusive."""
+
+    nombre: str
+    desde: int
+    hasta: int
+    suyo: bool
+    #: El entero exacto donde cae, solo en el tramo suyo. Marcar el tramo entero diría que
+    #: está en todos sus valores a la vez.
+    valor: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +104,7 @@ class Hoja:
     alumna: str
     bloques: list[Bloque]
     tablas: list[Tabla]
+    escala_imc: list[TramoDeImc] = field(default_factory=list)
 
 
 def _n(valor: Decimal | float | int, decimales: int = 2) -> str:
@@ -262,82 +297,233 @@ def _refeeds(dia_bajo: Decimal, dias: int, promedio: Decimal | None) -> Bloque:
 # ---------------------------------------------------------------------------
 
 
-def _filas_de_imc() -> list[list[str]]:
-    """Tabla E65:F84 de la hoja. Se deriva de la escala del dominio para que no puedan
-    quedar diciendo cosas distintas."""
-    filas: list[list[str]] = []
-    desde = Decimal(0)
-    for tope, etiqueta in ESCALA_IMC:
-        filas.append([f"menos de {tope}" if desde == 0 else f"{desde} a {tope}", etiqueta])
-        desde = tope
-    filas.append([f"{desde} o más", "Obesidad"])
-    return filas
+#: Extremos de la escala. Fuera de estos el tramo sigue valiendo, pero la tabla no dibuja
+#: cada número: nadie consulta un IMC de 60 en una lista.
+IMC_MIN = 16
+IMC_MAX = 35
 
 
-def _tablas() -> list[Tabla]:
-    return [
-        Tabla(
-            titulo="Multiplicador de actividad",
-            rango="G65:H72",
-            encabezados=["Nivel", "Factor"],
-            filas=[
-                [n.value.replace("_", " ").capitalize(), str(MULTIPLICADOR[n])]
-                for n in NivelActividad
-            ],
-        ),
-        Tabla(
-            titulo="Clasificación por IMC",
-            rango="E65:F84",
-            encabezados=["Desde", "Clasificación"],
-            filas=_filas_de_imc(),
-        ),
-        Tabla(
-            titulo="Rangos de referencia",
-            rango="E30:E32",
-            encabezados=["Macro", "g/kg"],
-            filas=[
-                [
-                    "Carbohidratos",
-                    f"{RANGO_GKG['carbohidrato'][0]} a {RANGO_GKG['carbohidrato'][1]}",
-                ],
-                ["Proteína", f"{RANGO_GKG['proteina'][0]} a {RANGO_GKG['proteina'][1]}"],
-                ["Grasas", f"{RANGO_GKG['grasa'][0]} a {RANGO_GKG['grasa'][1]}"],
-            ],
-        ),
-        Tabla(
-            titulo="Ecuación de la tasa metabólica basal",
-            rango="A87:B88",
-            encabezados=["Género", "Fórmula"],
-            filas=[
+def _escala_de_imc(imc: Decimal) -> list[TramoDeImc]:
+    """La escala en tramos, marcando el valor exacto donde cae.
+
+    Sale del dominio y no de una copia, para que la tabla no pueda decir una cosa y el
+    cálculo otra. El entero se recorta a los extremos de la tabla: un 42 no dibuja treinta
+    filas más, se señala en el 35 y su tramo sigue siendo el correcto.
+    """
+    suyo = clasificar_imc(imc)
+    entero = min(max(int(imc), IMC_MIN), IMC_MAX)
+
+    tramos: list[TramoDeImc] = []
+    desde = IMC_MIN
+    for tope, etiqueta in (*ESCALA_IMC, (Decimal(IMC_MAX + 1), "Obesidad")):
+        hasta = int(tope) - 1
+        es_suyo = suyo == etiqueta
+        tramos.append(
+            TramoDeImc(
+                nombre=etiqueta,
+                desde=desde,
+                hasta=hasta,
+                suyo=es_suyo,
+                valor=entero if es_suyo else None,
+            )
+        )
+        desde = int(tope)
+    return tramos
+
+
+#: Cómo se lee cada nivel de actividad. Sale de aquí y no del nombre de la constante para
+#: que en pantalla se lea escrito, no en mayúsculas con guiones bajos.
+ROTULO_ACTIVIDAD: dict[NivelActividad, str] = {
+    NivelActividad.MUY_POCO_ACTIVO: "Muy poco activo",
+    NivelActividad.POCO_ACTIVO: "Poco activo",
+    NivelActividad.ACTIVO: "Activo",
+    NivelActividad.MUY_ACTIVO: "Muy activo",
+    NivelActividad.INTENSO: "Intenso",
+    NivelActividad.MUY_INTENSO: "Muy intenso",
+    NivelActividad.ATLETA: "Atleta",
+    NivelActividad.ATLETA_ELITE: "Atleta élite",
+}
+
+ROTULO_SEXO: dict[Sexo, str] = {Sexo.MASCULINO: "Masculino", Sexo.FEMENINO: "Femenino"}
+
+ROTULO_BASE_PROTEINA: dict[BaseProteina, str] = {
+    BaseProteina.PESO_TOTAL: "Gramos por kilo de peso total",
+    BaseProteina.MASA_LIBRE_DE_GRASA: "Gramos por kilo de masa libre de grasa",
+}
+
+ROTULO_MACRO: dict[str, str] = {
+    "carbohidrato": "Carbohidratos",
+    "proteina": "Proteínas",
+    "grasa": "Grasas",
+}
+
+
+def _tabla_de_actividad(actual: NivelActividad) -> Tabla:
+    return Tabla(
+        titulo="Multiplicador de actividad",
+        encabezados=["Nivel de actividad", "Factor"],
+        filas=[
+            Fila([ROTULO_ACTIVIDAD[n], _n(MULTIPLICADOR[n], 1)], suya=n is actual)
+            for n in NivelActividad
+        ],
+    )
+
+
+def _tabla_de_rangos(gkg: dict[str, Decimal]) -> Tabla:
+    """El rango de cada macro con lo que le tocó a ella al lado."""
+    return Tabla(
+        titulo="Rango de referencia",
+        encabezados=["Macronutriente", "Gramos por kilo", "Ella"],
+        filas=[
+            Fila(
+                [ROTULO_MACRO[m], f"{RANGO_GKG[m][0]} a {RANGO_GKG[m][1]}", _n(gkg[m])],
+                # Las tres filas son suyas: lo que cambia es si su número cae dentro.
+                fuera=not (RANGO_GKG[m][0] <= gkg[m] <= RANGO_GKG[m][1]),
+            )
+            for m in ("carbohidrato", "proteina", "grasa")
+        ],
+        nota="Señaladas, las que se salen del rango.",
+    )
+
+
+def _tabla_de_base_de_proteina(
+    base: BaseProteina, gkg: dict[str, Decimal], por_peso: Decimal
+) -> Tabla:
+    return Tabla(
+        titulo="Base del cálculo de proteína",
+        encabezados=["Base", "Gramos por kilo"],
+        filas=[
+            Fila(
+                [ROTULO_BASE_PROTEINA[BaseProteina.PESO_TOTAL], _n(por_peso, 4)],
+                suya=base is BaseProteina.PESO_TOTAL,
+            ),
+            Fila(
+                [ROTULO_BASE_PROTEINA[BaseProteina.MASA_LIBRE_DE_GRASA], _n(gkg["proteina"], 4)],
+                suya=base is BaseProteina.MASA_LIBRE_DE_GRASA,
+            ),
+        ],
+    )
+
+
+def _tabla_de_refeeds(dia_bajo: Decimal, dias: int) -> Tabla:
+    """Qué déficit promedio deja la semana según cuántos días de refeed lleve."""
+    return Tabla(
+        titulo="Refeeds",
+        encabezados=["Días de refeed", "Porcentaje promedio"],
+        filas=[
+            Fila([rotulo, _pct(deficit_promedio_semanal(dia_bajo, n) / 100, 4)], suya=n == dias)
+            for n, rotulo in ((0, "Ninguno"), (1, "Un día"), (2, "Dos días"))
+        ],
+        nota=f"Con el día bajo al {_pct(dia_bajo / 100, 0)}.",
+    )
+
+
+def _tabla_de_tmb(sexo: Sexo) -> Tabla:
+    """Se compara contra el enumerado y no contra el rótulo: el texto es de presentación y
+    cualquier día pasa a decir «Mujer», que también empieza por eme."""
+    return Tabla(
+        titulo="Ecuación de la tasa metabólica basal",
+        encabezados=["Género", "Fórmula"],
+        filas=[
+            Fila(
                 ["Masculino", "13.587·MLG + 9.613·MG + 198 − 3.351·edad + 674"],
+                suya=sexo is Sexo.MASCULINO,
+            ),
+            Fila(
                 ["Femenino", "13.587·MLG + 9.613·MG + 198·0 − 3.351·edad + 674"],
-            ],
+                suya=sexo is Sexo.FEMENINO,
+            ),
+        ],
+        nota="En femenino el 198 se multiplica por cero: son 198 kcal exactos de diferencia.",
+    )
+
+
+def _tabla_de_volumen(
+    comp: Composicion,
+    energia_calculada: Energia,
+    semanas: int,
+    relacion: RelacionGanancia,
+) -> Tabla:
+    """Las dos relaciones en paralelo. Son dos apuestas sobre cuánto de lo que sube es
+    músculo, y se deciden comparándolas, no alternando entre ellas.
+
+    Se arma también en déficit, y entonces sale en negativo: es lo que hace la hoja, y una
+    tabla de consulta que desaparece justo cuando la alumna está bajando no se consulta
+    nunca. La nota dice lo que significan esos números para que no se lean como promesa.
+    """
+    ajuste = dict(exigir_superavit=False)
+    dos = proyectar_ganancia(comp, energia_calculada, semanas, RelacionGanancia.DOS_A_UNO, **ajuste)
+    uno = proyectar_ganancia(comp, energia_calculada, semanas, RelacionGanancia.UNO_A_UNO, **ajuste)
+    ambas = f"{_n(dos.aumento_semanal_kg, 2)} kg"
+    return Tabla(
+        titulo="Proyección de aumento de músculo",
+        encabezados=["Concepto", "Relación 2:1", "Relación 1:1"],
+        filas=[
+            Fila(["Aumento de peso semanal", ambas, ""]),
+            Fila(
+                [
+                    "Aumento de músculo semanal",
+                    f"{_n(dos.musculo_semanal_kg, 2)} kg",
+                    f"{_n(uno.musculo_semanal_kg, 2)} kg",
+                ]
+            ),
+            Fila(["Porcentaje de aumento mensual", _pct(dos.porcentaje_mensual), ""]),
+            Fila(["Semanas de aumento de peso", _n(semanas, 0), ""]),
+            Fila(["Aumento de peso total", f"{_n(dos.aumento_total_kg)} kg", ""]),
+            Fila(
+                [
+                    "Aumento de músculo total",
+                    f"{_n(dos.musculo_total_kg)} kg",
+                    f"{_n(uno.musculo_total_kg)} kg",
+                ]
+            ),
+            Fila(
+                [
+                    "Aumento de grasa total",
+                    f"{_n(dos.grasa_total_kg)} kg",
+                    f"{_n(uno.grasa_total_kg)} kg",
+                ]
+            ),
+        ],
+        nota=(
+            "Las filas de un solo valor no dependen de la relación."
+            if not energia_calculada.es_deficit
+            else "Su ajuste es déficit: en negativo, lo que perdería a este ritmo."
         ),
-        Tabla(
-            titulo="Relación de ganancia",
-            rango="H18:I18",
-            encabezados=["Relación", "Parte que es músculo"],
-            filas=[[r.value, f"{PROPORCION_MUSCULO[r] * 100:.0f} %"] for r in RelacionGanancia],
-        ),
-        Tabla(
-            titulo="Constantes",
-            rango="C19 · H17",
-            encabezados=["Concepto", "Valor"],
-            filas=[
-                ["Efecto térmico de los alimentos", "×1.1"],
-                ["Kcal por kilo de peso ganado", str(KCAL_POR_KILO_GANADO)],
-                ["Fracción de grasa pura en lo que se baja", "87 %"],
-                ["Masa libre de grasa que se pierde", "20 %"],
-            ],
-        ),
-    ]
+        columna_suya=1 if relacion is RelacionGanancia.DOS_A_UNO else 2,
+    )
+
+
+def _tabla_de_constantes() -> Tabla:
+    return Tabla(
+        titulo="Constantes",
+        encabezados=["Concepto", "Valor"],
+        filas=[
+            Fila(["Efecto térmico de los alimentos", "×1.1"]),
+            Fila(["Kilocalorías por kilo de peso ganado", _n(KCAL_POR_KILO_GANADO, 0)]),
+            Fila(["Grasa pura en lo que se baja", "87 %"]),
+            Fila(["Masa libre de grasa que se pierde", "20 %"]),
+            Fila(
+                [
+                    "Parte que es músculo, relación 2:1",
+                    _pct(PROPORCION_MUSCULO[RelacionGanancia.DOS_A_UNO], 0),
+                ]
+            ),
+            Fila(
+                [
+                    "Parte que es músculo, relación 1:1",
+                    _pct(PROPORCION_MUSCULO[RelacionGanancia.UNO_A_UNO], 0),
+                ]
+            ),
+        ],
+    )
 
 
 def construir(
     *,
     alumna: str,
     edad: int,
-    sexo: str,
+    sexo: Sexo,
     prescripcion: Prescripcion,
     actividad: NivelActividad,
     porcentaje_ajuste: Decimal,
@@ -346,10 +532,19 @@ def construir(
     dias_refeed: int,
     perdida: ProyeccionPerdida | None,
     ganancia: ProyeccionGanancia | None,
+    relacion_ganancia: RelacionGanancia = RelacionGanancia.DOS_A_UNO,
+    semanas_ganancia: int = 20,
 ) -> Hoja:
     """Arma la hoja completa. Los bloques sin datos se omiten en lugar de salir vacíos."""
     bloques = [
-        _datos(prescripcion.composicion, edad, sexo, prescripcion, porcentaje_ajuste, actividad),
+        _datos(
+            prescripcion.composicion,
+            edad,
+            ROTULO_SEXO[sexo],
+            prescripcion,
+            porcentaje_ajuste,
+            actividad,
+        ),
         _macros(prescripcion.macros, prescripcion.gramos_por_kilo, base_proteina),
         _refeeds(dia_bajo, dias_refeed, prescripcion.deficit_promedio_semanal),
     ]
@@ -358,7 +553,35 @@ def construir(
     if ganancia is not None:
         bloques.append(_ganancia(ganancia))
 
-    return Hoja(alumna=alumna, bloques=bloques, tablas=_tablas())
+    comp = prescripcion.composicion
+    gkg = prescripcion.gramos_por_kilo
+    tablas = [
+        _tabla_de_actividad(actividad),
+        _tabla_de_rangos(gkg),
+        _tabla_de_base_de_proteina(
+            base_proteina, gkg, prescripcion.macros.proteina_g / comp.peso_kg
+        ),
+        _tabla_de_refeeds(dia_bajo, dias_refeed),
+        _tabla_de_tmb(sexo),
+    ]
+    # Va siempre, también en déficit: es una tabla de consulta, y la que desaparece justo
+    # cuando la alumna está bajando es la que nunca se llega a consultar.
+    tablas.append(
+        _tabla_de_volumen(
+            comp,
+            prescripcion.energia,
+            ganancia.semanas if ganancia is not None else semanas_ganancia,
+            relacion_ganancia,
+        )
+    )
+    tablas.append(_tabla_de_constantes())
+
+    return Hoja(
+        alumna=alumna,
+        bloques=bloques,
+        tablas=tablas,
+        escala_imc=_escala_de_imc(comp.imc),
+    )
 
 
 __all__ = ["Bloque", "Celda", "Hoja", "Tabla", "construir"]

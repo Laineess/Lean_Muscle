@@ -161,6 +161,7 @@ def por_revisar(
                 concepto=c.concepto or MOTIVOS.get(c.motivo, c.motivo),
                 monto_esperado=c.monto,
                 subido_en=c.subido_en,
+                es_pdf=bool(c.comprobante_key and c.comprobante_key.endswith(".pdf")),
                 monto_leido=monto_leido,
                 fecha_leida=_fecha_del_ocr(c.ocr),
                 referencia=(c.ocr or {}).get("referencia"),

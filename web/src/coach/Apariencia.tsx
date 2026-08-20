@@ -4,6 +4,7 @@
  *  estructura, así que cambiarlo no descuadra ninguna pantalla.
  */
 
+import { Contrast, Palette } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { InterruptorDeTema } from "@/componentes/Tema";
@@ -18,13 +19,14 @@ import {
   Regla,
   Titulo,
 } from "@/componentes/primitivas";
+import { paletaDe } from "@/lib/color";
+import { usarPaleta } from "@/lib/paleta";
 import { coach } from "@/lib/datos";
 import { iniciales } from "@/lib/formato";
 import { ErrorApi, api, urlDeLogo, type MarcaApi } from "@/lib/api";
 import { marcaCambiada } from "@/lib/marca";
 import { actorGuardado, guardarActor } from "@/lib/sesion";
 import { usarApi } from "@/lib/usarApi";
-import { cn } from "@/lib/utils";
 
 export function Apariencia() {
   const actor = actorGuardado();
@@ -33,6 +35,7 @@ export function Apariencia() {
   const [nombre, setNombre] = useState("");
   const [marca, setMarca] = useState("");
   const [acento, setAcento] = useState(actor?.colorAcento ?? coach.colorAcento);
+  const [secundario, setSecundario] = useState(actor?.colorSecundario ?? "#c9a227");
   const [tieneLogo, setTieneLogo] = useState(false);
   const [versionLogo, setVersionLogo] = useState(0);
   const [guardado, setGuardado] = useState(false);
@@ -47,15 +50,20 @@ export function Apariencia() {
     setNombre(carga.datos.nombre);
     setMarca(carga.datos.marca);
     setAcento(carga.datos.colorAcento);
+    setSecundario(carga.datos.colorSecundario);
     setTieneLogo(carga.datos.tieneLogo);
-    document.documentElement.style.setProperty("--acento", carga.datos.colorAcento);
   }, [carga.datos]);
 
-  /** Se aplica en vivo: cambiar un color a ciegas y descubrir el resultado al guardar es
-   *  peor experiencia que verlo mientras se elige. */
+  // Se aplica en vivo mientras elige: descubrir el resultado al guardar es peor que verlo.
+  usarPaleta(acento, secundario);
+
   function probar(color: string) {
     setAcento(color);
-    document.documentElement.style.setProperty("--acento", color);
+    setGuardado(false);
+  }
+
+  function probarSecundario(color: string) {
+    setSecundario(color);
     setGuardado(false);
   }
 
@@ -63,8 +71,18 @@ export function Apariencia() {
     setFallo(null);
     setOcupado(true);
     try {
-      const nueva = await api.coach.guardarMarca({ nombre, marca, colorAcento: acento });
-      guardarActor({ ...(actor ?? nueva), marca: nueva.marca, colorAcento: nueva.colorAcento } as never);
+      const nueva = await api.coach.guardarMarca({
+        nombre,
+        marca,
+        colorAcento: acento,
+        colorSecundario: secundario,
+      });
+      guardarActor({
+        ...(actor ?? nueva),
+        marca: nueva.marca,
+        colorAcento: nueva.colorAcento,
+        colorSecundario: nueva.colorSecundario,
+      } as never);
       setGuardado(true);
     } catch (causa) {
       setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo guardar la marca.");
@@ -101,7 +119,7 @@ export function Apariencia() {
       {/* ---- Marca ---- */}
       <section className="flex flex-col gap-5">
         <div className="flex flex-col gap-1">
-          <Titulo>Tu marca</Titulo>
+          <Titulo icono={Palette}>Tu marca</Titulo>
           <Apoyo>Tus alumnas ven tu logo y tu color dentro de la plataforma.</Apoyo>
         </div>
 
@@ -151,32 +169,24 @@ export function Apariencia() {
           </Campo>
         </div>
 
-        <Campo
-          id="aj-acento"
-          etiqueta="Color de acento"
-          ayuda="Se usa en filetes, bordes y estados activos. Nunca en texto largo: el contraste no alcanza."
-        >
-          <div className="flex items-center gap-3">
-            <input
-              id="aj-acento"
-              type="color"
-              value={acento}
-              onChange={(e) => probar(e.target.value)}
-              className="h-11 w-14 cursor-pointer rounded-marco border border-linea bg-fondo p-1"
-            />
-            <Entrada
-              value={acento}
-              onChange={(e) => probar(e.target.value)}
-              className="max-w-32 font-mono"
-              aria-label="Color en hexadecimal"
-            />
-            <span className={cn("h-11 flex-1 rounded-marco border border-linea")}>
-              <span className="block h-full border-l-2 border-l-acento pl-3 text-menor leading-[2.75rem] text-tinta-media">
-                Así se ve un filete con tu color
-              </span>
-            </span>
-          </div>
-        </Campo>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <SelectorDeColor
+            id="aj-acento"
+            etiqueta="Color de acento"
+            ayuda="Filetes, bordes, iconos y estados activos."
+            color={acento}
+            onCambio={probar}
+          />
+          <SelectorDeColor
+            id="aj-secundario"
+            etiqueta="Color secundario"
+            ayuda="Acompaña al acento. Sirve para separar dos bloques hermanos."
+            color={secundario}
+            onCambio={probarSecundario}
+          />
+        </div>
+
+        <VistaPreviaDeColores acento={acento} secundario={secundario} />
 
         <div>
           <Boton disabled={ocupado || !nombre.trim() || !marca.trim()} onClick={() => void guardarMarca()}>
@@ -196,11 +206,111 @@ export function Apariencia() {
       {/* ---- Tema ---- */}
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <Titulo>Claro y oscuro</Titulo>
+          <Titulo icono={Contrast}>Claro y oscuro</Titulo>
           <Apoyo>Solo cambia cómo lo ves tú. Cada alumna elige el suyo.</Apoyo>
         </div>
         <InterruptorDeTema className="w-fit" />
       </section>
+    </div>
+  );
+}
+
+
+/* --------------------------------------------------------- Selector de color --- */
+
+function SelectorDeColor({
+  id,
+  etiqueta,
+  ayuda,
+  color,
+  onCambio,
+}: {
+  id: string;
+  etiqueta: string;
+  ayuda: string;
+  color: string;
+  onCambio: (v: string) => void;
+}) {
+  return (
+    <Campo id={id} etiqueta={etiqueta} ayuda={ayuda}>
+      <div className="flex items-center gap-3">
+        <input
+          id={id}
+          type="color"
+          value={color}
+          onChange={(e) => onCambio(e.target.value)}
+          className="h-11 w-14 shrink-0 cursor-pointer rounded-marco border border-linea bg-fondo p-1"
+        />
+        <Entrada
+          value={color}
+          onChange={(e) => onCambio(e.target.value)}
+          className="font-mono"
+          aria-label={`${etiqueta} en hexadecimal`}
+        />
+      </div>
+    </Campo>
+  );
+}
+
+/* ------------------------------------------------------------- Vista previa --- */
+
+/** Sus dos colores en los dos temas, uno junto al otro.
+ *
+ *  Los cuadros no llevan su hex tal cual: llevan el que la interfaz va a usar de verdad,
+ *  que puede ser más claro o más oscuro. Un verde oscuro sobre negro no se ve, y aquí se ve
+ *  que el sistema lo aclara en vez de descubrirlo con la app puesta en oscuro.
+ */
+function VistaPreviaDeColores({ acento, secundario }: { acento: string; secundario: string }) {
+  const temas = [
+    { rotulo: "Claro", fondo: "#ffffff", tinta: "#0c0c0c", linea: "#e4e4e7" },
+    { rotulo: "Oscuro", fondo: "#0c0c0c", tinta: "#fafafa", linea: "#27272a" },
+  ];
+  return (
+    <div className="flex flex-col gap-2">
+      <Etiqueta>Cómo se ven en cada tema</Etiqueta>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {temas.map((t) => {
+          const a = paletaDe(acento, t.fondo);
+          const b = paletaDe(secundario, t.fondo);
+          return (
+            <div
+              key={t.rotulo}
+              className="flex flex-col gap-3 rounded-marco border p-4"
+              style={{ background: t.fondo, borderColor: t.linea, color: t.tinta }}
+            >
+              <span className="text-micro font-semibold uppercase tracking-[0.12em] opacity-60">
+                {t.rotulo}
+              </span>
+              {[
+                { p: a, rotulo: "Acento" },
+                { p: b, rotulo: "Secundario" },
+              ].map(({ p, rotulo }) => (
+                <div key={rotulo} className="flex flex-col gap-1">
+                  <span
+                    className="border-l-[3px] pl-3 text-menor"
+                    style={{ borderColor: p.base }}
+                  >
+                    {rotulo} en filete
+                  </span>
+                  <span className="pl-3 text-menor font-semibold" style={{ color: p.texto }}>
+                    {rotulo} en texto
+                  </span>
+                  <span
+                    className="rounded-marco px-3 py-1 text-micro"
+                    style={{ background: p.sutil, color: p.texto }}
+                  >
+                    Fondo teñido
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+      <Apoyo>
+        Elige el color que quieras: el sistema lo aclara u oscurece lo justo para que se lea
+        en cada tema, sin cambiarle el tono.
+      </Apoyo>
     </div>
   );
 }

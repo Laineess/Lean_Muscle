@@ -7,7 +7,8 @@
  *  conecte un cobro automático, estas mismas cifras son las que tendría que sincronizar.
  */
 
-import { Cargando } from "@/componentes/Estado";
+import { Clock, TrendingUp, Wallet } from "lucide-react";
+import { CargandoPantalla } from "@/componentes/Estado";
 import { Grafica } from "@/componentes/Grafica";
 import { Apoyo, Aviso, Chip, Dato, Etiqueta, Portada, Regla, Titulo, Vacio } from "@/componentes/primitivas";
 import { api, type FacturacionApi, type FilaDeCoachApi } from "@/lib/api";
@@ -18,7 +19,8 @@ export function Facturacion() {
   const resumen = usarApi<FacturacionApi>((senal) => api.plataforma.facturacion(12, senal));
   const coaches = usarApi<FilaDeCoachApi[]>((senal) => api.plataforma.coaches(senal));
 
-  if (resumen.cargando || coaches.cargando) return <Cargando que="la facturación" />;
+  if (resumen.cargando || coaches.cargando)
+    return <CargandoPantalla que="la facturación" cifras={4} filas={5} />;
   if (resumen.error) {
     return (
       <Aviso tono="error" titulo="No se pudo cargar la facturación">
@@ -41,7 +43,7 @@ export function Facturacion() {
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-3">
-        <Etiqueta>Suscripciones de coaches</Etiqueta>
+        <Etiqueta icono={Wallet}>Suscripciones de coaches</Etiqueta>
         <Portada>Facturación</Portada>
       </header>
 
@@ -63,7 +65,7 @@ export function Facturacion() {
       <Regla />
 
       <section className="flex flex-col gap-4">
-        <Titulo>Cobrado por mes</Titulo>
+        <Titulo icono={TrendingUp}>Cobrado por mes</Titulo>
         {d.porMes.length >= 2 ? (
           <Grafica
             puntos={d.porMes.map((m) => ({ etiqueta: m.mes.slice(5), valor: m.ingresos }))}
@@ -78,11 +80,11 @@ export function Facturacion() {
       <Regla />
 
       <section className="flex flex-col gap-4">
-        <Titulo>Por cobrar</Titulo>
+        <Titulo icono={Clock}>Por cobrar</Titulo>
         {morosas.length === 0 ? (
           <Apoyo>Nadie debe nada. Es la única cifra de esta pantalla que conviene que sea cero.</Apoyo>
         ) : (
-          <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+          <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
             {morosas.map((c) => (
               <li key={c.ulid} className="flex flex-wrap items-baseline justify-between gap-3 py-3">
                 <span className="flex items-baseline gap-3">

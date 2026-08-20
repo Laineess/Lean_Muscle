@@ -4,6 +4,7 @@
  *  cosas distintas: el plan es una suscripción con duración, el servicio es un cargo puntual.
  */
 
+import { Tag } from "lucide-react";
 import { Planes } from "@/coach/Planes";
 import { Servicios } from "@/coach/Servicios";
 import { Etiqueta, Portada, Regla } from "@/componentes/primitivas";
@@ -12,7 +13,7 @@ export function Precios() {
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-3">
-        <Etiqueta>Tu negocio</Etiqueta>
+        <Etiqueta icono={Tag}>Tu negocio</Etiqueta>
         <Portada>Planes y precios</Portada>
       </header>
 

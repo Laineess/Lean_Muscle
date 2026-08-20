@@ -208,9 +208,7 @@ def cambiar_contrasena(
 @ruteador.get("/yo", response_model=ActorPublico)
 def yo(actor: Annotated[Actor, Depends(actor_actual)]) -> ActorPublico:
     """Quién soy. El frontend la llama al arrancar para saber si hay sesión viva."""
-    return actor_publico(
-        actor.coach_id, actor.usuario_id, actor.rol, actor.debe_cambiar_contrasena
-    )
+    return actor_publico(actor.coach_id, actor.usuario_id, actor.rol, actor.debe_cambiar_contrasena)
 
 
 def actor_publico(
@@ -232,6 +230,7 @@ def actor_publico(
             nombre=nombre,
             correo=usuario.email if usuario else "",
             color_acento=coach.color_acento if coach else "#c9a227",
+            color_secundario=coach.color_secundario if coach else "#0e3b2b",
             marca=(coach.marca or coach.nombre) if coach else "MyFittPlan",
             debe_cambiar_contrasena=debe_cambiar,
         )

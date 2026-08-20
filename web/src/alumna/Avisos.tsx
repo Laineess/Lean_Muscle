@@ -3,7 +3,7 @@
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { Cargando } from "@/componentes/Estado";
+import { CargandoPantalla } from "@/componentes/Estado";
 import { Apoyo, Boton, Etiqueta, Portada, Vacio } from "@/componentes/primitivas";
 import { api, type AvisoDeAlumnaApi } from "@/lib/api";
 import { fecha } from "@/lib/formato";
@@ -33,11 +33,11 @@ export function Avisos() {
       </header>
 
       {carga.cargando ? (
-        <Cargando que="tus avisos" />
+        <CargandoPantalla que="tus avisos" filas={4} portada={false} />
       ) : avisos.length === 0 ? (
         <Vacio>Todavía no tienes avisos.</Vacio>
       ) : (
-        <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+        <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
           {avisos.map((a) => (
             <li key={a.ulid} className="flex flex-col gap-1.5 py-5">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">

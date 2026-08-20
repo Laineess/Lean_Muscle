@@ -32,6 +32,7 @@ import { MarcoCoach } from "@/coach/Marco";
 import { Panel } from "@/coach/Panel";
 import { Solicitudes } from "@/coach/Solicitudes";
 import { Validacion } from "@/coach/Validacion";
+import { usarPaleta } from "@/lib/paleta";
 import { api } from "@/lib/api";
 import { registrarTrabajador } from "@/lib/push";
 import { Coaches } from "@/plataforma/Coaches";
@@ -68,13 +69,12 @@ function Entrada() {
 export function App() {
   const actor = actorGuardado();
 
-  // El acento de la Coach reemplaza al dorado de MyFittPlan en toda la interfaz de sus
-  // alumnas. Negro y gris son la estructura y no se tocan: solo cambia esta variable.
-  useEffect(() => {
-    if (actor?.colorAcento) {
-      document.documentElement.style.setProperty("--acento", actor.colorAcento);
-    }
-  }, [actor?.colorAcento]);
+  // Los dos colores de la Coach reemplazan a los de MyFittPlan en toda la interfaz de sus
+  // alumnas. Negro y gris son la estructura y no se tocan.
+  //
+  // Se recalculan al cambiar de tema y no se escriben tal cual: un color que luce sobre
+  // blanco puede desaparecer sobre negro, y al revés.
+  usarPaleta(actor?.colorAcento, actor?.colorSecundario);
 
   // El permiso de notificaciones no se pide aquí sino al tocar el interruptor: un diálogo
   // sin contexto se bloquea, y bloqueado no se puede volver a pedir nunca.

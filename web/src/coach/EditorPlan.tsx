@@ -217,7 +217,7 @@ export function EditorNutricion({
               {t.alimentos.length === 0 ? (
                 <Apoyo>Sin alimentos todavía.</Apoyo>
               ) : (
-                <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+                <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
                   {t.alimentos.map((a, k) => (
                     <FilaEditable
                       key={`${a.nombre}-${k}`}
@@ -352,7 +352,7 @@ export function EditorEntrenamiento({
             {d.ejercicios.length === 0 ? (
               <Apoyo>Sin ejercicios todavía.</Apoyo>
             ) : (
-              <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+              <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
                 {d.ejercicios.map((e, k) => (
                   <li key={`${e.nombre}-${k}`} className="flex flex-col gap-2 py-3">
                     <div className="flex items-baseline justify-between gap-3">

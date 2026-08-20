@@ -9,7 +9,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { Cargando } from "@/componentes/Estado";
+import { CargandoPantalla } from "@/componentes/Estado";
 import {
   Apoyo,
   Aviso,
@@ -41,7 +41,7 @@ export function Registro() {
   const [correoEnviado, setCorreoEnviado] = useState<string | null>(null);
   const [codigoDeCortesia, setCodigoDeCortesia] = useState<string | null>(null);
 
-  if (carga.cargando) return <Cargando que="la página de tu coach" />;
+  if (carga.cargando) return <CargandoPantalla que="la página de tu coach" texto={3} filas={0} />;
 
   if (carga.error) {
     return (

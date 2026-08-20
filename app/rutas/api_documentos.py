@@ -1,4 +1,4 @@
-"""Descarga de documentos en PDF: plan de nutrición, rutina y recibo.
+"""Descarga de documentos: plan de nutrición, rutina, recibo y el expediente completo.
 
 La alumna descarga los suyos; la coach, los de sus alumnas. En ambos casos el `coach_id`
 sale de la sesión, así que un ULID ajeno simplemente no existe.
@@ -20,7 +20,8 @@ from app.compartido.errores import Codigo, ErrorDeDominio
 from app.datos.modelos import Alumna, Coach
 from app.datos.repos import consultas as q
 from app.rutas.sesion import Actor, RutaQueConfirma, actor_actual, datos
-from app.servicios import bitacora, pdf
+from app.servicios import almacenamiento, bitacora, pdf
+from app.servicios import expediente as exp
 from app.servicios.almacenamiento import almacen
 
 ruteador = APIRouter(prefix="/api/documentos", tags=["documentos"], route_class=RutaQueConfirma)
@@ -256,4 +257,76 @@ def recibo(
             vigencia_inicia=ciclo.inicia_en,
             vigencia_termina=ciclo.termina_en,
         )
+    )
+
+
+@ruteador.get("/expediente", response_class=Response)
+def expediente(
+    actor: Annotated[Actor, Depends(actor_actual)],
+    s: Annotated[Session, Depends(datos)],
+    alumna_ulid: str | None = None,
+) -> Response:
+    """Todo lo suyo en un ZIP: las fotos que siguen vivas y el historial en PDF.
+
+    Es la salida que la plataforma le promete cuando avisa de una purga o de una baja. Se
+    arma en memoria porque son unas pocas decenas de imágenes ya recortadas; un expediente
+    de años sigue pesando menos que un video corto.
+
+    Las que ya se purgaron no aparecen ni dejan hueco: la fila existe para la bitácora, pero
+    el archivo no está y anunciarlo en el ZIP solo confundiría.
+    """
+    alumna = _alumna_visible(s, actor, alumna_ulid)
+    coach = s.get(Coach, actor.coach_id)
+    chequeos = [c for c in q.chequeos_de(s, alumna.id) if c.estado == "validado"]
+
+    bitacora.registrar_acceso(
+        s,
+        coach_id=actor.coach_id,
+        actor_id=actor.usuario_id,
+        alumna_id=alumna.id,
+        recurso=bitacora.Recurso.EXPEDIENTE,
+    )
+
+    pesos = q.peso_de_chequeo(s, [c.id for c in chequeos])
+    medidas = q.medidas_de(s, [c.id for c in chequeos])
+    filas = [
+        {
+            "numero": i + 1,
+            "fecha": f"{c.fecha:%d/%m/%Y}",
+            "peso_kg": pesos.get(c.id),
+            "porcentaje_grasa": (c.porcentaje_grasa * 100) if c.porcentaje_grasa else None,
+            "medidas": medidas.get(c.id, {}),
+        }
+        for i, c in enumerate(chequeos)
+    ]
+
+    historial = pdf.evolucion(
+        alumna=alumna.nombre,
+        coach=coach.nombre if coach else "",
+        marca=_marca(s, actor.coach_id),
+        chequeos=filas,
+        medidas=sorted({t for m in medidas.values() for t in m}),
+        feedback=chequeos[-1].feedback if chequeos else None,
+    )
+
+    piezas = [exp.Pieza("historial.pdf", historial.contenido)]
+    for i, chequeo in enumerate(chequeos, start=1):
+        carpeta = exp.carpeta_de_chequeo(i, f"{chequeo.fecha:%Y-%m-%d}")
+        for foto in q.fotos_de(s, chequeo.id):
+            if foto.storage_key is None or foto.purgada_en is not None:
+                continue
+            # La llave lleva el inquilino en el prefijo, igual que al servir una suelta.
+            if not almacenamiento.pertenece_a(foto.storage_key, actor.coach_id):
+                continue
+            try:
+                imagen = almacen().leer(foto.storage_key)
+            except Exception:  # pragma: no cover - un archivo perdido no tumba la descarga
+                continue
+            piezas.append(exp.Pieza(f"{carpeta}/{foto.angulo}.webp", imagen))
+
+    nombre = f"expediente-{alumna.nombre.split()[0].lower()}.zip"
+    return Response(
+        content=exp.empaquetar(piezas),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{nombre}"'},
     )

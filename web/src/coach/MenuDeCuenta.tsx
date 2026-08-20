@@ -4,6 +4,16 @@
  *  espera —fuera, Escape, al navegar—, porque uno que se queda abierto tapa la pantalla.
  */
 
+import {
+  CalendarClock,
+  ClipboardList,
+  Eye,
+  Megaphone,
+  Palette,
+  Settings,
+  Tag,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -11,14 +21,21 @@ import { BotonSalir } from "@/componentes/Seguridad";
 import { Regla } from "@/componentes/primitivas";
 import { cn } from "@/lib/utils";
 
-const OPCIONES: [string, string, string][] = [
-  ["/coach/avisos", "Avisos", "Mándale una frase a tus alumnas"],
-  ["/coach/ajustes", "Ajustes", "Zona horaria, avisos y contraseña"],
-  ["/coach/precios", "Planes y precios", "Lo que vendes y lo que cobras suelto"],
-  ["/coach/horario", "Horario de consultas", "Cuándo pueden reservarte tus alumnas"],
-  ["/coach/presentacion", "Presentación", "Lo primero que ve una alumna nueva"],
-  ["/coach/cuestionario", "Cuestionario", "Las preguntas que contesta al entrar"],
-  ["/coach/apariencia", "Apariencia", "Tu marca, tu color y el tema"],
+interface Opcion {
+  ruta: string;
+  rotulo: string;
+  detalle: string;
+  Icono: LucideIcon;
+}
+
+const OPCIONES: Opcion[] = [
+  { ruta: "/coach/avisos", rotulo: "Avisos", detalle: "Mándale una frase a tus alumnas", Icono: Megaphone },
+  { ruta: "/coach/ajustes", rotulo: "Ajustes", detalle: "Zona horaria, avisos y contraseña", Icono: Settings },
+  { ruta: "/coach/precios", rotulo: "Planes y precios", detalle: "Lo que vendes y lo que cobras suelto", Icono: Tag },
+  { ruta: "/coach/horario", rotulo: "Horario de consultas", detalle: "Cuándo pueden reservarte tus alumnas", Icono: CalendarClock },
+  { ruta: "/coach/presentacion", rotulo: "Presentación", detalle: "Lo primero que ve una alumna nueva", Icono: Eye },
+  { ruta: "/coach/cuestionario", rotulo: "Cuestionario", detalle: "Las preguntas que contesta al entrar", Icono: ClipboardList },
+  { ruta: "/coach/apariencia", rotulo: "Apariencia", detalle: "Tu marca, tu color y el tema", Icono: Palette },
 ];
 
 export function MenuDeCuenta({
@@ -63,21 +80,32 @@ export function MenuDeCuenta({
         <div
           role="menu"
           aria-label="Tu cuenta"
-          className="absolute right-0 top-full z-40 mt-2 w-72 overflow-hidden rounded-marco border border-linea bg-fondo-elevado shadow-lg"
+          // Crece desde la esquina de la que cuelga, que es de donde el ojo viene.
+          className="animate-emerge absolute right-0 top-full z-40 mt-2 w-72 origin-top-right overflow-hidden rounded-marco border border-linea bg-fondo-elevado shadow-lg"
         >
-          <ul className="flex flex-col py-1">
-            {OPCIONES.map(([ruta, rotulo, detalle]) => (
+          <ul className="escalona flex flex-col py-1">
+            {OPCIONES.map(({ ruta, rotulo, detalle, Icono }) => (
               <li key={ruta}>
                 <Link
                   to={ruta}
                   role="menuitem"
                   className={cn(
-                    "flex flex-col gap-0.5 px-4 py-2.5 transition-colors hover:bg-fondo-sutil",
+                    "group flex items-start gap-3 px-4 py-2.5",
+                    "transition-colors duration-[var(--mov-rapido)] ease-suave hover:bg-fondo-sutil",
                     pathname === ruta && "bg-fondo-sutil",
                   )}
                 >
-                  <span className="text-menor font-medium">{rotulo}</span>
-                  <span className="text-micro text-tinta-suave">{detalle}</span>
+                  <Icono
+                    aria-hidden
+                    className={cn(
+                      "mt-0.5 size-4 shrink-0 transition-colors duration-[var(--mov-rapido)]",
+                      pathname === ruta ? "text-acento" : "text-tinta-suave group-hover:text-tinta",
+                    )}
+                  />
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="text-menor font-medium">{rotulo}</span>
+                    <span className="text-micro text-tinta-suave">{detalle}</span>
+                  </span>
                 </Link>
               </li>
             ))}

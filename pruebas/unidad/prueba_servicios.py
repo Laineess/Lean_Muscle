@@ -181,9 +181,7 @@ class TestPush:
     def test_las_llaves_de_lo_que_escribe_la_coach_no_se_interpretan(self) -> None:
         """Un `{peso}` en su frase es texto, no una plantilla a rellenar: si se interpretara,
         escribir una llave le reventaría el envío a todas sus alumnas."""
-        n = push.redactar(
-            Aviso.MENSAJE_DE_COACH, {**CONTEXTO, "cuerpo": "Sube tu {peso} de hoy"}
-        )
+        n = push.redactar(Aviso.MENSAJE_DE_COACH, {**CONTEXTO, "cuerpo": "Sube tu {peso} de hoy"})
         assert n.cuerpo == "Sube tu {peso} de hoy"
 
     def test_la_etiqueta_evita_avisos_apilados(self) -> None:

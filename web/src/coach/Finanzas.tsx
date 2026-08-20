@@ -9,7 +9,7 @@ import { useState } from "react";
 
 import { Comprobantes } from "@/coach/Comprobantes";
 import { Dialogo } from "@/componentes/Dialogo";
-import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
+import { AvisoSinServidor, CargandoPantalla } from "@/componentes/Estado";
 import { Grafica } from "@/componentes/Grafica";
 import {
   Apoyo,
@@ -85,7 +85,7 @@ export function Finanzas() {
     [meses],
   );
 
-  if (cargando) return <Cargando que="tus finanzas" />;
+  if (cargando) return <CargandoPantalla que="tus finanzas" cifras={4} filas={4} />;
 
   async function eliminar(m: MovimientoApi) {
     setFallo(null);
@@ -227,7 +227,7 @@ export function Finanzas() {
         {datos.movimientos.length === 0 ? (
           <Vacio>Todavía no hay movimientos en este periodo.</Vacio>
         ) : (
-          <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+          <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
             {datos.movimientos.map((m) => (
               <li key={m.ulid} className="flex flex-wrap items-center gap-4 py-3">
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">

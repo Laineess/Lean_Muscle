@@ -240,9 +240,7 @@ def mi_cuestionario(
         )
     }
 
-    planes = s.scalars(
-        select(Tarifa).where(Tarifa.activa.is_(True)).order_by(Tarifa.precio)
-    ).all()
+    planes = s.scalars(select(Tarifa).where(Tarifa.activa.is_(True)).order_by(Tarifa.precio)).all()
     elegido = next((t.ulid for t in planes if t.id == alumna.tarifa_id), None)
 
     return CuestionarioParaAlumna(

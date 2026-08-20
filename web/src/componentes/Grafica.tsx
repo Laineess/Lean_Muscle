@@ -4,9 +4,14 @@
  *  escalas y a leer una leyenda. Es más honesto poner dos gráficas pequeñas una junto a otra.
  *
  *  La serie va en tinta, no en acento: el dorado marca, no dibuja datos.
+ *
+ *  La línea se traza de izquierda a derecha al aparecer, y los puntos caen detrás. No es
+ *  adorno: la gráfica se lee en ese mismo orden, del primer chequeo al último, y verla
+ *  dibujarse deja claro cuál es el extremo reciente. Con `prefers-reduced-motion` aparece
+ *  ya trazada.
  */
 
-import { useId } from "react";
+import { useId, type CSSProperties } from "react";
 
 import { num } from "@/lib/formato";
 
@@ -56,6 +61,13 @@ export function Grafica({
   const linea = puntos.map((p, i) => `${i ? "L" : "M"}${x(i)} ${y(p.valor)}`).join(" ");
   const area = `${linea} L${x(puntos.length - 1)} ${MT + altoUtil} L${ML} ${MT + altoUtil} Z`;
 
+  // El largo exacto del trazo, sumando segmento a segmento. Sale exacto porque la línea es
+  // una polilínea de puros `L`; con curvas habría que medirla en el DOM.
+  const largo = puntos.reduce(
+    (suma, p, i) => (i === 0 ? 0 : suma + Math.hypot(x(i) - x(i - 1), y(p.valor) - y(puntos[i - 1]!.valor))),
+    0,
+  );
+
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
@@ -64,9 +76,11 @@ export function Grafica({
       aria-label={`Evolución de ${puntos.length} registros, de ${num(puntos[0]!.valor, decimales)} a ${num(puntos.at(-1)!.valor, decimales)} ${unidad ?? ""}`}
     >
       <defs>
+        {/* El relleno sí va en acento: no dibuja el dato, lo acompaña. La línea sigue en
+            tinta, que es la que se lee. */}
         <linearGradient id={idGradiente} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--tinta)" stopOpacity="0.07" />
-          <stop offset="100%" stopColor="var(--tinta)" stopOpacity="0" />
+          <stop offset="0%" stopColor="var(--acento)" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="var(--acento)" stopOpacity="0" />
         </linearGradient>
       </defs>
 
@@ -97,8 +111,22 @@ export function Grafica({
         );
       })}
 
-      <path d={area} fill={`url(#${idGradiente})`} />
-      <path d={linea} fill="none" stroke="var(--tinta)" strokeWidth="1.75" strokeLinejoin="round" />
+      {/* El relleno entra cuando la línea ya casi terminó de trazarse. */}
+      <path
+        d={area}
+        fill={`url(#${idGradiente})`}
+        className="animate-aparece"
+        style={{ animationDelay: "500ms" }}
+      />
+      <path
+        d={linea}
+        fill="none"
+        stroke="var(--tinta)"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+        className="traza"
+        style={{ "--largo": largo } as CSSProperties}
+      />
 
       {puntos.map((p, i) => (
         <circle
@@ -109,6 +137,9 @@ export function Grafica({
           fill={i === puntos.length - 1 ? "var(--acento)" : "var(--fondo)"}
           stroke="var(--tinta)"
           strokeWidth="1.75"
+          className="animate-aparece"
+          // Cada punto aparece cuando la línea acaba de pasar por encima de él.
+          style={{ animationDelay: `${Math.round((i / (puntos.length - 1)) * 700)}ms` }}
         />
       ))}
 

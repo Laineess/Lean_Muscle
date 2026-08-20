@@ -67,8 +67,9 @@ class ActorPublico(Esquema):
     rol: str
     nombre: str
     correo: str
-    #: Reemplaza al dorado de MyFittPlan en toda la interfaz de sus alumnas.
+    #: Sus dos colores reemplazan a los de MyFittPlan en la interfaz de sus alumnas.
     color_acento: str
+    color_secundario: str
     marca: str
     #: Entró con la contraseña inicial. Hasta que la cambie no se abre nada más.
     debe_cambiar_contrasena: bool = False
@@ -868,6 +869,7 @@ class MarcaPublica(Esquema):
     nombre: str
     marca: str
     color_acento: str
+    color_secundario: str
     #: Nulo mientras no haya subido logo. La interfaz cae a las iniciales.
     tiene_logo: bool
 
@@ -877,6 +879,9 @@ class EdicionDeMarca(Esquema):
     marca: Texto120
     #: Hexadecimal, con o sin canal alfa. La columna son nueve caracteres.
     color_acento: Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")]
+    color_secundario: Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")] = (
+        "#C9A227"
+    )
 
 
 class DatoDeFicha(Esquema):
@@ -897,6 +902,7 @@ class PresentacionPublica(Esquema):
     #: Nombre comercial y color, para que la pantalla se pinte con su marca.
     marca: str
     color_acento: str
+    color_secundario: str
 
 
 class EdicionDePresentacion(Esquema):
@@ -1249,11 +1255,32 @@ class BloqueDeHoja(Esquema):
     celdas: list[CeldaDeHoja]
 
 
+class FilaDeTabla(Esquema):
+    celdas: list[str]
+    #: La fila que le toca a esta alumna.
+    suya: bool = False
+    #: Su valor se sale del rango de esta fila. Es otro aviso, no el mismo.
+    fuera: bool = False
+
+
 class TablaDeHoja(Esquema):
     titulo: str
-    rango: str
     encabezados: list[str]
-    filas: list[list[str]]
+    filas: list[FilaDeTabla]
+    nota: str = ""
+    #: Cuando lo suyo es una columna y no una fila, su índice.
+    columna_suya: int | None = None
+
+
+class TramoDeImc(Esquema):
+    """Un tramo de la escala, de `desde` a `hasta` inclusive."""
+
+    nombre: str
+    desde: int
+    hasta: int
+    suyo: bool
+    #: El entero exacto donde cae, solo en el tramo suyo.
+    valor: int | None = None
 
 
 class HojaDeCalculo(Esquema):
@@ -1262,6 +1289,7 @@ class HojaDeCalculo(Esquema):
     alumna: str
     bloques: list[BloqueDeHoja]
     tablas: list[TablaDeHoja]
+    escala_imc: list[TramoDeImc] = []
     #: Por qué no se puede calcular todavía, si es el caso.
     falta: str | None = None
 
@@ -1420,6 +1448,8 @@ class ComprobantePorRevisar(Esquema):
     #: Lo que la coach espera recibir.
     monto_esperado: Numero
     subido_en: datetime | None
+    #: Un PDF no se pinta con `<img>`. La pantalla necesita saberlo para elegir el visor.
+    es_pdf: bool = False
 
     #: Lo que el OCR entendió del comprobante. **No valida nada**: es una sugerencia.
     monto_leido: Numero | None

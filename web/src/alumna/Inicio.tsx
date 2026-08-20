@@ -4,14 +4,21 @@
  *  para no gastar una pestaña en ello.
  */
 
-import { ArrowRight, Bell, CalendarPlus, Loader2, LogOut, MessageSquare, ShieldCheck, Upload, User } from "lucide-react";
+import { ArrowRight, Bell, CalendarPlus, CalendarDays, LogOut, MessageSquare, ShieldCheck, Upload, User, Wallet } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 
+import { BotonSalir } from "@/componentes/Seguridad";
 import { cerrarSesion } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
 
-import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
+import {
+  AvisoSinServidor,
+  Cargando,
+  EsqueletoCifras,
+  EsqueletoPortada,
+  EsqueletoTarjeta,
+} from "@/componentes/Estado";
 import { Apoyo, Aviso, Boton, Chip, Dato, Etiqueta, Portada, Regla, Tarjeta, Titulo } from "@/componentes/primitivas";
 import {
   ErrorApi,
@@ -64,7 +71,19 @@ export function Inicio() {
     RESPALDO,
   );
 
-  if (cargando) return <Cargando que="tu inicio" />;
+  if (cargando)
+    return (
+      <Cargando
+        que="tu inicio"
+        esqueleto={
+          <div className="flex flex-col gap-12">
+            <EsqueletoPortada />
+            <EsqueletoCifras cuantas={3} />
+            <EsqueletoTarjeta lineas={2} />
+          </div>
+        }
+      />
+    );
 
   // Se registró sola y su coach todavía no la acepta: su recorrido está en otra pantalla,
   // y el panel entero le respondería 403.
@@ -154,9 +173,9 @@ export function Inicio() {
           </Apoyo>
         </div>
         <div>
-          <Boton asChild medida="grande">
+          <Boton asChild medida="grande" className="hunde">
             <Link to="/plan">
-              Abrir mi plan <ArrowRight className="size-4" />
+              Abrir mi plan <ArrowRight className="size-4 transition-transform duration-[var(--mov-rapido)] ease-salida group-hover:translate-x-0.5" />
             </Link>
           </Boton>
         </div>
@@ -165,7 +184,7 @@ export function Inicio() {
       <Regla />
 
       {/* ---- Cifras ---- */}
-      <section className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3">
+      <section className="escalona grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3">
         <Dato
           rotulo="Peso"
           valor={num(ultimo.pesoKg)}
@@ -308,11 +327,11 @@ function ProximasFechas({
 
   return (
     <section className="flex flex-col gap-4">
-      <Etiqueta>Próximas fechas</Etiqueta>
+      <Etiqueta icono={CalendarDays}>Próximas fechas</Etiqueta>
 
       <ul
         className={cn(
-          "flex flex-col divide-y divide-linea",
+          "escalona flex flex-col divide-y divide-linea",
           !vacia && "border-y border-linea",
         )}
       >
@@ -409,14 +428,14 @@ function SubirComprobante() {
     <Tarjeta className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <Etiqueta>Tus pagos</Etiqueta>
+          <Etiqueta icono={Wallet}>Tus pagos</Etiqueta>
           <Titulo>
             {cobros.some((c) => c.vencido) ? "Tienes un pago atrasado" : "Lo que te toca pagar"}
           </Titulo>
         </div>
       </div>
 
-      <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+      <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
         {cobros.map((c) => (
           <li key={c.ulid} className="flex flex-col gap-2 py-3">
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -447,17 +466,14 @@ function SubirComprobante() {
                 <Boton
                   tono="contorno"
                   medida="chica"
+                  cargando={subiendo === c.ulid}
                   disabled={subiendo !== null}
                   onClick={() => {
                     setElegido(c.ulid);
                     entrada.current?.click();
                   }}
                 >
-                  {subiendo === c.ulid ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Upload className="size-3.5" />
-                  )}
+                  {subiendo === c.ulid ? null : <Upload className="size-3.5" />}
                   Subir comprobante
                 </Boton>
               </div>
@@ -508,7 +524,7 @@ function PrimerChequeo({ nombre, coach }: { nombre: string; coach: string }) {
           <li>Cómo llegas hoy: en ayunas, sin entrenar, recién despierta.</li>
           <li>Tu peso.</li>
           <li>Tus medidas: cintura, cadera, brazo y las demás.</li>
-          <li>Tres fotos. Se guardan sin cara y se borran a los cuatro meses.</li>
+          <li>Tres fotos. Se guardan sin cara y se borran a los cuatro meses, menos la primera y la última.</li>
         </ul>
         <Apoyo>Son unos diez minutos. Puedes dejarlo a medias y seguir después.</Apoyo>
         <div>
@@ -519,6 +535,18 @@ function PrimerChequeo({ nombre, coach }: { nombre: string; coach: string }) {
           </Boton>
         </div>
       </section>
+
+      {/* Esta pantalla sustituye al inicio entero, y con él a su barra: sin salida, quien
+          entra por error no puede ni volver al acceso. */}
+      <Regla />
+      <nav aria-label="Más opciones" className="flex flex-wrap gap-2">
+        <Boton asChild tono="discreto" medida="chica">
+          <Link to="/cuenta">
+            <User className="size-4" /> Mi cuenta
+          </Link>
+        </Boton>
+        <BotonSalir className="ml-auto" />
+      </nav>
     </div>
   );
 }

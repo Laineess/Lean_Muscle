@@ -9,7 +9,7 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 
 import { Dialogo } from "@/componentes/Dialogo";
-import { Cargando } from "@/componentes/Estado";
+import { CargandoPantalla } from "@/componentes/Estado";
 import {
   Apoyo,
   Aviso,
@@ -36,7 +36,7 @@ export function Planes() {
   const [editando, setEditando] = useState<PlanComercialApi | null>(null);
   const [creando, setCreando] = useState(false);
 
-  if (carga.cargando) return <Cargando que="tus planes" />;
+  if (carga.cargando) return <CargandoPantalla que="tus planes" filas={4} />;
 
   const planes = carga.datos ?? [];
 
@@ -60,7 +60,7 @@ export function Planes() {
       {planes.length === 0 ? (
         <Vacio>Todavía no tienes planes. Crea el primero para poder dar de alta alumnas.</Vacio>
       ) : (
-        <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+        <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
           {planes.map((p) => (
             <li key={p.ulid} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">

@@ -9,11 +9,11 @@
  *  y su expediente se borra a los siete días.
  */
 
-import { Check, Clock, Loader2, X } from "lucide-react";
+import { Check, Clock, X } from "lucide-react";
 import { useState } from "react";
 
 import { Dialogo } from "@/componentes/Dialogo";
-import { Cargando } from "@/componentes/Estado";
+import { CargandoPantalla } from "@/componentes/Estado";
 import {
   Apoyo,
   Aviso,
@@ -61,7 +61,7 @@ export function Solicitudes() {
   const planes = usarApi<PlanComercialApi[]>((s) => api.coach.planes(s));
   const [decidiendo, setDecidiendo] = useState<SolicitudEnBandejaApi | null>(null);
 
-  if (carga.cargando) return <Cargando que="tus solicitudes" />;
+  if (carga.cargando) return <CargandoPantalla que="tus solicitudes" filas={3} />;
 
   const filas = carga.datos ?? [];
   const listas = filas.filter((f) => f.paso === "espera");
@@ -103,7 +103,7 @@ export function Solicitudes() {
       {enCurso.length > 0 ? (
         <section className="flex flex-col gap-4">
           <Etiqueta>Todavía en su recorrido</Etiqueta>
-          <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+          <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
             {enCurso.map((f) => (
               <li
                 key={f.ulid}
@@ -305,12 +305,8 @@ function Decision({
             <Boton tono="peligro" medida="chica" onClick={() => setDescartando(true)}>
               <X className="size-3.5" /> Descartar
             </Boton>
-            <Boton medida="chica" disabled={ocupado} onClick={() => void resolver("aceptar")}>
-              {ocupado ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Check className="size-3.5" />
-              )}
+            <Boton medida="chica" cargando={ocupado} onClick={() => void resolver("aceptar")}>
+              {ocupado ? null : <Check className="size-3.5" />}
               Aceptar
             </Boton>
           </>

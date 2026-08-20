@@ -121,9 +121,7 @@ def solicitudes_recibidas(
 ) -> list[SolicitudArcoPublica]:
     """Las suyas, primero lo que vence antes."""
     _ = actor
-    filas = list(
-        s.scalars(select(SolicitudArco).order_by(SolicitudArco.recibida_en)).all()
-    )
+    filas = list(s.scalars(select(SolicitudArco).order_by(SolicitudArco.recibida_en)).all())
     nombres = {
         a.id: a.nombre
         for a in s.scalars(select(Alumna).where(Alumna.id.in_([f.alumna_id for f in filas])))

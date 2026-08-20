@@ -47,7 +47,9 @@ class Bloque:
         if not 0 <= self.dia <= 6:
             raise ErrorDeDominio(Codigo.CATEGORIA_INVALIDA, categoria=str(self.dia), tipo="día")
         if self.desde >= self.hasta:
-            raise ErrorDeDominio(Codigo.HORARIO_INVALIDO, desde=str(self.desde), hasta=str(self.hasta))
+            raise ErrorDeDominio(
+                Codigo.HORARIO_INVALIDO, desde=str(self.desde), hasta=str(self.hasta)
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,7 +161,11 @@ def libres(
     salida: list[Hueco] = []
     while dia <= ultimo and len(salida) < tope:
         for hueco in _del_dia(dia, bloques, reglas, zona):
-            if desde <= hueco.inicia_en and hueco.termina_en <= hasta and not _choca(hueco, ocupadas):
+            if (
+                desde <= hueco.inicia_en
+                and hueco.termina_en <= hasta
+                and not _choca(hueco, ocupadas)
+            ):
                 salida.append(hueco)
                 if len(salida) >= tope:
                     break

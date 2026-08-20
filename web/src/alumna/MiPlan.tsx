@@ -4,10 +4,11 @@
  *  manda el contenido del plan.
  */
 
+import { Dumbbell, NotebookPen, Target, UtensilsCrossed } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
+import { AvisoSinServidor, CargandoPantalla } from "@/componentes/Estado";
 import {
   Apoyo,
   Aviso,
@@ -72,7 +73,7 @@ export function MiPlan() {
     RESPALDO,
   );
 
-  if (cargando) return <Cargando que="tu plan" />;
+  if (cargando) return <CargandoPantalla que="tu plan" cifras={3} filas={5} />;
 
   if (datos.bloqueadoPorPago) {
     const porPago = datos.motivoBloqueo === "pago" || datos.motivoBloqueo === null;
@@ -117,22 +118,24 @@ export function MiPlan() {
       <div role="tablist" aria-label="Tipo de plan" className="flex gap-6 border-b border-linea">
         {(
           [
-            ["nutricion", "Nutrición"],
-            ["entrenamiento", "Entrenamiento"],
+            ["nutricion", "Nutrición", UtensilsCrossed],
+            ["entrenamiento", "Entrenamiento", Dumbbell],
           ] as const
-        ).map(([id, rotulo]) => (
+        ).map(([id, rotulo, Icono]) => (
           <button
             key={id}
             role="tab"
             aria-selected={pestana === id}
             onClick={() => setPestana(id)}
             className={cn(
-              "-mb-px border-b-2 pb-3 text-menor font-medium transition-colors",
+              "-mb-px flex items-center gap-2 border-b-2 pb-3 text-menor font-medium",
+              "transition-colors duration-[var(--mov-rapido)] ease-suave",
               pestana === id
                 ? "border-acento text-tinta"
                 : "border-transparent text-tinta-suave hover:text-tinta",
             )}
           >
+            <Icono aria-hidden className="size-4 shrink-0" strokeWidth={pestana === id ? 2.2 : 1.6} />
             {rotulo}
           </button>
         ))}
@@ -169,7 +172,7 @@ function Nutricion({ plan, restricciones }: { plan: PlanApi; restricciones: stri
       {/* Cifra grande primero: es lo que ella busca al abrir. */}
       <section className="flex flex-col gap-5">
         <div className="flex flex-col gap-1">
-          <Etiqueta>Tu objetivo del día</Etiqueta>
+          <Etiqueta icono={Target}>Tu objetivo del día</Etiqueta>
           <p className="cifra text-cifra font-semibold tracking-[-0.03em]">
             {kcal}
             <span className="ml-2 text-guia font-medium text-tinta-suave">kcal</span>
@@ -212,7 +215,7 @@ function Nutricion({ plan, restricciones }: { plan: PlanApi; restricciones: stri
               </h3>
               <Chip>{t.kcal} kcal</Chip>
             </div>
-            <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+            <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
               {t.alimentos.map((a) => (
                 <li key={a.nombre} className="flex items-baseline justify-between gap-4 py-2.5">
                   <span className="text-cuerpo">{a.nombre}</span>
@@ -228,7 +231,7 @@ function Nutricion({ plan, restricciones }: { plan: PlanApi; restricciones: stri
 
       {plan.contenido.notas ? (
         <Tarjeta acentuada className="flex flex-col gap-2">
-          <Etiqueta>Notas de tu coach</Etiqueta>
+          <Etiqueta icono={NotebookPen}>Notas de tu coach</Etiqueta>
           <p className="medida text-cuerpo leading-relaxed">{plan.contenido.notas}</p>
         </Tarjeta>
       ) : null}
@@ -296,7 +299,7 @@ function Entrenamiento({ plan, lesiones }: { plan: PlanApi; lesiones: string | n
     <div className="flex flex-col gap-10">
       {plan.contenido.plantilla ? (
         <div className="flex flex-col gap-1">
-          <Etiqueta>Plantilla base</Etiqueta>
+          <Etiqueta icono={Dumbbell}>Plantilla base</Etiqueta>
           <Titulo>{plan.contenido.plantilla}</Titulo>
           <Apoyo>{dias.length} días por semana</Apoyo>
         </div>
@@ -309,7 +312,7 @@ function Entrenamiento({ plan, lesiones }: { plan: PlanApi; lesiones: string | n
               <h3 className="text-guia font-semibold">{d.nombre}</h3>
               {i === 0 ? <Chip tono="espera">Hoy</Chip> : null}
             </div>
-            <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+            <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
               {d.ejercicios.map((e) => (
                 <li key={e.nombre} className="flex flex-col gap-1 py-3">
                   <div className="flex items-baseline justify-between gap-4">
@@ -328,7 +331,7 @@ function Entrenamiento({ plan, lesiones }: { plan: PlanApi; lesiones: string | n
 
       {plan.contenido.notas ? (
         <Tarjeta acentuada className="flex flex-col gap-2">
-          <Etiqueta>Notas de ejecución</Etiqueta>
+          <Etiqueta icono={NotebookPen}>Notas de ejecución</Etiqueta>
           <p className="medida text-cuerpo leading-relaxed">{plan.contenido.notas}</p>
         </Tarjeta>
       ) : null}

@@ -158,9 +158,7 @@ def guardar_horario(
 # ---------------------------------------------------------------------------
 
 
-def _avisar_a_la_coach(
-    s: Session, coach_id: int, coach: Coach, alumna: Alumna, cita: Cita
-) -> None:
+def _avisar_a_la_coach(s: Session, coach_id: int, coach: Coach, alumna: Alumna, cita: Cita) -> None:
     """La alumna agenda sola: sin esto, la coach se entera al abrir su calendario."""
     usuario = q.usuario_de_coach(s)
     if usuario is None:  # pragma: no cover - defensivo
@@ -214,7 +212,9 @@ def reservar_consulta(
     if alumna is None:
         raise ErrorDeDominio(Codigo.SIN_PERMISO)
     if cuerpo.modalidad not in {m.value for m in Modalidad}:
-        raise ErrorDeDominio(Codigo.CATEGORIA_INVALIDA, categoria=cuerpo.modalidad, tipo="modalidad")
+        raise ErrorDeDominio(
+            Codigo.CATEGORIA_INVALIDA, categoria=cuerpo.modalidad, tipo="modalidad"
+        )
 
     coach = _coach(s, actor.coach_id)
     bloques = _bloques(s)

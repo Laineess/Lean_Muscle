@@ -4,6 +4,7 @@
  *  propia pantalla en el menú del avatar.
  */
 
+import { BellRing, Globe, KeyRound } from "lucide-react";
 import { Arco } from "@/coach/Arco";
 import { Notificaciones } from "@/componentes/Notificaciones";
 import { BotonSalir, CambiarContrasena } from "@/componentes/Seguridad";
@@ -40,7 +41,7 @@ export function Ajustes() {
 
       {/* ---- Zona horaria ---- */}
       <section className="flex max-w-md flex-col gap-4">
-        <Titulo>Tu zona horaria</Titulo>
+        <Titulo icono={Globe}>Tu zona horaria</Titulo>
         <Campo
           id="aj-zona"
           etiqueta="Zona"
@@ -59,7 +60,7 @@ export function Ajustes() {
       {/* ---- Avisos ---- */}
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <Titulo>Avisos automáticos</Titulo>
+          <Titulo icono={BellRing}>Avisos automáticos</Titulo>
           <Apoyo>
             Salen por notificación dentro de la plataforma. El correo se reserva para lo que no
             puede perderse: acceso, dinero y privacidad.
@@ -89,7 +90,7 @@ export function Ajustes() {
       <Regla />
 
       <section className="flex flex-col gap-4">
-        <Titulo>Sesión</Titulo>
+        <Titulo icono={KeyRound}>Sesión</Titulo>
         <Aviso tono="info">
           Cerrar sesión revoca el token en el servidor, no solo en este navegador.
         </Aviso>

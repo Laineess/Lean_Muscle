@@ -173,7 +173,8 @@ PLANTILLAS: dict[Aviso, Plantilla] = {
         texto=(
             "Hola {nombre}:\n\n"
             "Como te explicamos al darte de alta, tus fotografías se conservan cuatro meses "
-            "y luego se eliminan.\n\n"
+            "y luego se eliminan. Tu primera y tu última de cada ángulo son la excepción: "
+            "esas se quedan, para que siempre puedas comparar.\n\n"
             "Las de {mes} se borran el {fecha}. Si quieres conservarlas, descárgalas antes: "
             "después no se pueden recuperar.\n\n"
             "Tus medidas y tu peso no se borran, así que tus gráficas quedan intactas."

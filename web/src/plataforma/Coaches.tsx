@@ -8,7 +8,7 @@ import { AlertTriangle, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { Dialogo } from "@/componentes/Dialogo";
-import { Cargando } from "@/componentes/Estado";
+import { CargandoPantalla } from "@/componentes/Estado";
 import {
   Apoyo,
   Aviso,
@@ -52,7 +52,7 @@ export function Coaches() {
   const [editando, setEditando] = useState<FilaDeCoachApi | null>(null);
   const [cobrando, setCobrando] = useState<FilaDeCoachApi | null>(null);
 
-  if (cargando) return <Cargando que="las coaches" />;
+  if (cargando) return <CargandoPantalla que="las coaches" filas={5} />;
   if (error) {
     return (
       <Aviso tono="error" titulo="No se pudo cargar el panel">
@@ -81,7 +81,7 @@ export function Coaches() {
       {filas.length === 0 ? (
         <Vacio>Todavía no hay ninguna coach dada de alta.</Vacio>
       ) : (
-        <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+        <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
           {filas.map((f) => {
             const cerca = f.alumnasActivas >= f.limiteAlumnas * 0.9;
             return (
@@ -612,7 +612,7 @@ function PanelDeCobros({
       {error ? <Aviso tono="error">{error}</Aviso> : null}
 
       {carga.datos && carga.datos.length > 0 ? (
-        <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+        <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
           {carga.datos.map((c) => (
             <li key={c.ulid} className="flex items-baseline justify-between gap-3 py-2">
               <span className="text-menor">{fecha(c.fecha)}</span>

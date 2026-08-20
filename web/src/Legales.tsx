@@ -7,7 +7,7 @@
 import { ArrowLeft } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
-import { Cargando } from "@/componentes/Estado";
+import { CargandoPantalla } from "@/componentes/Estado";
 import { Markdown } from "@/componentes/Markdown";
 import { Apoyo, Aviso, Boton, Etiqueta } from "@/componentes/primitivas";
 import { api, type DocumentoLegalApi } from "@/lib/api";
@@ -23,7 +23,7 @@ export function Legales() {
     [documento, marca],
   );
 
-  if (carga.cargando) return <Cargando que="el documento" />;
+  if (carga.cargando) return <CargandoPantalla que="el documento" texto={8} filas={0} />;
   if (carga.error || !carga.datos) {
     return (
       <main className="mx-auto w-full max-w-3xl px-5 py-12 sm:px-6">

@@ -5,7 +5,7 @@
  *  canal para siempre en ese dispositivo, sin manera de recuperarlo desde la aplicación.
  */
 
-import { Bell, BellOff, Loader2 } from "lucide-react";
+import { Bell, BellOff } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Apoyo, Aviso, Boton, Chip, Titulo } from "@/componentes/primitivas";
@@ -70,12 +70,11 @@ export function Notificaciones({ para }: { para: "alumna" | "coach" }) {
         <div>
           <Boton
             tono={actual === "activo" ? "contorno" : "solido"}
+            cargando={trabajando}
             disabled={trabajando || actual === null}
             onClick={() => void alternar()}
           >
-            {trabajando ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : actual === "activo" ? (
+            {trabajando ? null : actual === "activo" ? (
               <BellOff className="size-4" />
             ) : (
               <Bell className="size-4" />

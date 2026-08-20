@@ -15,6 +15,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
@@ -200,6 +201,16 @@ def abrir_chequeo(
         raise HTTPException(409, "No tienes un ciclo abierto. Habla con tu coach.")
 
     chequeo = q.borrador_de(s, alumna.id, ciclo.id)
+    if chequeo is None:
+        # Dos peticiones a la vez consultaban las dos antes de que ninguna confirmara, y
+        # creaban dos borradores del mismo ciclo. No es un caso raro: el doble montaje de
+        # React en desarrollo lo provoca en cada carga de la pantalla.
+        #
+        # Se toma el ciclo en exclusiva y se vuelve a mirar: la segunda espera a la primera
+        # y encuentra el borrador que acaba de nacer, en vez de crear otro.
+        s.execute(select(Ciclo.id).where(Ciclo.id == ciclo.id).with_for_update())
+        chequeo = q.borrador_de(s, alumna.id, ciclo.id, bloqueando=True)
+
     if chequeo is None:
         _exigir_ventana_de_consulta(s, alumna, ciclo)
         # Un chequeo por ciclo. Sin esta comprobación, volver a esta pantalla después de

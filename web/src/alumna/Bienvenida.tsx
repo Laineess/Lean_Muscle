@@ -32,6 +32,7 @@ import {
   type EstadoDeSolicitudApi,
   type PresentacionApi,
 } from "@/lib/api";
+import { BotonSalir } from "@/componentes/Seguridad";
 import { num } from "@/lib/formato";
 import { usarApi } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
@@ -144,6 +145,12 @@ function Presentacion({ p, onSeguir }: { p: PresentacionApi; onSeguir: () => voi
         <Boton onClick={onSeguir}>
           Empezar <ArrowRight className="size-4" />
         </Boton>
+      </div>
+
+      {/* El cuestionario bloquea el resto de la app hasta terminarlo. Sin salida, quien
+          entra en la cuenta equivocada no puede ni volver al acceso. */}
+      <div className="flex justify-center border-t border-linea pt-6">
+        <BotonSalir />
       </div>
     </div>
   );

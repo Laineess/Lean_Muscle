@@ -4,10 +4,12 @@
  *  treinta líneas cubre el caso y se entiende de una lectura.
  *
  *  Cancela la petición al desmontar, para que una respuesta tardía no escriba estado sobre
- *  una pantalla que ya no está.
+ *  una pantalla que ya no está, y suelta lo cargado en cuanto cambia de quién se está
+ *  hablando: enseñar el expediente de una alumna bajo el nombre de otra es peor que enseñar
+ *  un hueco.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ErrorApi } from "@/lib/api";
 
@@ -28,6 +30,21 @@ export function usarApi<T>(
   const [intento, setIntento] = useState(0);
 
   const recargar = useCallback(() => setIntento((n) => n + 1), []);
+
+  // Al cambiar de alumna hay que soltar lo anterior **antes** de pintar, no en un efecto:
+  // un efecto corre después del render, y ese render ya enseñó los datos de la otra. Poner
+  // estado durante el render es justo lo que React admite para derivar de las props.
+  //
+  // `recargar` no entra aquí a propósito: refresca lo mismo, y vaciarlo haría parpadear la
+  // pantalla en cada guardado.
+  const clave = JSON.stringify(dependencias);
+  const claveAnterior = useRef(clave);
+  if (claveAnterior.current !== clave) {
+    claveAnterior.current = clave;
+    setDatos(null);
+    setError(null);
+    setCargando(true);
+  }
 
   useEffect(() => {
     const control = new AbortController();

@@ -149,9 +149,7 @@ def cartera(s: Session) -> list[Alumna]:
     """Sus alumnas. Las solicitudes viven en su propia bandeja hasta que las acepte."""
     return list(
         s.scalars(
-            select(Alumna)
-            .where(Alumna.estado.not_in(FUERA_DE_CARTERA))
-            .order_by(Alumna.nombre)
+            select(Alumna).where(Alumna.estado.not_in(FUERA_DE_CARTERA)).order_by(Alumna.nombre)
         ).all()
     )
 
@@ -260,18 +258,29 @@ def chequeo_por_ulid(s: Session, ulid: str) -> Chequeo | None:
     return s.scalars(select(Chequeo).where(Chequeo.ulid == ulid)).first()
 
 
-def borrador_de(s: Session, alumna_id: int, ciclo_id: int) -> Chequeo | None:
+def borrador_de(
+    s: Session, alumna_id: int, ciclo_id: int, *, bloqueando: bool = False
+) -> Chequeo | None:
     """El chequeo abierto del ciclo. `rechazado_calidad` cuenta como abierto: se retoma la
     misma captura en vez de empezar otra y romper la numeración."""
-    return s.scalars(
+    # El desempate por `id` no es adorno: dos borradores del mismo día tienen la misma
+    # fecha, y sin él cada petición podía quedarse con uno distinto. Guardar en uno y subir
+    # las fotos al otro deja un chequeo que no se puede enviar y que en pantalla se ve completo.
+    consulta = (
         select(Chequeo)
         .where(
             Chequeo.alumna_id == alumna_id,
             Chequeo.ciclo_id == ciclo_id,
             Chequeo.estado.in_(("borrador", "rechazado_calidad")),
         )
-        .order_by(Chequeo.fecha.desc())
-    ).first()
+        .order_by(Chequeo.fecha.desc(), Chequeo.id.asc())
+    )
+    # `bloqueando` cambia lo que se ve, no solo lo que se bloquea: con REPEATABLE READ una
+    # lectura normal sigue devolviendo la foto del inicio de la transacción, así que quien
+    # acaba de esperar un candado no vería la fila que la otra petición acaba de confirmar.
+    if bloqueando:
+        consulta = consulta.with_for_update()
+    return s.scalars(consulta).first()
 
 
 def fotos_de(s: Session, chequeo_id: int) -> list[Foto]:

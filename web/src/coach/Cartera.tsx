@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
+import { AvisoSinServidor, CargandoPantalla } from "@/componentes/Estado";
 import { DarDeBaja } from "@/coach/DarDeBaja";
 import { FormAlumna, FormClaveTemporal } from "@/coach/FormAlumna";
 import { LigaDeRegistro } from "@/coach/LigaDeRegistro";
@@ -46,7 +46,7 @@ export function Cartera() {
     carteraEjemplo,
   );
 
-  if (cargando) return <Cargando que="tus alumnas" />;
+  if (cargando) return <CargandoPantalla que="tus alumnas" filas={6} />;
 
   const visibles = alumnas.filter((a) =>
     `${a.nombre} ${a.plan ?? ""}`
@@ -87,7 +87,7 @@ export function Cartera() {
       {visibles.length === 0 ? (
         <Vacio>Ninguna alumna con ese nombre.</Vacio>
       ) : (
-        <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+        <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
           {visibles.map((a) => {
             const d = a.pesoKg !== null && a.pesoPrevio !== null ? delta(a.pesoKg, a.pesoPrevio, "kg") : null;
             return (

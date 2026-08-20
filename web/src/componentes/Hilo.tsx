@@ -4,11 +4,11 @@
  *  al día costaría una conexión abierta por alumna a cambio de nada que se note.
  */
 
-import { Loader2, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Apoyo, Aviso, Boton, Vacio } from "@/componentes/primitivas";
-import { Cargando } from "@/componentes/Estado";
+import { CargandoPantalla } from "@/componentes/Estado";
 import { ErrorApi, type MensajeApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +68,7 @@ export function Hilo({ yo, cargar, enviar, contraparte }: HiloProps) {
     }
   }
 
-  if (mensajes === null) return <Cargando que="la conversación" />;
+  if (mensajes === null) return <CargandoPantalla que="la conversación" texto={4} filas={0} />;
 
   return (
     <div className="flex flex-col gap-5">
@@ -131,8 +131,8 @@ export function Hilo({ yo, cargar, enviar, contraparte }: HiloProps) {
               ? "Para dudas del plan. Si es una urgencia médica, acude a un servicio de salud."
               : "Lo que escribas aquí lo lee tu alumna tal cual."}
           </Apoyo>
-          <Boton type="submit" disabled={enviando || !texto.trim()}>
-            {enviando ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+          <Boton type="submit" cargando={enviando} disabled={enviando || !texto.trim()}>
+            {enviando ? null : <Send className="size-4" />}
             Enviar
           </Boton>
         </div>

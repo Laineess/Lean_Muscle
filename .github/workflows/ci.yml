@@ -65,15 +65,19 @@ jobs:
       - name: Migraciones desde cero
         run: alembic upgrade head
 
+      # `pruebas/integracion` y `pruebas/recorridos` siguen vacías desde el andamiaje
+      # inicial. Pytest sale con 5 cuando no colecta nada, y eso tumbaba el job entero. Se
+      # tolera ese 5 y nada más: un fallo de verdad sale con 1 y sigue rompiendo. En cuanto
+      # haya pruebas dentro, se quita el `|| [ $? -eq 5 ]`.
       - name: Pruebas de integración
-        run: pytest pruebas/integracion -q
+        run: pytest pruebas/integracion -q || [ $? -eq 5 ]
 
       # Si este paso falla, no se despliega. Sin discusión.
       - name: Prueba de fuga entre coaches
         run: pytest pruebas/aislamiento -q
 
       - name: Recorridos completos
-        run: pytest pruebas/recorridos -q
+        run: pytest pruebas/recorridos -q || [ $? -eq 5 ]
         continue-on-error: false
 
   frontend:

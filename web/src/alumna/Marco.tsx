@@ -4,7 +4,7 @@
  *  alcance del pulgar; en escritorio sube.
  */
 
-import { LineChart, ListChecks, Sun } from "lucide-react";
+import { Dumbbell, LineChart, Sun } from "lucide-react";
 import { useState, type ComponentType } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
@@ -21,7 +21,8 @@ interface Pestana {
 
 const PESTANAS: Pestana[] = [
   { a: "/inicio", rotulo: "Inicio", Icono: Sun },
-  { a: "/plan", rotulo: "Mi plan", Icono: ListChecks },
+  // Pesa y no lista de tareas: su plan es entrenamiento y comida, no pendientes que se tachan.
+  { a: "/plan", rotulo: "Mi plan", Icono: Dumbbell },
   { a: "/evolucion", rotulo: "Evolución", Icono: LineChart },
 ];
 
@@ -50,20 +51,26 @@ export function MarcoAlumna() {
           )}
           <span className="text-menor font-semibold tracking-[-0.01em]">{marca}</span>
           <div className="flex items-center gap-6">
-            {PESTANAS.map(({ a, rotulo }) => (
+            {PESTANAS.map(({ a, rotulo, Icono }) => (
               <NavLink
                 key={a}
                 to={a}
                 className={({ isActive }) =>
                   cn(
-                    "border-b-2 py-5 text-menor font-medium transition-colors",
+                    "flex items-center gap-2 border-b-2 py-5 text-menor font-medium",
+                    "transition-colors duration-[var(--mov-rapido)] ease-suave",
                     isActive
                       ? "border-acento text-tinta"
                       : "border-transparent text-tinta-suave hover:text-tinta",
                   )
                 }
               >
-                {rotulo}
+                {({ isActive }) => (
+                  <>
+                    <Icono aria-hidden className="size-4 shrink-0" strokeWidth={isActive ? 2.2 : 1.6} />
+                    {rotulo}
+                  </>
+                )}
               </NavLink>
             ))}
           </div>
@@ -96,13 +103,22 @@ export function MarcoAlumna() {
               >
                 {({ isActive }) => (
                   <>
-                    <Icono className="size-5" strokeWidth={isActive ? 2.2 : 1.6} />
+                    <Icono
+                      aria-hidden
+                      className={cn(
+                        "size-5 transition-transform duration-[var(--mov-normal)] ease-salida",
+                        isActive && "-translate-y-0.5",
+                      )}
+                      strokeWidth={isActive ? 2.2 : 1.6}
+                    />
                     <span>{rotulo}</span>
-                    {/* El dorado marca dónde estás; no lleva texto encima. */}
+                    {/* El dorado marca dónde estás; no lleva texto encima. Crece desde el
+                        centro al llegar, en vez de encenderse de golpe. */}
                     <span
                       className={cn(
-                        "h-0.5 w-6 rounded-full transition-colors",
-                        isActive ? "bg-acento" : "bg-transparent",
+                        "h-0.5 w-6 rounded-full bg-acento transition-transform",
+                        "duration-[var(--mov-normal)] ease-salida",
+                        isActive ? "scale-x-100" : "scale-x-0",
                       )}
                     />
                   </>

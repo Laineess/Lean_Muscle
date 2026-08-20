@@ -9,7 +9,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Dialogo } from "@/componentes/Dialogo";
-import { Cargando } from "@/componentes/Estado";
+import { CargandoPantalla } from "@/componentes/Estado";
 import {
   Apoyo,
   Aviso,
@@ -74,7 +74,7 @@ export function Reservar() {
   }
 
   if (reservada) return <Confirmada cita={reservada} />;
-  if (carga.cargando) return <Cargando que="los horarios libres" />;
+  if (carga.cargando) return <CargandoPantalla que="los horarios libres" filas={4} />;
 
   const dias = porDia(carga.datos ?? []);
 

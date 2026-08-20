@@ -1,16 +1,17 @@
 /** Evolución: comparativa visual, gráficas e historial.
  *
- *  Con retención de 4 meses un chequeo viejo conserva sus números pero no su foto, y la
+ *  Con retención de 4 meses un chequeo de en medio conserva sus números pero no su foto, y la
  *  pantalla lo dice en vez de prometer un «antes y después» que el sistema ya borró.
  */
 
+import { Images, LineChart, Table2 } from "lucide-react";
 import { useState } from "react";
 
-import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
+import { AvisoSinServidor, CargandoPantalla } from "@/componentes/Estado";
 import { Grafica } from "@/componentes/Grafica";
 import { Apoyo, Aviso, Boton, Chip, Etiqueta, Portada, Regla, Selector, Titulo, Vacio } from "@/componentes/primitivas";
-import { api, descargarPdf, type ChequeoApi, type InicioAlumnaApi } from "@/lib/api";
-import { HOY, chequeos as chequeosEjemplo } from "@/lib/datos";
+import { api, descargarPdf, urlDeFoto, type ChequeoApi, type InicioAlumnaApi } from "@/lib/api";
+import { chequeos as chequeosEjemplo } from "@/lib/datos";
 import { delta, fecha, fechaCorta, num, porcentaje } from "@/lib/formato";
 import { usarApiConRespaldo } from "@/lib/usarApi";
 import {
@@ -21,12 +22,6 @@ import {
   type EstadoChequeo,
   type TipoMedida,
 } from "@/lib/tipos";
-
-const DIAS_RETENCION = 120;
-
-function estaPurgada(iso: string): boolean {
-  return (new Date(HOY).getTime() - new Date(iso).getTime()) / 86_400_000 > DIAS_RETENCION;
-}
 
 export function Evolucion() {
   const [izquierda, setIzquierda] = useState(0);
@@ -39,7 +34,7 @@ export function Evolucion() {
     { chequeos: chequeosEjemplo },
   );
 
-  if (cargando) return <Cargando que="tu evolución" />;
+  if (cargando) return <CargandoPantalla que="tu evolución" cifras={3} filas={3} />;
 
   const chequeos = datos.chequeos;
   if (chequeos.length < 2) {
@@ -63,12 +58,15 @@ export function Evolucion() {
       </header>
 
       <Aviso tono="atencion" titulo="Tus fotos de abril se borran en 15 días">
-        La retención es de 4 meses. Si quieres conservarlas, descarga tu set completo antes.
+        Tu primera y tu última de cada ángulo se quedan. Las de en medio no.{" "}
+        <a href="/api/documentos/expediente" download className="underline underline-offset-2">
+          Descargar todo
+        </a>
       </Aviso>
 
       {/* ---- Comparativa ---- */}
       <section className="flex flex-col gap-5">
-        <Titulo>Antes y ahora</Titulo>
+        <Titulo icono={Images}>Antes y ahora</Titulo>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="flex flex-col gap-1.5">
@@ -142,7 +140,7 @@ export function Evolucion() {
 
       {/* ---- Gráficas: una serie por gráfica, sin leyendas que descifrar ---- */}
       <section className="flex flex-col gap-8">
-        <Titulo>Tus números en el tiempo</Titulo>
+        <Titulo icono={LineChart}>Tus números en el tiempo</Titulo>
         <div className="grid gap-10 sm:grid-cols-2">
           {(
             [
@@ -174,7 +172,7 @@ export function Evolucion() {
       {/* ---- Historial ---- */}
       <section className="flex flex-col gap-5">
         <div className="flex items-center justify-between gap-4">
-          <Titulo>Todos tus registros</Titulo>
+          <Titulo icono={Table2}>Todos tus registros</Titulo>
           <Boton
             tono="contorno"
             medida="chica"
@@ -234,21 +232,30 @@ function Marco({
   rotulo: string;
   angulo: Angulo;
 }) {
-  const purgada = estaPurgada(chequeo.fecha);
+  // Lo dice el expediente, no el calendario. Con la retención nueva la primera y la última
+  // de cada ángulo se quedan, así que deducirlo de la fecha marcaba como purgadas fotos que
+  // siguen ahí.
+  const hay = chequeo.fotos[angulo] === true;
+  const [rota, setRota] = useState(false);
+
   return (
     <figure className="overflow-hidden rounded-marco border border-linea">
-      <div className="grid aspect-3/4 place-items-center bg-fondo-sutil p-4 text-center">
-        {purgada ? (
-          <div className="flex flex-col gap-1.5">
+      <div className="grid aspect-3/4 place-items-center bg-fondo-sutil text-center">
+        {hay && !rota ? (
+          <img
+            src={urlDeFoto(chequeo.ulid, angulo)}
+            alt={`${rotulo}, ${angulo}, ${fechaCorta(chequeo.fecha)}`}
+            loading="lazy"
+            onError={() => setRota(true)}
+            className="size-full object-cover"
+          />
+        ) : (
+          <div className="flex flex-col gap-1.5 p-4">
             <strong className="text-menor font-semibold">Foto purgada</strong>
             <span className="text-micro text-tinta-suave">
               Se borró a los 4 meses. Tus medidas y tu peso siguen aquí.
             </span>
           </div>
-        ) : (
-          <span className="text-micro text-tinta-suave">
-            {angulo} · {fechaCorta(chequeo.fecha)}
-          </span>
         )}
       </div>
       <figcaption className="flex items-center justify-between gap-2 border-t border-linea px-3 py-2 text-micro font-medium">

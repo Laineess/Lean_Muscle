@@ -47,13 +47,17 @@ def sube(op, ruta: str, datos: bytes, nombre: str, metodo: str, campos: dict | N
     partes = b""
     for clave, valor in (campos or {}).items():
         partes += (
-            f"--{borde}\r\nContent-Disposition: form-data; name=\"{clave}\"\r\n\r\n{valor}\r\n"
+            f'--{borde}\r\nContent-Disposition: form-data; name="{clave}"\r\n\r\n{valor}\r\n'
         ).encode()
     partes += (
-        f"--{borde}\r\n"
-        f'Content-Disposition: form-data; name="archivo"; filename="{nombre}"\r\n'
-        "Content-Type: image/jpeg\r\n\r\n"
-    ).encode() + datos + f"\r\n--{borde}--\r\n".encode()
+        (
+            f"--{borde}\r\n"
+            f'Content-Disposition: form-data; name="archivo"; filename="{nombre}"\r\n'
+            "Content-Type: image/jpeg\r\n\r\n"
+        ).encode()
+        + datos
+        + f"\r\n--{borde}--\r\n".encode()
+    )
     pet = urllib.request.Request(BASE + ruta, data=partes, method=metodo)
     pet.add_header("Content-Type", f"multipart/form-data; boundary={borde}")
     try:
@@ -95,70 +99,178 @@ def main() -> None:
     marca = pide(coach, "/api/coach/marca")[1]
     boton(
         "Apariencia · Guardar marca",
-        pide(coach, "/api/coach/marca", "PUT",
-             {"nombre": marca["nombre"], "marca": marca["marca"], "colorAcento": marca["colorAcento"]}),
+        pide(
+            coach,
+            "/api/coach/marca",
+            "PUT",
+            {
+                "nombre": marca["nombre"],
+                "marca": marca["marca"],
+                "colorAcento": marca["colorAcento"],
+            },
+        ),
     )
-    boton("Apariencia · subir logo", sube(coach, "/api/coach/logo", jpg(400, 400), "logo.jpg", "PUT"))
+    boton(
+        "Apariencia · subir logo", sube(coach, "/api/coach/logo", jpg(400, 400), "logo.jpg", "PUT")
+    )
 
     pres = boton("Presentación · leer", pide(coach, "/api/coach/presentacion"))
     boton(
         "Presentación · Guardar",
-        pide(coach, "/api/coach/presentacion", "PUT",
-             {"titulo": pres["titulo"] or "Soy Mariana", "texto": pres["texto"] or "Llevo 8 años.",
-              "ficha": pres["ficha"], "activa": True}),
+        pide(
+            coach,
+            "/api/coach/presentacion",
+            "PUT",
+            {
+                "titulo": pres["titulo"] or "Soy Mariana",
+                "texto": pres["texto"] or "Llevo 8 años.",
+                "ficha": pres["ficha"],
+                "activa": True,
+            },
+        ),
     )
-    boton("Presentación · subir foto",
-          sube(coach, "/api/coach/presentacion/foto", jpg(500, 500), "yo.jpg", "PUT"))
+    boton(
+        "Presentación · subir foto",
+        sube(coach, "/api/coach/presentacion/foto", jpg(500, 500), "yo.jpg", "PUT"),
+    )
 
     # ---- Cuestionario ----
     preguntas = boton("Cuestionario · leer", pide(coach, "/api/coach/preguntas"))
     nueva = boton(
         "Cuestionario · Nueva pregunta",
-        pide(coach, "/api/coach/preguntas", "POST",
-             {"texto": "¿Cuántas horas duermes?", "ayuda": None, "tipo": "numero",
-              "opciones": [], "obligatoria": False, "orden": len(preguntas) + 1, "activa": True}),
+        pide(
+            coach,
+            "/api/coach/preguntas",
+            "POST",
+            {
+                "texto": "¿Cuántas horas duermes?",
+                "ayuda": None,
+                "tipo": "numero",
+                "opciones": [],
+                "obligatoria": False,
+                "orden": len(preguntas) + 1,
+                "activa": True,
+            },
+        ),
     )
     if isinstance(nueva, dict):
-        boton("Cuestionario · Editar pregunta",
-              pide(coach, f"/api/coach/preguntas/{nueva['ulid']}", "PUT",
-                   {"texto": "¿Cuántas horas duermes entre semana?", "ayuda": None,
-                    "tipo": "numero", "opciones": [], "obligatoria": False, "orden": 99,
-                    "activa": True}))
-        boton("Cuestionario · Borrar pregunta",
-              pide(coach, f"/api/coach/preguntas/{nueva['ulid']}", "DELETE"))
+        boton(
+            "Cuestionario · Editar pregunta",
+            pide(
+                coach,
+                f"/api/coach/preguntas/{nueva['ulid']}",
+                "PUT",
+                {
+                    "texto": "¿Cuántas horas duermes entre semana?",
+                    "ayuda": None,
+                    "tipo": "numero",
+                    "opciones": [],
+                    "obligatoria": False,
+                    "orden": 99,
+                    "activa": True,
+                },
+            ),
+        )
+        boton(
+            "Cuestionario · Borrar pregunta",
+            pide(coach, f"/api/coach/preguntas/{nueva['ulid']}", "DELETE"),
+        )
 
     # ---- Planes y precios ----
-    plan = boton("Planes · Nuevo plan",
-                 pide(coach, "/api/coach/tarifas", "POST",
-                      {"codigo": f"PB-{uuid.uuid4().hex[:8].upper()}", "nombre": "Plan de prueba", "descripcion": None,
-                       "precio": 1200, "dias": 30, "intensidad": "media", "activa": True}))
+    plan = boton(
+        "Planes · Nuevo plan",
+        pide(
+            coach,
+            "/api/coach/tarifas",
+            "POST",
+            {
+                "codigo": f"PB-{uuid.uuid4().hex[:8].upper()}",
+                "nombre": "Plan de prueba",
+                "descripcion": None,
+                "precio": 1200,
+                "dias": 30,
+                "intensidad": "media",
+                "activa": True,
+            },
+        ),
+    )
     if isinstance(plan, dict):
-        boton("Planes · Editar plan",
-              pide(coach, f"/api/coach/tarifas/{plan['ulid']}", "PUT",
-                   {"codigo": plan["codigo"], "nombre": "Plan de prueba II", "descripcion": None,
-                    "precio": 1300, "dias": 30, "intensidad": "alta", "activa": False}))
+        boton(
+            "Planes · Editar plan",
+            pide(
+                coach,
+                f"/api/coach/tarifas/{plan['ulid']}",
+                "PUT",
+                {
+                    "codigo": plan["codigo"],
+                    "nombre": "Plan de prueba II",
+                    "descripcion": None,
+                    "precio": 1300,
+                    "dias": 30,
+                    "intensidad": "alta",
+                    "activa": False,
+                },
+            ),
+        )
 
-    servicio = boton("Precios · Nuevo precio",
-                     pide(coach, "/api/coach/servicios", "POST",
-                          {"nombre": "Consulta suelta", "descripcion": None, "motivo": "cita",
-                           "precio": 450, "activo": True}))
+    servicio = boton(
+        "Precios · Nuevo precio",
+        pide(
+            coach,
+            "/api/coach/servicios",
+            "POST",
+            {
+                "nombre": "Consulta suelta",
+                "descripcion": None,
+                "motivo": "cita",
+                "precio": 450,
+                "activo": True,
+            },
+        ),
+    )
     if isinstance(servicio, dict):
-        boton("Precios · Editar", pide(coach, f"/api/coach/servicios/{servicio['ulid']}", "PUT",
-                                       {"nombre": "Consulta", "descripcion": None, "motivo": "cita",
-                                        "precio": 500, "activo": True}))
+        boton(
+            "Precios · Editar",
+            pide(
+                coach,
+                f"/api/coach/servicios/{servicio['ulid']}",
+                "PUT",
+                {
+                    "nombre": "Consulta",
+                    "descripcion": None,
+                    "motivo": "cita",
+                    "precio": 500,
+                    "activo": True,
+                },
+            ),
+        )
         boton("Precios · Borrar", pide(coach, f"/api/coach/servicios/{servicio['ulid']}", "DELETE"))
 
     # ---- Avisos ----
-    boton("Avisos · Enviar",
-          pide(coach, "/api/coach/anuncios", "POST", {"titulo": "Lunes", "cuerpo": "Con todo."}))
+    boton(
+        "Avisos · Enviar",
+        pide(coach, "/api/coach/anuncios", "POST", {"titulo": "Lunes", "cuerpo": "Con todo."}),
+    )
     boton("Avisos · historial", pide(coach, "/api/coach/anuncios"))
 
     # ---- Alumna: alta, edición, clave ----
-    alta = boton("Alumnas · Dar de alta",
-                 pide(coach, "/api/coach/alumnas", "POST",
-                      {"nombre": "Prueba De Botones", "correo": f"prueba.botones.{uuid.uuid4().hex[:8]}@ejemplo.mx",
-                       "whatsapp": "5512345678", "fechaNacimiento": "1992-03-11",
-                       "estaturaCm": 165, "tarifaUlid": None, "nivelExperiencia": "principiante"}))
+    alta = boton(
+        "Alumnas · Dar de alta",
+        pide(
+            coach,
+            "/api/coach/alumnas",
+            "POST",
+            {
+                "nombre": "Prueba De Botones",
+                "correo": f"prueba.botones.{uuid.uuid4().hex[:8]}@ejemplo.mx",
+                "whatsapp": "5512345678",
+                "fechaNacimiento": "1992-03-11",
+                "estaturaCm": 165,
+                "tarifaUlid": None,
+                "nivelExperiencia": "principiante",
+            },
+        ),
+    )
     # Nunca cae en una alumna de la semilla: restablecerle la clave le tira la sesión.
     nueva_ulid = alta["alumnaUlid"] if isinstance(alta, dict) else None
     perfil = (
@@ -167,156 +279,318 @@ def main() -> None:
         else None
     )
     if isinstance(perfil, dict):
-        boton("Alumnas · Guardar edición",
-              pide(coach, f"/api/coach/alumnas/{nueva_ulid}", "PUT",
-                   {"nombre": perfil["nombre"], "whatsapp": perfil["whatsapp"],
-                    "estaturaCm": perfil["estaturaCm"], "tarifaUlid": perfil["tarifaUlid"],
-                    "nivelExperiencia": perfil["nivelExperiencia"], "equipo": perfil["equipo"],
-                    "ocupacion": perfil["ocupacion"], "basculaRef": perfil["basculaRef"],
-                    "lugarRef": perfil["lugarRef"], "horaRef": perfil["horaRef"],
-                    "porcentajeGrasaObjetivo": 0.24, "estado": "activa"}))
+        boton(
+            "Alumnas · Guardar edición",
+            pide(
+                coach,
+                f"/api/coach/alumnas/{nueva_ulid}",
+                "PUT",
+                {
+                    "nombre": perfil["nombre"],
+                    "whatsapp": perfil["whatsapp"],
+                    "estaturaCm": perfil["estaturaCm"],
+                    "tarifaUlid": perfil["tarifaUlid"],
+                    "nivelExperiencia": perfil["nivelExperiencia"],
+                    "equipo": perfil["equipo"],
+                    "ocupacion": perfil["ocupacion"],
+                    "basculaRef": perfil["basculaRef"],
+                    "lugarRef": perfil["lugarRef"],
+                    "horaRef": perfil["horaRef"],
+                    "porcentajeGrasaObjetivo": 0.24,
+                    "estado": "activa",
+                },
+            ),
+        )
     if nueva_ulid:
-        boton("Alumnas · Recuperar acceso",
-              pide(coach, f"/api/coach/alumnas/{nueva_ulid}/clave-temporal", "POST",
-                   {"motivoVerificacion": "Videollamada"}))
+        boton(
+            "Alumnas · Recuperar acceso",
+            pide(
+                coach,
+                f"/api/coach/alumnas/{nueva_ulid}/clave-temporal",
+                "POST",
+                {"motivoVerificacion": "Videollamada"},
+            ),
+        )
         # La baja va sobre la alumna que este barrido creó, nunca sobre una de la semilla.
-        boton("Baja · lo que hay que mirar antes",
-              pide(coach, f"/api/coach/alumnas/{nueva_ulid}/baja"))
-        boton("Baja · con el nombre mal (rechaza)",
-              pide(coach, f"/api/coach/alumnas/{nueva_ulid}/baja", "POST", {"nombre": "Otra"}),
-              esperados=(422,))
-        boton("Baja · Dar de baja",
-              pide(coach, f"/api/coach/alumnas/{nueva_ulid}/baja", "POST",
-                   {"nombre": "Prueba De Botones"}))
-        boton("Baja · dos veces (rechaza)",
-              pide(coach, f"/api/coach/alumnas/{nueva_ulid}/baja", "POST",
-                   {"nombre": "Prueba De Botones"}),
-              esperados=(409,))
+        boton(
+            "Baja · lo que hay que mirar antes",
+            pide(coach, f"/api/coach/alumnas/{nueva_ulid}/baja"),
+        )
+        boton(
+            "Baja · con el nombre mal (rechaza)",
+            pide(coach, f"/api/coach/alumnas/{nueva_ulid}/baja", "POST", {"nombre": "Otra"}),
+            esperados=(422,),
+        )
+        boton(
+            "Baja · Dar de baja",
+            pide(
+                coach,
+                f"/api/coach/alumnas/{nueva_ulid}/baja",
+                "POST",
+                {"nombre": "Prueba De Botones"},
+            ),
+        )
+        boton(
+            "Baja · dos veces (rechaza)",
+            pide(
+                coach,
+                f"/api/coach/alumnas/{nueva_ulid}/baja",
+                "POST",
+                {"nombre": "Prueba De Botones"},
+            ),
+            esperados=(409,),
+        )
 
     # ---- Agenda ----
-    cita = boton("Agenda · Agendar",
-                 pide(coach, "/api/coach/agenda", "POST",
-                      {"titulo": "Consulta de prueba", "tipo": "consulta", "modalidad": "video",
-                       "alumnaUlid": una, "iniciaEn": "2026-09-01T16:00:00Z",
-                       "terminaEn": "2026-09-01T17:00:00Z", "enlace": None, "lugar": None,
-                       "notas": None}))
+    cita = boton(
+        "Agenda · Agendar",
+        pide(
+            coach,
+            "/api/coach/agenda",
+            "POST",
+            {
+                "titulo": "Consulta de prueba",
+                "tipo": "consulta",
+                "modalidad": "video",
+                "alumnaUlid": una,
+                "iniciaEn": "2026-09-01T16:00:00Z",
+                "terminaEn": "2026-09-01T17:00:00Z",
+                "enlace": None,
+                "lugar": None,
+                "notas": None,
+            },
+        ),
+    )
     if isinstance(cita, dict):
-        boton("Agenda · Editar cita",
-              pide(coach, f"/api/coach/agenda/{cita['ulid']}", "PUT",
-                   {"titulo": "Consulta movida", "tipo": "consulta", "modalidad": "video",
-                    "alumnaUlid": una, "iniciaEn": "2026-09-02T16:00:00Z",
-                    "terminaEn": "2026-09-02T17:00:00Z", "enlace": None, "lugar": None,
-                    "notas": None}))
-        boton("Agenda · Cancelar cita",
-              pide(coach, f"/api/coach/agenda/{cita['ulid']}/cancelar", "POST",
-                   {"motivo": "Se empalmó una urgencia."}))
-        boton("Agenda · Eliminar cita",
-              pide(coach, f"/api/coach/agenda/{cita['ulid']}", "DELETE"))
+        boton(
+            "Agenda · Editar cita",
+            pide(
+                coach,
+                f"/api/coach/agenda/{cita['ulid']}",
+                "PUT",
+                {
+                    "titulo": "Consulta movida",
+                    "tipo": "consulta",
+                    "modalidad": "video",
+                    "alumnaUlid": una,
+                    "iniciaEn": "2026-09-02T16:00:00Z",
+                    "terminaEn": "2026-09-02T17:00:00Z",
+                    "enlace": None,
+                    "lugar": None,
+                    "notas": None,
+                },
+            ),
+        )
+        boton(
+            "Agenda · Cancelar cita",
+            pide(
+                coach,
+                f"/api/coach/agenda/{cita['ulid']}/cancelar",
+                "POST",
+                {"motivo": "Se empalmó una urgencia."},
+            ),
+        )
+        boton("Agenda · Eliminar cita", pide(coach, f"/api/coach/agenda/{cita['ulid']}", "DELETE"))
     boton("Agenda · cargar semana", pide(coach, "/api/coach/agenda?desde=2026-09-01&dias=7"))
 
     # ---- Registro abierto ----
     # Manda correo de verdad si el servidor tiene `LM_CORREO_REAL=true`: los barridos se
     # corren con esa opción apagada, o cada corrida rebota un correo a una dirección falsa.
-    liga = boton("Registro · abrir la liga (coach)",
-                 pide(coach, "/api/coach/registro", "PUT", {"abierto": True}))
+    liga = boton(
+        "Registro · abrir la liga (coach)",
+        pide(coach, "/api/coach/registro", "PUT", {"abierto": True}),
+    )
     boton("Registro · liga pública", pide(anonimo, "/api/registro/leanmuscle"))
 
     correo_nuevo = f"prueba.registro.{uuid.uuid4().hex[:8]}@ejemplo.mx"
     alta_abierta = boton(
         "Registro · Crear cuenta",
-        pide(anonimo, "/api/registro/leanmuscle", "POST",
-             {"nombre": "Prueba De Registro", "correo": correo_nuevo,
-              "contrasena": "Manzana8!", "fechaNacimiento": "1993-06-15",
-              "whatsapp": "5599887766", "aceptaTerminos": True, "aceptaPrivacidad": True}),
+        pide(
+            anonimo,
+            "/api/registro/leanmuscle",
+            "POST",
+            {
+                "nombre": "Prueba De Registro",
+                "correo": correo_nuevo,
+                "contrasena": "Manzana8!",
+                "fechaNacimiento": "1993-06-15",
+                "whatsapp": "5599887766",
+                "aceptaTerminos": True,
+                "aceptaPrivacidad": True,
+            },
+        ),
     )
     if isinstance(alta_abierta, dict) and alta_abierta.get("codigo"):
-        boton("Registro · Código equivocado (rechaza)",
-              pide(anonimo, "/api/registro/leanmuscle/codigo", "POST",
-                   {"correo": correo_nuevo, "codigo": "000000"}),
-              esperados=(422,))
-        solicitante = urllib.request.build_opener(
-            urllib.request.HTTPCookieProcessor(CookieJar())
+        boton(
+            "Registro · Código equivocado (rechaza)",
+            pide(
+                anonimo,
+                "/api/registro/leanmuscle/codigo",
+                "POST",
+                {"correo": correo_nuevo, "codigo": "000000"},
+            ),
+            esperados=(422,),
         )
-        boton("Registro · Verificar código",
-              pide(solicitante, "/api/registro/leanmuscle/codigo", "POST",
-                   {"correo": correo_nuevo, "codigo": alta_abierta["codigo"]}))
+        solicitante = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
+        boton(
+            "Registro · Verificar código",
+            pide(
+                solicitante,
+                "/api/registro/leanmuscle/codigo",
+                "POST",
+                {"correo": correo_nuevo, "codigo": alta_abierta["codigo"]},
+            ),
+        )
         boton("Registro · su recorrido", pide(solicitante, "/api/mi/solicitud"))
-        boton("Registro · el chequeo sigue cerrado",
-              pide(solicitante, "/api/mi/chequeo", "POST"), esperados=(403,))
+        boton(
+            "Registro · el chequeo sigue cerrado",
+            pide(solicitante, "/api/mi/chequeo", "POST"),
+            esperados=(403,),
+        )
 
         # Termina su parte para que la bandeja tenga algo que decidir.
         cuestionario = pide(solicitante, "/api/mi/cuestionario")[1]
         if isinstance(cuestionario, dict):
             boton(
                 "Registro · Contestar el cuestionario",
-                pide(solicitante, "/api/mi/cuestionario", "POST",
-                     {"nucleo": {"lesiones": "Ninguna", "condiciones": None,
-                                 "medicacion": None, "restricciones": None},
-                      "tarifaUlid": (cuestionario["planes"] or [{}])[0].get("ulid"),
-                      "respuestas": [
-                          {"preguntaUlid": q["ulid"],
-                           "valor": "7" if q["tipo"] == "numero" else "Principiante"}
-                          for q in cuestionario["preguntas"] if q["obligatoria"]
-                      ],
-                      "consentimientos": ["datos_salud", "protocolo_foto"]}),
+                pide(
+                    solicitante,
+                    "/api/mi/cuestionario",
+                    "POST",
+                    {
+                        "nucleo": {
+                            "lesiones": "Ninguna",
+                            "condiciones": None,
+                            "medicacion": None,
+                            "restricciones": None,
+                        },
+                        "tarifaUlid": (cuestionario["planes"] or [{}])[0].get("ulid"),
+                        "respuestas": [
+                            {
+                                "preguntaUlid": q["ulid"],
+                                "valor": "7" if q["tipo"] == "numero" else "Principiante",
+                            }
+                            for q in cuestionario["preguntas"]
+                            if q["obligatoria"]
+                        ],
+                        "consentimientos": ["datos_salud", "protocolo_foto"],
+                    },
+                ),
             )
             libres = pide(solicitante, "/api/mi/huecos")[1]
             if isinstance(libres, list) and libres:
-                boton("Registro · Reservar su primera consulta",
-                      pide(solicitante, "/api/mi/citas", "POST",
-                           {"iniciaEn": libres[0]["iniciaEn"], "modalidad": "video"}))
+                boton(
+                    "Registro · Reservar su primera consulta",
+                    pide(
+                        solicitante,
+                        "/api/mi/citas",
+                        "POST",
+                        {"iniciaEn": libres[0]["iniciaEn"], "modalidad": "video"},
+                    ),
+                )
             suyos = pide(solicitante, "/api/mi/cobros")[1]
-            inscripcion = next(
-                (c for c in suyos if c["motivo"] == "inscripcion"), None
-            ) if isinstance(suyos, list) else None
+            inscripcion = (
+                next((c for c in suyos if c["motivo"] == "inscripcion"), None)
+                if isinstance(suyos, list)
+                else None
+            )
             if inscripcion:
-                boton("Registro · Subir su comprobante de inscripción",
-                      sube(solicitante, f"/api/mi/cobros/{inscripcion['ulid']}/comprobante",
-                           jpg(600, 800), "inscripcion.jpg", "POST"))
+                boton(
+                    "Registro · Subir su comprobante de inscripción",
+                    sube(
+                        solicitante,
+                        f"/api/mi/cobros/{inscripcion['ulid']}/comprobante",
+                        jpg(600, 800),
+                        "inscripcion.jpg",
+                        "POST",
+                    ),
+                )
 
     # ---- Bandeja de solicitudes ----
     bandeja = boton("Solicitudes · bandeja", pide(coach, "/api/coach/solicitudes"))
-    mia = next(
-        (x for x in bandeja if x["correo"] == correo_nuevo), None
-    ) if isinstance(bandeja, list) else None
+    mia = (
+        next((x for x in bandeja if x["correo"] == correo_nuevo), None)
+        if isinstance(bandeja, list)
+        else None
+    )
     if mia:
-        boton("Solicitudes · lo que contestó",
-              pide(coach, f"/api/coach/alumnas/{mia['alumnaUlid']}/cuestionario"))
-        boton("Solicitudes · Aceptar",
-              pide(coach, f"/api/coach/solicitudes/{mia['ulid']}/aceptar", "POST",
-                   {"tarifaUlid": mia["planPedidoUlid"], "validarPago": True}))
-        boton("Solicitudes · Aceptar dos veces (rechaza)",
-              pide(coach, f"/api/coach/solicitudes/{mia['ulid']}/aceptar", "POST", {}),
-              esperados=(409,))
+        boton(
+            "Solicitudes · lo que contestó",
+            pide(coach, f"/api/coach/alumnas/{mia['alumnaUlid']}/cuestionario"),
+        )
+        boton(
+            "Solicitudes · Aceptar",
+            pide(
+                coach,
+                f"/api/coach/solicitudes/{mia['ulid']}/aceptar",
+                "POST",
+                {"tarifaUlid": mia["planPedidoUlid"], "validarPago": True},
+            ),
+        )
+        boton(
+            "Solicitudes · Aceptar dos veces (rechaza)",
+            pide(coach, f"/api/coach/solicitudes/{mia['ulid']}/aceptar", "POST", {}),
+            esperados=(409,),
+        )
 
     # Una segunda, que se descarta: el otro botón de la bandeja.
     correo_descarte = f"prueba.descarte.{uuid.uuid4().hex[:8]}@ejemplo.mx"
     otra = boton(
         "Solicitudes · Crear cuenta (para descartar)",
-        pide(anonimo, "/api/registro/leanmuscle", "POST",
-             {"nombre": "Prueba De Descarte", "correo": correo_descarte,
-              "contrasena": "Manzana8!", "fechaNacimiento": "1991-02-08",
-              "whatsapp": None, "aceptaTerminos": True, "aceptaPrivacidad": True}),
+        pide(
+            anonimo,
+            "/api/registro/leanmuscle",
+            "POST",
+            {
+                "nombre": "Prueba De Descarte",
+                "correo": correo_descarte,
+                "contrasena": "Manzana8!",
+                "fechaNacimiento": "1991-02-08",
+                "whatsapp": None,
+                "aceptaTerminos": True,
+                "aceptaPrivacidad": True,
+            },
+        ),
     )
     if isinstance(otra, dict) and otra.get("codigo"):
         segunda = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
-        pide(segunda, "/api/registro/leanmuscle/codigo", "POST",
-             {"correo": correo_descarte, "codigo": otra["codigo"]})
+        pide(
+            segunda,
+            "/api/registro/leanmuscle/codigo",
+            "POST",
+            {"correo": correo_descarte, "codigo": otra["codigo"]},
+        )
         pendientes = pide(coach, "/api/coach/solicitudes")[1]
-        suya = next(
-            (x for x in pendientes if x["correo"] == correo_descarte), None
-        ) if isinstance(pendientes, list) else None
+        suya = (
+            next((x for x in pendientes if x["correo"] == correo_descarte), None)
+            if isinstance(pendientes, list)
+            else None
+        )
         if suya:
-            boton("Solicitudes · Descartar sin motivo (rechaza)",
-                  pide(coach, f"/api/coach/solicitudes/{suya['ulid']}/descartar", "POST",
-                       {"motivo": "  "}),
-                  esperados=(422,))
-            boton("Solicitudes · Descartar",
-                  pide(coach, f"/api/coach/solicitudes/{suya['ulid']}/descartar", "POST",
-                       {"motivo": "No tomo casos con esa condición sin aval médico."}))
+            boton(
+                "Solicitudes · Descartar sin motivo (rechaza)",
+                pide(
+                    coach,
+                    f"/api/coach/solicitudes/{suya['ulid']}/descartar",
+                    "POST",
+                    {"motivo": "  "},
+                ),
+                esperados=(422,),
+            )
+            boton(
+                "Solicitudes · Descartar",
+                pide(
+                    coach,
+                    f"/api/coach/solicitudes/{suya['ulid']}/descartar",
+                    "POST",
+                    {"motivo": "No tomo casos con esa condición sin aval médico."},
+                ),
+            )
     if isinstance(liga, dict):
-        boton("Registro · Apagar la liga",
-              pide(coach, "/api/coach/registro", "PUT", {"abierto": liga["abierto"]}))
+        boton(
+            "Registro · Apagar la liga",
+            pide(coach, "/api/coach/registro", "PUT", {"abierto": liga["abierto"]}),
+        )
 
     # ---- Horario de consultas ----
     horario = boton("Horario · leer", pide(coach, "/api/coach/horario"))
@@ -328,49 +602,123 @@ def main() -> None:
         boton("Horario · Guardar horario", pide(coach, "/api/coach/horario", "PUT", horario))
 
     # ---- Cobros y finanzas ----
-    boton("Cobros · Programar",
-                  pide(coach, f"/api/coach/alumnas/{una}/cobros", "POST",
-                       {"fecha": "2026-09-05", "motivo": "mensualidad",
-                        "concepto": "Mensualidad de septiembre", "monto": 1200, "nota": None}))
+    boton(
+        "Cobros · Programar",
+        pide(
+            coach,
+            f"/api/coach/alumnas/{una}/cobros",
+            "POST",
+            {
+                "fecha": "2026-09-05",
+                "motivo": "mensualidad",
+                "concepto": "Mensualidad de septiembre",
+                "monto": 1200,
+                "nota": None,
+            },
+        ),
+    )
     boton("Finanzas · panel", pide(coach, "/api/coach/finanzas"))
-    mov = boton("Finanzas · Nuevo movimiento",
-                pide(coach, "/api/coach/finanzas/movimientos", "POST",
-                     {"tipo": "gasto", "categoria": "plataforma", "monto": 890,
-                      "fecha": "2026-08-18", "concepto": "Suscripción", "alumnaUlid": None,
-                      "nota": None, "cobroUlid": None}))
+    mov = boton(
+        "Finanzas · Nuevo movimiento",
+        pide(
+            coach,
+            "/api/coach/finanzas/movimientos",
+            "POST",
+            {
+                "tipo": "gasto",
+                "categoria": "plataforma",
+                "monto": 890,
+                "fecha": "2026-08-18",
+                "concepto": "Suscripción",
+                "alumnaUlid": None,
+                "nota": None,
+                "cobroUlid": None,
+            },
+        ),
+    )
     if isinstance(mov, dict):
-        boton("Finanzas · Editar movimiento",
-              pide(coach, f"/api/coach/finanzas/movimientos/{mov['ulid']}", "PUT",
-                   {"tipo": "gasto", "categoria": "plataforma", "monto": 900,
-                    "fecha": "2026-08-18", "concepto": "Suscripción de agosto",
-                    "alumnaUlid": None, "nota": None, "cobroUlid": None}))
-        boton("Finanzas · Eliminar movimiento",
-              pide(coach, f"/api/coach/finanzas/movimientos/{mov['ulid']}", "DELETE"))
+        boton(
+            "Finanzas · Editar movimiento",
+            pide(
+                coach,
+                f"/api/coach/finanzas/movimientos/{mov['ulid']}",
+                "PUT",
+                {
+                    "tipo": "gasto",
+                    "categoria": "plataforma",
+                    "monto": 900,
+                    "fecha": "2026-08-18",
+                    "concepto": "Suscripción de agosto",
+                    "alumnaUlid": None,
+                    "nota": None,
+                    "cobroUlid": None,
+                },
+            ),
+        )
+        boton(
+            "Finanzas · Eliminar movimiento",
+            pide(coach, f"/api/coach/finanzas/movimientos/{mov['ulid']}", "DELETE"),
+        )
     boton("Finanzas · buscador de cobro", pide(coach, "/api/coach/cobrar?q=an"))
 
     # ---- Biblioteca ----
     boton("Constructor · buscar alimento", pide(coach, "/api/coach/alimentos?q=pollo"))
     boton("Constructor · buscar ejercicio", pide(coach, "/api/coach/ejercicios?q=sentadilla"))
-    boton("Biblioteca · Crear alimento",
-          pide(coach, "/api/coach/alimentos", "POST",
-               {"nombre": "Pechuga de prueba", "marca": None, "porcion": 100, "unidad": "g",
-                "kcal": 165, "proteina": 31, "carbo": 0, "grasa": 3.6, "grupo": None}))
+    boton(
+        "Biblioteca · Crear alimento",
+        pide(
+            coach,
+            "/api/coach/alimentos",
+            "POST",
+            {
+                "nombre": "Pechuga de prueba",
+                "marca": None,
+                "porcion": 100,
+                "unidad": "g",
+                "kcal": 165,
+                "proteina": 31,
+                "carbo": 0,
+                "grasa": 3.6,
+                "grupo": None,
+            },
+        ),
+    )
 
     # ---- Expediente y plan ----
     boton("Expediente · validación", pide(coach, f"/api/coach/alumnas/{una}/validacion"))
     boton("Expediente · historial", pide(coach, f"/api/coach/alumnas/{una}/historial"))
     boton("Constructor · abrir", pide(coach, f"/api/coach/planes/{una}"))
     boton("Calculadora · hoja", pide(coach, f"/api/coach/hoja/{una}"))
-    boton("Constructor · Guardar borrador",
-          pide(coach, f"/api/coach/planes/{una}", "PUT",
-               {"tipo": "nutricion", "contenido": {"notas": "", "tiempos": []},
-                "kcalObjetivo": 1850, "proteinaG": 140, "carbohidratoG": 180, "grasaG": 60,
-                "publicar": False, "frecuenciaFotos": "semanal",
-                "parametros": {"actividad": "activo", "porcentajeAjuste": -0.28,
-                               "reparto": {"carbohidrato": 0.4, "proteina": 0.35, "grasa": 0.25},
-                               "baseProteina": "masa_libre_de_grasa", "diasRefeed": 1,
-                               "porcentajeDiaRefeed": 0, "relacionGanancia": "2:1"}}))
-    boton("PDF · plan de nutrición", pide(coach, f"/api/documentos/plan-nutricion?alumna_ulid={una}"))
+    boton(
+        "Constructor · Guardar borrador",
+        pide(
+            coach,
+            f"/api/coach/planes/{una}",
+            "PUT",
+            {
+                "tipo": "nutricion",
+                "contenido": {"notas": "", "tiempos": []},
+                "kcalObjetivo": 1850,
+                "proteinaG": 140,
+                "carbohidratoG": 180,
+                "grasaG": 60,
+                "publicar": False,
+                "frecuenciaFotos": "semanal",
+                "parametros": {
+                    "actividad": "activo",
+                    "porcentajeAjuste": -0.28,
+                    "reparto": {"carbohidrato": 0.4, "proteina": 0.35, "grasa": 0.25},
+                    "baseProteina": "masa_libre_de_grasa",
+                    "diasRefeed": 1,
+                    "porcentajeDiaRefeed": 0,
+                    "relacionGanancia": "2:1",
+                },
+            },
+        ),
+    )
+    boton(
+        "PDF · plan de nutrición", pide(coach, f"/api/documentos/plan-nutricion?alumna_ulid={una}")
+    )
     boton("PDF · rutina", pide(coach, f"/api/documentos/rutina?alumna_ulid={una}"))
     boton("PDF · evolución", pide(coach, f"/api/documentos/evolucion?alumna_ulid={una}"))
 
@@ -378,8 +726,10 @@ def main() -> None:
     boton("Comprobantes · bandeja", pide(coach, "/api/coach/comprobantes"))
 
     # ---- Mensajes ----
-    boton("Conversación · Enviar",
-          pide(coach, f"/api/coach/mensajes/{una}", "POST", {"cuerpo": "Vamos bien."}))
+    boton(
+        "Conversación · Enviar",
+        pide(coach, f"/api/coach/mensajes/{una}", "POST", {"cuerpo": "Vamos bien."}),
+    )
     boton("Conversación · leer", pide(coach, f"/api/coach/mensajes/{una}"))
 
     # ---- Alumna ----
@@ -389,11 +739,19 @@ def main() -> None:
     boton("Alumna · cuestionario", pide(alumna, "/api/mi/cuestionario"))
     boton("Alumna · presentación", pide(alumna, "/api/mi/presentacion"))
     boton("Alumna · avisos", pide(alumna, "/api/mi/avisos"))
-    boton("Alumna · Escribir a su coach",
-          pide(alumna, "/api/mi/mensajes", "POST", {"cuerpo": "Gracias."}))
-    boton("Alumna · activar notificaciones",
-          pide(alumna, "/api/mi/push", "POST",
-               {"endpoint": "https://fcm.googleapis.com/prueba-botones", "p256dh": "k", "auth": "a"}))
+    boton(
+        "Alumna · Escribir a su coach",
+        pide(alumna, "/api/mi/mensajes", "POST", {"cuerpo": "Gracias."}),
+    )
+    boton(
+        "Alumna · activar notificaciones",
+        pide(
+            alumna,
+            "/api/mi/push",
+            "POST",
+            {"endpoint": "https://fcm.googleapis.com/prueba-botones", "p256dh": "k", "auth": "a"},
+        ),
+    )
     boton("Alumna · desactivar notificaciones", pide(alumna, "/api/mi/push", "DELETE"))
     boton("Alumna · Descargar PDF", pide(alumna, "/api/documentos/evolucion"))
 
@@ -401,43 +759,86 @@ def main() -> None:
     if isinstance(huecos, list) and huecos:
         boton(
             "Alumna · Reservar consulta",
-            pide(alumna, "/api/mi/citas", "POST",
-                 {"iniciaEn": huecos[0]["iniciaEn"], "modalidad": "video"}),
+            pide(
+                alumna,
+                "/api/mi/citas",
+                "POST",
+                {"iniciaEn": huecos[0]["iniciaEn"], "modalidad": "video"},
+            ),
         )
         boton(
             "Alumna · Reservar el mismo hueco dos veces (rechaza)",
-            pide(alumna, "/api/mi/citas", "POST",
-                 {"iniciaEn": huecos[0]["iniciaEn"], "modalidad": "video"}),
+            pide(
+                alumna,
+                "/api/mi/citas",
+                "POST",
+                {"iniciaEn": huecos[0]["iniciaEn"], "modalidad": "video"},
+            ),
             esperados=(409,),
         )
 
     boton("Alumna · su recorrido (ya es alumna)", pide(alumna, "/api/mi/solicitud"))
     cobros = boton("Alumna · sus cobros", pide(alumna, "/api/mi/cobros"))
-    pendiente = next((c for c in cobros if c["estado"] != "pagado"), None) if isinstance(cobros, list) else None
+    pendiente = (
+        next((c for c in cobros if c["estado"] != "pagado"), None)
+        if isinstance(cobros, list)
+        else None
+    )
     if pendiente:
-        boton("Alumna · Subir comprobante",
-              sube(alumna, f"/api/mi/cobros/{pendiente['ulid']}/comprobante", jpg(600, 800),
-                   "comprobante.jpg", "POST"))
-        boton("Coach · ver comprobante",
-              pide(coach, f"/api/coach/cobros/{pendiente['ulid']}/comprobante"))
-        boton("Coach · Rechazar comprobante",
-              pide(coach, f"/api/coach/cobros/{pendiente['ulid']}/rechazar", "POST",
-                   {"motivo": "No se ve el monto."}))
+        boton(
+            "Alumna · Subir comprobante",
+            sube(
+                alumna,
+                f"/api/mi/cobros/{pendiente['ulid']}/comprobante",
+                jpg(600, 800),
+                "comprobante.jpg",
+                "POST",
+            ),
+        )
+        boton(
+            "Coach · ver comprobante",
+            pide(coach, f"/api/coach/cobros/{pendiente['ulid']}/comprobante"),
+        )
+        boton(
+            "Coach · Rechazar comprobante",
+            pide(
+                coach,
+                f"/api/coach/cobros/{pendiente['ulid']}/rechazar",
+                "POST",
+                {"motivo": "No se ve el monto."},
+            ),
+        )
 
     # ---- ARCO, de punta a punta ----
-    sol = boton("Alumna · Ejercer derecho ARCO",
-                pide(alumna, "/api/mi/arco", "POST",
-                     {"derecho": "A", "detalle": "Quiero ver todo lo que tienen de mí."}))
+    sol = boton(
+        "Alumna · Ejercer derecho ARCO",
+        pide(
+            alumna,
+            "/api/mi/arco",
+            "POST",
+            {"derecho": "A", "detalle": "Quiero ver todo lo que tienen de mí."},
+        ),
+    )
     boton("Alumna · sus solicitudes", pide(alumna, "/api/mi/arco"))
     boton("Coach · bandeja ARCO", pide(coach, "/api/coach/arco"))
     if isinstance(sol, dict):
-        boton("Coach · Contestar ARCO",
-              pide(coach, f"/api/coach/arco/{sol['ulid']}/responder", "POST",
-                   {"respuesta": "Te mando tu expediente en PDF."}))
-        boton("Coach · Marcar resuelta",
-              pide(coach, f"/api/coach/arco/{sol['ulid']}/resolver", "POST"))
-    boton("Alumna · Pedir baja (cancelación)",
-          pide(alumna, "/api/mi/arco", "POST", {"derecho": "C", "detalle": "Baja definitiva."}))
+        boton(
+            "Coach · Contestar ARCO",
+            pide(
+                coach,
+                f"/api/coach/arco/{sol['ulid']}/responder",
+                "POST",
+                {"respuesta": "Te mando tu expediente en PDF."},
+            ),
+        )
+        boton(
+            "Coach · Marcar resuelta",
+            pide(coach, f"/api/coach/arco/{sol['ulid']}/resolver", "POST"),
+        )
+    boton(
+        "Alumna · Pedir baja (cancelación)",
+        pide(alumna, "/api/mi/arco", "POST", {"derecho": "C", "detalle": "Baja definitiva."}),
+    )
 
     # ---- Plataforma ----
     coaches = boton("Plataforma · coaches", pide(admin, "/api/plataforma/coaches"))
@@ -446,25 +847,62 @@ def main() -> None:
     boton("Plataforma · auditoría", pide(admin, "/api/plataforma/auditoria"))
     if isinstance(coaches, list) and coaches:
         c0 = coaches[0]
-        boton("Plataforma · Guardar coach",
-              pide(admin, f"/api/plataforma/coaches/{c0['ulid']}", "PUT",
-                   {"nombre": c0["nombre"], "marca": c0["marca"], "plan": c0["plan"],
-                    "limiteAlumnas": c0["limiteAlumnas"], "estado": c0["estado"],
-                    "precioCiclo": c0["precioCiclo"]}))
-        boton("Plataforma · Guardar suscripción",
-              pide(admin, f"/api/plataforma/coaches/{c0['ulid']}/suscripcion", "PUT",
-                   {"plan": c0["plan"], "precio": 890, "periodicidad": "mensual",
-                    "estado": "al_corriente", "vigenteHasta": "2026-12-31", "nota": None}))
-        boton("Plataforma · Registrar cobro",
-              pide(admin, f"/api/plataforma/coaches/{c0['ulid']}/cobros", "POST",
-                   {"monto": 890, "fecha": "2026-08-18", "metodo": "transferencia",
-                    "periodoInicia": "2026-08-01", "periodoTermina": "2026-08-31", "nota": None}))
+        boton(
+            "Plataforma · Guardar coach",
+            pide(
+                admin,
+                f"/api/plataforma/coaches/{c0['ulid']}",
+                "PUT",
+                {
+                    "nombre": c0["nombre"],
+                    "marca": c0["marca"],
+                    "plan": c0["plan"],
+                    "limiteAlumnas": c0["limiteAlumnas"],
+                    "estado": c0["estado"],
+                    "precioCiclo": c0["precioCiclo"],
+                },
+            ),
+        )
+        boton(
+            "Plataforma · Guardar suscripción",
+            pide(
+                admin,
+                f"/api/plataforma/coaches/{c0['ulid']}/suscripcion",
+                "PUT",
+                {
+                    "plan": c0["plan"],
+                    "precio": 890,
+                    "periodicidad": "mensual",
+                    "estado": "al_corriente",
+                    "vigenteHasta": "2026-12-31",
+                    "nota": None,
+                },
+            ),
+        )
+        boton(
+            "Plataforma · Registrar cobro",
+            pide(
+                admin,
+                f"/api/plataforma/coaches/{c0['ulid']}/cobros",
+                "POST",
+                {
+                    "monto": 890,
+                    "fecha": "2026-08-18",
+                    "metodo": "transferencia",
+                    "periodoInicia": "2026-08-01",
+                    "periodoTermina": "2026-08-31",
+                    "nota": None,
+                },
+            ),
+        )
 
     # ---- Legales y sesión ----
     boton("Legal · aviso de privacidad", pide(alumna, "/api/legales/privacidad"))
-    boton("Cambiar contraseña (rechaza la débil)",
-          pide(alumna, "/api/auth/contrasena", "POST", {"actual": "Demo1234!", "nueva": "corta"}),
-          esperados=(422, 400))
+    boton(
+        "Cambiar contraseña (rechaza la débil)",
+        pide(alumna, "/api/auth/contrasena", "POST", {"actual": "Demo1234!", "nueva": "corta"}),
+        esperados=(422, 400),
+    )
     boton("Cerrar sesión", pide(alumna, "/api/auth/logout", "POST"))
 
     print(f"{len(verde)} botones sin error · {len(rojo)} con error\n")

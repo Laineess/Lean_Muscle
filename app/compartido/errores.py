@@ -39,6 +39,8 @@ class Codigo(StrEnum):
     PROYECCION_SIN_DEFICIT = "PROYECCION_SIN_DEFICIT"
     PROYECCION_SIN_SUPERAVIT = "PROYECCION_SIN_SUPERAVIT"
     SIN_PORCENTAJE_DE_GRASA_DEL_CHEQUEO = "SIN_PORCENTAJE_DE_GRASA_DEL_CHEQUEO"
+    CHEQUEO_YA_RESUELTO = "CHEQUEO_YA_RESUELTO"
+    PESO_SIN_CAPTURAR = "PESO_SIN_CAPTURAR"
 
     # --- Agenda -------------------------------------------------------------
     CITA_RANGO_INVALIDO = "CITA_RANGO_INVALIDO"
@@ -114,6 +116,21 @@ class ErrorDeDominio(Exception):
 
     def __repr__(self) -> str:  # pragma: no cover - ayuda de depuracion
         return f"ErrorDeDominio({self.codigo.value}, {self.detalle!r})"
+
+
+class BorradoDeEsquemaProhibido(RuntimeError):
+    """Se intento tirar una tabla con el motor de la aplicacion fuera de pruebas.
+
+    La suite y los scripts sueltos usan `Base.metadata.drop_all`, y basta importar el motor
+    fuera de pytest —sin el `conftest` que redirige a la base `_pruebas`— para que apunte a
+    la de desarrollo. Ahi se lleva el esquema entero por delante, y el aviso llega cuando la
+    aplicacion responde 500 porque falta una tabla.
+
+    Las migraciones no pasan por aqui: alembic abre su propio motor, y su `downgrade` tiene
+    que poder tirar lo que creo.
+    """
+
+    codigo = Codigo.SIN_PERMISO
 
 
 class SinAlcanceDeInquilino(RuntimeError):

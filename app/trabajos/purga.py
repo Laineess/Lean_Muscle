@@ -4,7 +4,9 @@ Tres plazos y ninguno es decorativo:
 
 - **Fotos de comida: 36 horas.** Es lo que hace razonable pedirle a alguien que fotografíe
   lo que come.
-- **Fotos de chequeo: cuatro meses.** Es lo que dice el aviso de privacidad.
+- **Fotos de chequeo: cuatro meses**, salvo la primera y la última de cada ángulo, que se
+  quedan. Sin esas dos no hay comparativa: el antes desaparece antes que el después, y a los
+  cuatro meses la alumna se queda mirando su progreso contra un hueco.
 - **Avisos de la coach: en cuanto los leen, o a los 7 días.** Son frases de ánimo; guardarlas
   para siempre sería archivar lo que nació para durar un día.
 - **Registros a medias: 7 días.** Quien empezó y no terminó no dejó una cuenta: dejó nombre,
@@ -25,14 +27,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from sqlalchemy import delete, select
-from sqlalchemy.orm import Session
+from sqlalchemy import Exists, delete, exists, select
+from sqlalchemy.orm import Session, aliased
 
 from app.compartido.fechas import ahora_utc
 from app.config import ajustes
 from app.datos.modelos import (
     Anuncio,
     AvisoEnviado,
+    Chequeo,
     CobroProgramado,
     Foto,
     FotoDeComida,
@@ -84,6 +87,27 @@ def _borrar(llave: str | None) -> None:
         almacen().borrar(llave)
     except Exception:  # pragma: no cover - un archivo ilegible no debe frenar la purga
         pass
+
+
+def _hay_una_mas_nueva() -> Exists:
+    """Verdadero si esta foto ya no es la última de su ángulo.
+
+    La última no se marca en la fila porque deja de serlo sola: en cuanto entra un chequeo
+    nuevo, la de antes pasa a ser una más. Se resuelve preguntando si existe otra posterior,
+    que siempre da la respuesta de hoy y no la del día que se guardó.
+    """
+    otra = aliased(Foto)
+    suyo = aliased(Chequeo)
+    return exists(
+        select(otra.id)
+        .join(suyo, otra.chequeo_id == suyo.id)
+        .where(
+            suyo.alumna_id == Chequeo.alumna_id,
+            otra.angulo == Foto.angulo,
+            otra.storage_key.is_not(None),
+            otra.tomada_en > Foto.tomada_en,
+        )
+    )
 
 
 def _avisos_gastados(s: Session, ahora: datetime) -> int:
@@ -193,15 +217,17 @@ def correr() -> Resultado:
             comidas += 1
 
         limite_chequeos = ahora - timedelta(days=ajustes().retencion_fotos_meses * 30)
-        consulta = select(Foto).where(
-            Foto.purgada_en.is_(None),
-            Foto.storage_key.is_not(None),
-            Foto.tomada_en <= limite_chequeos,
+        consulta = (
+            select(Foto)
+            .join(Chequeo, Foto.chequeo_id == Chequeo.id)
+            .where(
+                Foto.purgada_en.is_(None),
+                Foto.storage_key.is_not(None),
+                Foto.tomada_en <= limite_chequeos,
+                Foto.es_linea_base.is_(False),
+                _hay_una_mas_nueva(),
+            )
         )
-        # La de línea base se conserva si la alumna lo pidió: es la única foto que tiene
-        # sentido guardar más allá del plazo, y solo con su permiso.
-        if ajustes().conservar_foto_linea_base:
-            consulta = consulta.where(Foto.es_linea_base.is_(False))
 
         for vieja in s.scalars(consulta.limit(LOTE)).all():
             llave = vieja.storage_key

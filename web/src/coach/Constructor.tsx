@@ -7,7 +7,7 @@
  *  convertiría una estimación en una promesa.
  */
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Dumbbell, UtensilsCrossed } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -52,13 +52,17 @@ import {
   RANGO_GKG,
   calcular,
   kcalDe,
+  proyectarGanancia,
   type BaseProteina,
+  type Composicion,
+  type Energia,
   type IdActividad,
   type Macro,
   type RelacionGanancia,
 } from "@/lib/calculadora";
 import { edadEn, fecha, num, porcentaje } from "@/lib/formato";
 import { usarApi } from "@/lib/usarApi";
+import { cn } from "@/lib/utils";
 
 const MACROS: Macro[] = ["carbohidrato", "proteina", "grasa"];
 
@@ -71,7 +75,8 @@ const FRECUENCIAS: [FrecuenciaFotos, string][] = [
   ["mensual", "Una vez al mes"],
 ];
 
-/** Horizonte de la proyección de ganancia. No se captura: solo fija el «en N semanas». */
+/** Horizonte de la proyección de ganancia, el mismo que trae la hoja en H20. Es una
+ *  hipótesis que la coach mueve para ver escenarios, no un dato del plan: no se guarda. */
 const SEMANAS_GANANCIA = 20;
 
 function contenidoDeNutricion(plan: PlanApi | null) {
@@ -134,6 +139,7 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
   const [baseProteina, setBaseProteina] = useState<BaseProteina>(p.baseProteina as BaseProteina);
   const [diasRefeed, setDiasRefeed] = useState(p.diasRefeed);
   const [refeedPct, setRefeedPct] = useState(Math.round(p.porcentajeDiaRefeed * 100));
+  const [semanasGanancia, setSemanasGanancia] = useState(SEMANAS_GANANCIA);
 
   // Contenido editable del plan. Arranca de lo que ya tenía el ciclo anterior.
   const [pestana, setPestana] = useState<"nutricion" | "entrenamiento">("nutricion");
@@ -175,9 +181,9 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
       // Sin meta de grasa no hay proyección: se pasa la actual y la calculadora la descarta.
       porcentajeGrasaObjetivo: exp.porcentajeGrasaObjetivo ?? chequeo.porcentajeGrasa,
       relacionGanancia: p.relacionGanancia as RelacionGanancia,
-      semanasGanancia: SEMANAS_GANANCIA,
+      semanasGanancia,
     });
-  }, [repartoCuadra, chequeo, exp, p, actividad, ajustePct, reparto, baseProteina, diasRefeed, refeedPct]);
+  }, [repartoCuadra, chequeo, exp, p, actividad, ajustePct, reparto, baseProteina, diasRefeed, refeedPct, semanasGanancia]);
 
   const comp = r?.composicion;
 
@@ -483,6 +489,13 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 <div className="flex flex-col gap-0.5">
                   <Etiqueta>Ajuste diario</Etiqueta>
                   <p className="cifra text-guia font-semibold">{num(r.energia.ajusteDiarioKcal, 0)} kcal</p>
+                  {/* Para bajar entre 0.5 % y 1 % del peso por semana, que es el ritmo sano. */}
+                  {r.energia.esDeficit ? (
+                    <p className="cifra text-micro text-tinta-media">
+                      Recomendado −{num(r.deficitRecomendado.minimoKcal, 0)} a −
+                      {num(r.deficitRecomendado.maximoKcal, 0)}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <Etiqueta>Ajuste semanal</Etiqueta>
@@ -490,7 +503,7 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 </div>
               </div>
 
-              <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+              <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
                 {MACROS.map((m) => {
                   const fuera = r.avisosDeRango.includes(m);
                   const [min, max] = RANGO_GKG[m];
@@ -558,21 +571,28 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
             <div role="tablist" aria-label="Tipo de plan" className="flex gap-6 border-b border-linea">
               {(
                 [
-                  ["nutricion", "Nutrición"],
-                  ["entrenamiento", "Entrenamiento"],
+                  ["nutricion", "Nutrición", UtensilsCrossed],
+                  ["entrenamiento", "Entrenamiento", Dumbbell],
                 ] as const
-              ).map(([id, rotulo]) => (
+              ).map(([id, rotulo, Icono]) => (
                 <button
                   key={id}
                   role="tab"
                   aria-selected={pestana === id}
                   onClick={() => setPestana(id)}
-                  className={
+                  className={cn(
+                    "-mb-px flex items-center gap-2 border-b-2 pb-3 text-menor font-medium",
+                    "transition-colors duration-[var(--mov-rapido)] ease-suave",
                     pestana === id
-                      ? "-mb-px border-b-2 border-acento pb-3 text-menor font-medium text-tinta"
-                      : "-mb-px border-b-2 border-transparent pb-3 text-menor font-medium text-tinta-suave hover:text-tinta"
-                  }
+                      ? "border-acento text-tinta"
+                      : "border-transparent text-tinta-suave hover:text-tinta",
+                  )}
                 >
+                  <Icono
+                    aria-hidden
+                    className="size-4 shrink-0"
+                    strokeWidth={pestana === id ? 2.2 : 1.6}
+                  />
                   {rotulo}
                 </button>
               ))}
@@ -680,24 +700,13 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 </Apoyo>
               </>
             ) : r?.proyeccionGanancia ? (
-              <>
-                <Titulo>Fase de ganancia</Titulo>
-                <dl className="flex flex-col gap-2 text-menor">
-                  {[
-                    ["Aumento semanal", `${num(r.proyeccionGanancia.aumentoSemanalKg, 2)} kg`],
-                    ["De eso, músculo", `${num(r.proyeccionGanancia.musculoSemanalKg, 2)} kg`],
-                    [`En ${r.proyeccionGanancia.semanas} semanas`, `${num(r.proyeccionGanancia.aumentoTotalKg)} kg`],
-                    ["Músculo estimado", `${num(r.proyeccionGanancia.musculoTotalKg)} kg`],
-                    ["Grasa estimada", `${num(r.proyeccionGanancia.grasaTotalKg)} kg`],
-                  ].map(([k, v]) => (
-                    <div key={k} className="flex items-baseline justify-between gap-3">
-                      <dt className="text-tinta-suave">{k}</dt>
-                      <dd className="cifra font-semibold">{v}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <Apoyo>Relación {p.relacionGanancia} entre músculo y grasa ganados.</Apoyo>
-              </>
+              <ProyeccionDeGanancia
+                comp={r.composicion}
+                energia={r.energia}
+                semanas={semanasGanancia}
+                onSemanas={setSemanasGanancia}
+                relacionDelPlan={p.relacionGanancia as RelacionGanancia}
+              />
             ) : (
               <Apoyo>Sin ajuste calórico no hay proyección que hacer.</Apoyo>
             )}
@@ -835,5 +844,128 @@ function FotosDeSusComidas({ alumnaUlid }: { alumnaUlid: string }) {
         ))}
       </ul>
     </section>
+  );
+}
+
+
+/* ------------------------------------------------ Proyección de ganancia --- */
+
+/** La tabla «PROYECCIÓN AUMENTO DE MÚSCULO» de la hoja, tal como está en G16:J23.
+ *
+ *  La hoja enseña las dos relaciones **en paralelo**, no una a la vez, y es a propósito:
+ *  2:1 y 1:1 son dos apuestas sobre cuánto de lo que sube es músculo, y la coach decide
+ *  viéndolas juntas. La que quede guardada en el plan va marcada, pero la otra sigue a la
+ *  vista para poder compararla.
+ *
+ *  Las semanas se teclean porque en la hoja también: H20 es una celda de hipótesis, no un
+ *  dato de la alumna. Por eso no se guarda con el plan.
+ */
+function ProyeccionDeGanancia({
+  comp,
+  energia,
+  semanas,
+  onSemanas,
+  relacionDelPlan,
+}: {
+  comp: Composicion;
+  energia: Energia;
+  semanas: number;
+  onSemanas: (v: number) => void;
+  relacionDelPlan: RelacionGanancia;
+}) {
+  const dos = proyectarGanancia(comp, energia, semanas, "2:1");
+  const uno = proyectarGanancia(comp, energia, semanas, "1:1");
+  if (!dos || !uno) return null;
+
+  // Filas de un solo valor: no dependen de la relación, así que cruzan las dos columnas.
+  const comunes: [string, string][] = [
+    ["Aumento de peso semanal", `${num(dos.aumentoSemanalKg, 2)} kg`],
+    ["Aumento mensual", porcentaje(dos.porcentajeMensual)],
+    [`Peso total en ${semanas} semanas`, `${num(dos.aumentoTotalKg)} kg`],
+  ];
+
+  // Filas que sí cambian según la relación.
+  const porRelacion: [string, string, string][] = [
+    ["Músculo semanal", `${num(dos.musculoSemanalKg, 2)}`, `${num(uno.musculoSemanalKg, 2)}`],
+    ["Músculo en total", `${num(dos.musculoTotalKg)}`, `${num(uno.musculoTotalKg)}`],
+    ["Grasa en total", `${num(dos.grasaTotalKg)}`, `${num(uno.grasaTotalKg)}`],
+  ];
+
+  const columna = (r: RelacionGanancia) =>
+    cn(
+      "py-2 pl-3 text-right",
+      r === relacionDelPlan ? "text-tinta font-semibold" : "text-tinta-media",
+    );
+
+  return (
+    <>
+      <Titulo icono={Dumbbell}>Fase de ganancia</Titulo>
+
+      <Campo
+        id="c-semanas"
+        etiqueta="Semanas de aumento"
+        sufijo="sem"
+        ayuda="Hipótesis para la proyección. No se guarda con el plan."
+      >
+        <Entrada
+          id="c-semanas"
+          type="number"
+          min={1}
+          max={104}
+          step={1}
+          value={semanas}
+          onChange={(e) => onSemanas(Math.min(104, Math.max(1, Number(e.target.value) || 1)))}
+          className="rounded-r-none"
+        />
+      </Campo>
+
+      <table className="w-full text-menor">
+        <caption className="sr-only">
+          Proyección de aumento de músculo, comparando la relación 2 a 1 contra la 1 a 1
+        </caption>
+        <tbody className="divide-y divide-linea border-y border-linea">
+          {comunes.map(([rotulo, valor]) => (
+            <tr key={rotulo}>
+              <th scope="row" className="py-2 text-left font-normal text-tinta-suave">
+                {rotulo}
+              </th>
+              <td colSpan={2} className="cifra py-2 pl-3 text-right font-semibold">
+                {valor}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+
+        <thead>
+          <tr className="text-micro uppercase tracking-[0.08em] text-tinta-suave">
+            <td />
+            <th scope="col" className="py-2 pl-3 text-right font-semibold">
+              2:1
+            </th>
+            <th scope="col" className="py-2 pl-3 text-right font-semibold">
+              1:1
+            </th>
+          </tr>
+        </thead>
+
+        <tbody className="divide-y divide-linea border-y border-linea">
+          {porRelacion.map(([rotulo, a, b]) => (
+            <tr key={rotulo}>
+              <th scope="row" className="py-2 text-left font-normal text-tinta-suave">
+                {rotulo}
+              </th>
+              <td className={cn("cifra", columna("2:1"))}>{a}</td>
+              <td className={cn("cifra", columna("1:1"))}>{b}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <Apoyo>
+        En negrita, la relación {relacionDelPlan} que trae su plan. La otra queda a la vista
+        para comparar: son kilos, y de cuál de las dos se cumpla depende cuánta grasa sube
+        con el músculo.
+      </Apoyo>
+    </>
   );
 }

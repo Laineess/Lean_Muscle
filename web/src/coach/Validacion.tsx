@@ -10,7 +10,7 @@
  *  cadena de la calculadora. Sin ese dato no se puede armar el plan del ciclo siguiente.
  */
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Images } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -29,7 +29,9 @@ import {
   Selector,
   Titulo,
 } from "@/componentes/primitivas";
-import { Cargando } from "@/componentes/Estado";
+import { CargandoPantalla } from "@/componentes/Estado";
+import { ROTULO_ESTADO, type EstadoChequeo } from "@/lib/tipos";
+import { cn } from "@/lib/utils";
 import { ErrorApi, api, urlDeFoto, type ExpedienteDeValidacionApi, type FotoApi } from "@/lib/api";
 import { usarApi, usarApiConRespaldo } from "@/lib/usarApi";
 import { composicion } from "@/lib/calculadora";
@@ -50,10 +52,15 @@ export function Validacion() {
   const [grasa, setGrasa] = useState("");
   const [revisado, setRevisado] = useState({ postura: false, vestimenta: false, entorno: false });
   const [accion, setAccion] = useState<"validar" | "rechazar" | null>(null);
+  const [verReferencia, setVerReferencia] = useState(false);
   const [fallo, setFallo] = useState<string | null>(null);
 
   const ficha = expediente.datos;
   const actual = ficha?.actual ?? null;
+  // Al validar se abre el plan, y desde ahí se vuelve a este expediente. Lo que se ve
+  // entonces es un chequeo cerrado: se consulta, no se vuelve a decidir. El servidor lo
+  // rechaza igual, pero enseñar los botones invita a un error que después confunde.
+  const resuelto = actual !== null && actual.estado !== "pendiente_evaluacion";
   // El más reciente de los anteriores es el que tiene sentido comparar por defecto.
   const previo = ficha?.anteriores[ficha.anteriores.length - 1 - comparaCon] ?? null;
 
@@ -101,7 +108,8 @@ export function Validacion() {
       ? (actual.pesoKg - previo.pesoKg) / previo.pesoKg
       : 0;
 
-  if (expediente.cargando) return <Cargando que="el expediente" />;
+  if (expediente.cargando)
+    return <CargandoPantalla que="el expediente" cifras={2} columnas={2} filas={5} />;
   if (expediente.error) {
     return (
       <Aviso tono="error" titulo="No se pudo abrir el expediente">
@@ -139,16 +147,37 @@ export function Validacion() {
             <Etiqueta>Chequeo del {fecha(actual.fecha)}</Etiqueta>
             <Portada>{ficha.alumna}</Portada>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Boton tono="peligro" onClick={() => setAccion("rechazar")}>
-              Rechazar con causa
-            </Boton>
-            <Boton disabled={!derivados} onClick={() => setAccion("validar")}>
-              Validar
-            </Boton>
-          </div>
+          {resuelto ? (
+            <Chip tono={actual.estado === "validado" ? "exito" : "error"}>
+              {ROTULO_ESTADO[actual.estado as EstadoChequeo]}
+            </Chip>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <Boton tono="peligro" onClick={() => setAccion("rechazar")}>
+                Rechazar con causa
+              </Boton>
+              <Boton disabled={!derivados} onClick={() => setAccion("validar")}>
+                Validar
+              </Boton>
+            </div>
+          )}
         </div>
       </div>
+
+      {resuelto ? (
+        <Aviso
+          tono={actual.estado === "validado" ? "exito" : "info"}
+          titulo={
+            actual.estado === "validado"
+              ? "Este chequeo ya está validado"
+              : "Este chequeo ya se resolvió"
+          }
+        >
+          {actual.estado === "validado"
+            ? "Su plan se calculó con estos números. Cambiarlos ahora dejaría el plan publicado diciendo otra cosa."
+            : "Se rechazó con causa. La alumna tiene que volver a capturarlo."}
+        </Aviso>
+      ) : null}
 
       {fallo ? (
         <Aviso tono="error" titulo="No se pudo guardar">
@@ -195,7 +224,8 @@ export function Validacion() {
 
             {!sinFotos && fotos.some((f) => f.diasParaPurga !== null && f.diasParaPurga <= 15) ? (
               <Aviso tono="atencion" titulo="Estas fotos se purgan pronto">
-                La retención es de 4 meses. A la alumna ya se le avisó con enlace de descarga.
+                Su primera y su última de cada ángulo se quedan. A la alumna ya se le avisó,
+                con enlace para descargar todo.
               </Aviso>
             ) : null}
 
@@ -267,7 +297,7 @@ export function Validacion() {
           <section className="filete flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
               <Etiqueta>Estimación de grasa</Etiqueta>
-              <Chip tono="espera">Obligatorio</Chip>
+              {resuelto ? null : <Chip tono="espera">Obligatorio</Chip>}
             </div>
 
             <Campo
@@ -285,9 +315,21 @@ export function Validacion() {
                 max={70}
                 value={grasa}
                 onChange={(e) => setGrasa(e.target.value)}
-                className="rounded-r-none"
+                readOnly={resuelto}
+                aria-readonly={resuelto || undefined}
+                className={cn("rounded-r-none", resuelto && "bg-fondo-sutil text-tinta-media")}
               />
             </Campo>
+
+            {/* La misma lámina que la coach tiene en su Excel, para estimar a ojo. */}
+            <button
+              type="button"
+              onClick={() => setVerReferencia(true)}
+              className="flex items-center gap-2 self-start text-menor text-tinta-media underline underline-offset-4 transition-colors hover:text-tinta"
+            >
+              <Images className="size-4" />
+              Ver tabla de referencia visual
+            </button>
 
             {derivados ? (
               <>
@@ -393,6 +435,21 @@ export function Validacion() {
           ) : null}
         </aside>
       </div>
+
+      <Dialogo
+        abierto={verReferencia}
+        onCambio={setVerReferencia}
+        ancho="ancho"
+        etiqueta="Referencia visual"
+        titulo="Estimación de porcentaje de grasa"
+        descripcion="Es una guía de apoyo, no una medición: toma el rango que más se parezca."
+      >
+        <img
+          src="/referencia-grasa.jpg"
+          alt="Cuerpos de mujer y de hombre agrupados por porcentaje de grasa, del 1 % al 50 %."
+          className="w-full rounded-marco border border-linea"
+        />
+      </Dialogo>
 
       <DialogoAccion
         accion={accion}

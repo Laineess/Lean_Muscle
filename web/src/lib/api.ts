@@ -186,6 +186,7 @@ export interface ActorPublico {
   nombre: string;
   correo: string;
   colorAcento: string;
+  colorSecundario: string;
   marca: string;
   /** Entró con la contraseña inicial. Hasta que la cambie el servidor cierra lo demás. */
   debeCambiarContrasena: boolean;
@@ -306,6 +307,7 @@ export interface PresentacionApi {
   tieneFoto: boolean;
   marca: string;
   colorAcento: string;
+  colorSecundario: string;
 }
 
 export type TipoDePregunta = "texto" | "texto_largo" | "numero" | "opcion" | "si_no";
@@ -377,17 +379,38 @@ export interface BloqueDeHojaApi {
   celdas: CeldaDeHojaApi[];
 }
 
+export interface FilaDeTablaApi {
+  celdas: string[];
+  /** La fila que le toca a esta alumna. */
+  suya: boolean;
+  /** Su valor se sale del rango de esta fila. Es otro aviso, no el mismo. */
+  fuera: boolean;
+}
+
 export interface TablaDeHojaApi {
   titulo: string;
-  rango: string;
   encabezados: string[];
-  filas: string[][];
+  filas: FilaDeTablaApi[];
+  nota: string;
+  /** Cuando lo suyo es una columna y no una fila, su índice. */
+  columnaSuya: number | null;
+}
+
+/** Un tramo de la escala de IMC, de `desde` a `hasta` inclusive. */
+export interface TramoDeImcApi {
+  nombre: string;
+  desde: number;
+  hasta: number;
+  suyo: boolean;
+  /** El entero exacto donde cae, solo en el tramo suyo. */
+  valor: number | null;
 }
 
 export interface HojaDeCalculoApi {
   alumna: string;
   bloques: BloqueDeHojaApi[];
   tablas: TablaDeHojaApi[];
+  escalaImc: TramoDeImcApi[];
   /** Por qué no se puede calcular todavía, si es el caso. */
   falta: string | null;
 }
@@ -951,6 +974,8 @@ export interface ComprobantePorRevisarApi {
   concepto: string;
   montoEsperado: number;
   subidoEn: string | null;
+  /** Un PDF no se pinta con `<img>`: la pantalla elige otro visor. */
+  esPdf: boolean;
   /** Lo que el OCR entendió. Es una sugerencia, no una validación. */
   montoLeido: number | null;
   fechaLeida: string | null;
@@ -1118,6 +1143,7 @@ export interface MarcaApi {
   nombre: string;
   marca: string;
   colorAcento: string;
+  colorSecundario: string;
   tieneLogo: boolean;
 }
 
@@ -1435,7 +1461,12 @@ export const api = {
       pedir<AnuncioApi>("/coach/anuncios", { metodo: "POST", cuerpo: a }),
 
     marca: (senal?: AbortSignal) => pedir<MarcaApi>("/coach/marca", senal ? { senal } : {}),
-    guardarMarca: (m: { nombre: string; marca: string; colorAcento: string }) =>
+    guardarMarca: (m: {
+      nombre: string;
+      marca: string;
+      colorAcento: string;
+      colorSecundario: string;
+    }) =>
       pedir<MarcaApi>("/coach/marca", { metodo: "PUT", cuerpo: m }),
     subirLogo: (archivo: File) => subir<MarcaApi>("/coach/logo", archivo, "PUT"),
 

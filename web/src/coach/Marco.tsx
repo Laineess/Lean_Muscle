@@ -4,7 +4,8 @@
  *  con 60 alumnas no se recorre una lista, se busca.
  */
 
-import { Menu, X } from "lucide-react";
+import { CalendarDays, LayoutDashboard, Menu, Settings, Users, Wallet, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
@@ -19,12 +20,28 @@ import { actorGuardado } from "@/lib/sesion";
 import { iniciales } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 
-const SECCIONES = [
-  { a: "/coach", rotulo: "Panel", exacto: true },
-  { a: "/coach/alumnas", rotulo: "Alumnas", exacto: false },
-  { a: "/coach/agenda", rotulo: "Agenda", exacto: false },
-  { a: "/coach/finanzas", rotulo: "Finanzas", exacto: false },
+interface Seccion {
+  a: string;
+  rotulo: string;
+  exacto: boolean;
+  Icono: LucideIcon;
+}
+
+const SECCIONES: Seccion[] = [
+  { a: "/coach", rotulo: "Panel", exacto: true, Icono: LayoutDashboard },
+  { a: "/coach/alumnas", rotulo: "Alumnas", exacto: false, Icono: Users },
+  { a: "/coach/agenda", rotulo: "Agenda", exacto: false, Icono: CalendarDays },
+  { a: "/coach/finanzas", rotulo: "Finanzas", exacto: false, Icono: Wallet },
 ];
+
+/** En escritorio Ajustes vive en el menú del avatar; en teléfono no hay avatar desplegable,
+ *  así que se cuela al final de la hamburguesa. */
+const AJUSTES: Seccion = {
+  a: "/coach/ajustes",
+  rotulo: "Ajustes",
+  exacto: false,
+  Icono: Settings,
+};
 
 export function MarcoCoach() {
   const { abierto, setAbierto } = useBuscador();
@@ -79,14 +96,26 @@ export function MarcoCoach() {
                 end={s.exacto}
                 className={({ isActive }) =>
                   cn(
-                    "border-b-2 py-5 text-menor font-medium transition-colors",
+                    "flex items-center gap-2 border-b-2 py-5 text-menor font-medium",
+                    "transition-colors duration-[var(--mov-rapido)] ease-suave",
                     isActive
                       ? "border-acento text-tinta"
                       : "border-transparent text-tinta-suave hover:text-tinta",
                   )
                 }
               >
-                {s.rotulo}
+                {({ isActive }) => (
+                  <>
+                    {/* El trazo engorda en la sección activa: el dorado del filete ya marca
+                        dónde estás, y el icono lo acompaña sin meter otro color. */}
+                    <s.Icono
+                      aria-hidden
+                      className="size-4 shrink-0"
+                      strokeWidth={isActive ? 2.2 : 1.6}
+                    />
+                    {s.rotulo}
+                  </>
+                )}
               </NavLink>
             ))}
           </nav>
@@ -126,39 +155,70 @@ export function MarcoCoach() {
             onClick={() => setMenu((v) => !v)}
             aria-expanded={menu}
             aria-label={menu ? "Cerrar menú" : "Abrir menú"}
-            className="grid size-9 place-items-center rounded-marco border border-linea lg:hidden"
+            className="hunde grid size-9 place-items-center rounded-marco border border-linea transition-colors duration-[var(--mov-rapido)] ease-suave hover:border-tinta lg:hidden"
           >
-            {menu ? <X className="size-4" /> : <Menu className="size-4" />}
+            {/* Las dos aspas viven encima una de otra y se cruzan girando: así el botón
+                acusa el toque aunque el panel tarde en pintarse. */}
+            <span aria-hidden className="relative grid size-4 place-items-center">
+              <Menu
+                className={cn(
+                  "absolute size-4 transition-all duration-[var(--mov-normal)] ease-salida",
+                  menu ? "rotate-90 scale-75 opacity-0" : "rotate-0 scale-100 opacity-100",
+                )}
+              />
+              <X
+                className={cn(
+                  "absolute size-4 transition-all duration-[var(--mov-normal)] ease-salida",
+                  menu ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-75 opacity-0",
+                )}
+              />
+            </span>
           </button>
         </div>
 
         {menu ? (
-          <div className="border-t border-linea px-5 pb-4 lg:hidden">
-            <div className="py-3">
-              <DisparadorBuscador
-                onClick={() => {
-                  setMenu(false);
-                  setAbierto(true);
-                }}
-              />
+          <div className="despliega border-t border-linea lg:hidden">
+            <div>
+              <div className="px-5 pb-4">
+                <div className="py-3">
+                  <DisparadorBuscador
+                    onClick={() => {
+                      setMenu(false);
+                      setAbierto(true);
+                    }}
+                  />
+                </div>
+                <nav aria-label="Secciones" className="escalona flex flex-col">
+                  {[...SECCIONES, AJUSTES].map((s) => (
+                    <NavLink
+                      key={s.a}
+                      to={s.a}
+                      end={s.exacto}
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-3 border-l-2 py-3 pl-3 text-cuerpo font-medium",
+                          "transition-colors duration-[var(--mov-rapido)] ease-suave",
+                          isActive
+                            ? "border-acento text-tinta"
+                            : "border-transparent text-tinta-media hover:text-tinta",
+                        )
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <s.Icono
+                            aria-hidden
+                            className="size-4 shrink-0"
+                            strokeWidth={isActive ? 2.2 : 1.6}
+                          />
+                          {s.rotulo}
+                        </>
+                      )}
+                    </NavLink>
+                  ))}
+                </nav>
+              </div>
             </div>
-            <nav aria-label="Secciones" className="flex flex-col">
-              {[...SECCIONES, { a: "/coach/ajustes", rotulo: "Ajustes", exacto: false }].map((s) => (
-                <NavLink
-                  key={s.a}
-                  to={s.a}
-                  end={s.exacto}
-                  className={({ isActive }) =>
-                    cn(
-                      "border-l-2 py-3 pl-3 text-cuerpo font-medium transition-colors",
-                      isActive ? "border-acento text-tinta" : "border-transparent text-tinta-media",
-                    )
-                  }
-                >
-                  {s.rotulo}
-                </NavLink>
-              ))}
-            </nav>
           </div>
         ) : null}
       </header>

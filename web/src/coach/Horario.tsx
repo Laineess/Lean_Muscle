@@ -7,7 +7,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { Cargando } from "@/componentes/Estado";
+import { CargandoPantalla } from "@/componentes/Estado";
 import {
   Apoyo,
   Aviso,
@@ -164,7 +164,7 @@ export function Horario() {
     }
   }
 
-  if (carga.cargando) return <Cargando que="tu horario" />;
+  if (carga.cargando) return <CargandoPantalla que="tu horario" filas={5} />;
 
   // Sin haber leído lo guardado no se guarda: el PUT reemplaza el horario entero y lo
   // dejaría vacío.
@@ -224,7 +224,7 @@ export function Horario() {
               {delDia.length === 0 ? (
                 <Apoyo>No atiendes este día.</Apoyo>
               ) : (
-                <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+                <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
                   {delDia.map(({ t, indice }) => {
                     const caben = cuantasCaben(
                       t,

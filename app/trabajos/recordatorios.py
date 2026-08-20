@@ -282,9 +282,7 @@ def correr() -> Resultado:
             # a una pantalla donde no hay nada que hacer.
             tiene_cita = (
                 s.scalars(
-                    select(Cita).where(
-                        Cita.alumna_id == candidata.id, Cita.estado != "cancelada"
-                    )
+                    select(Cita).where(Cita.alumna_id == candidata.id, Cita.estado != "cancelada")
                 ).first()
                 is not None
             )

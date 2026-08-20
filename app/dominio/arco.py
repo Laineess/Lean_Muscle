@@ -69,7 +69,9 @@ class Plazo:
         return not self.vencido and self.dias_restantes <= UMBRAL_DE_AVISO
 
 
-def plazo_de(estado: Estado, recibida_el: date, respondida_el: date | None, hoy: date) -> Plazo | None:
+def plazo_de(
+    estado: Estado, recibida_el: date, respondida_el: date | None, hoy: date
+) -> Plazo | None:
     """Qué fecha manda ahora. Una solicitud resuelta ya no tiene plazo que correr."""
     if estado is Estado.RESUELTA:
         return None

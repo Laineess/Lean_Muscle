@@ -9,6 +9,7 @@
  *  sin esperar a la red, nunca secretos.
  */
 
+import { limpiarPaleta } from "@/lib/paleta";
 import type { ActorPublico } from "@/lib/api";
 
 export type Rol = "alumna" | "coach" | "admin_plataforma";
@@ -67,4 +68,7 @@ export function rolActual(): Rol | null {
 
 export function cerrarSesion(): void {
   escribir(sessionStorage, LLAVE_ACTOR, null);
+  // Los colores viven en `<html>`, fuera de React: si no se quitan aquí, la marca de una
+  // coach sigue puesta en el acceso y en el primer pintado de quien entre después.
+  limpiarPaleta();
 }

@@ -2,11 +2,17 @@
  *  del método: sin validar el chequeo anterior no puede publicar plan nuevo.
  */
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, BellRing, Inbox } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
-import { Apoyo, Aviso, Boton, Chip, Dato, Etiqueta, Portada, Regla, Titulo } from "@/componentes/primitivas";
+import {
+  AvisoSinServidor,
+  Cargando,
+  EsqueletoCifras,
+  EsqueletoLista,
+  EsqueletoPortada,
+} from "@/componentes/Estado";
+import { Apoyo, Aviso, Boton, Chip, Dato, Etiqueta, Portada, Regla, Titulo, Vacio } from "@/componentes/primitivas";
 import { api, type ResumenPanelApi } from "@/lib/api";
 import { cartera, coach as coachEjemplo } from "@/lib/datos";
 import { delta, diaSemana, fecha, num, pesos } from "@/lib/formato";
@@ -38,7 +44,19 @@ export function Panel() {
     RESPALDO,
   );
 
-  if (cargando) return <Cargando que="tu panel" />;
+  if (cargando)
+    return (
+      <Cargando
+        que="tu panel"
+        esqueleto={
+          <div className="flex flex-col gap-12">
+            <EsqueletoPortada />
+            <EsqueletoCifras cuantas={4} />
+            <EsqueletoLista filas={3} />
+          </div>
+        }
+      />
+    );
 
   const porValidar = p.porValidar;
   const conAlerta = p.conAlerta;
@@ -53,7 +71,7 @@ export function Panel() {
         <Portada>Buen día, {p.coach.split(" ")[0]}</Portada>
       </header>
 
-      <section className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4">
+      <section className="escalona grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4">
         <Dato rotulo="Por validar" valor={String(porValidar.length)} nota="chequeos esperando" />
         <Dato
           rotulo="Alumnas activas"
@@ -78,11 +96,14 @@ export function Panel() {
       {/* ---- Bandeja de validación ---- */}
       <section className="flex flex-col gap-5">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <Titulo>Bandeja de validación</Titulo>
+          <Titulo icono={Inbox}>Bandeja de validación</Titulo>
           <Apoyo>Sin validar el chequeo anterior no puedes publicar plan nuevo.</Apoyo>
         </div>
 
-        <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+        {/* Una lista vacía dejaba una caja con bordes y nada dentro, que se lee como error. */}
+        {porValidar.length === 0 ? <Vacio>No tienes chequeos esperando. Al día.</Vacio> : null}
+
+        <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea empty:hidden empty:border-0">
           {porValidar.map((a) => {
             const d = a.pesoKg !== null && a.pesoPrevio !== null ? delta(a.pesoKg, a.pesoPrevio, "kg") : null;
             return (
@@ -110,8 +131,9 @@ export function Panel() {
 
       {/* ---- Alertas ---- */}
       <section className="flex flex-col gap-5">
-        <Titulo>Necesitan que intervengas</Titulo>
-        <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+        <Titulo icono={BellRing}>Necesitan que intervengas</Titulo>
+        {conAlerta.length === 0 ? <Vacio>Ninguna alumna necesita que intervengas hoy.</Vacio> : null}
+        <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea empty:hidden empty:border-0">
           {conAlerta.map((a) => (
             <li key={a.ulid} className="flex flex-wrap items-center gap-4 py-4">
               <div className="flex min-w-0 flex-1 flex-col gap-1">

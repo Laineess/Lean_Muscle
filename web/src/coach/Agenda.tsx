@@ -9,7 +9,7 @@ import { useMemo, useState } from "react";
 
 import { Calendario, CalendarioMes, type CitaEnRejilla } from "@/coach/Calendario";
 import { Dialogo } from "@/componentes/Dialogo";
-import { AvisoSinServidor, Cargando } from "@/componentes/Estado";
+import { AvisoSinServidor, CargandoPantalla } from "@/componentes/Estado";
 import {
   Apoyo,
   Aviso,
@@ -301,7 +301,7 @@ export function Agenda() {
     setEditando({ ...VACIA, iniciaEn: iso, terminaEn: sumarMinutos(iso, 60) });
   }
 
-  if (carga.cargando) return <Cargando que="tu agenda" />;
+  if (carga.cargando) return <CargandoPantalla que="tu agenda" cifras={2} columnas={2} filas={4} />;
 
   return (
     <div className="flex flex-col gap-6">

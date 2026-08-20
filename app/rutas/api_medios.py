@@ -143,6 +143,10 @@ def repetir_captura(
     chequeo = q.chequeo_por_ulid(s, ulid)
     if chequeo is None or chequeo.alumna_id != alumna.id:
         raise HTTPException(404, "No existe ese chequeo")
+    # La misma guarda que al subir. Sin ella se podía borrar la foto de un chequeo ya
+    # enviado, y con él la prueba contra la que la coach lo validó.
+    if chequeo.estado not in {"borrador", "rechazado_calidad"}:
+        raise HTTPException(409, "Este chequeo ya se envió y no se puede cambiar")
 
     fila = s.scalars(
         select(Foto).where(Foto.chequeo_id == chequeo.id, Foto.angulo == angulo)

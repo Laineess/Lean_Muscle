@@ -4,12 +4,12 @@
  *  cortesía; las reglas que mandan están en `app/dominio/chequeo.py`.
  */
 
-import { ArrowLeft, Camera, Check, Loader2, RotateCcw } from "lucide-react";
+import { ArrowLeft, Camera, Check, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Dialogo } from "@/componentes/Dialogo";
-import { Cargando } from "@/componentes/Estado";
+import { CargandoPantalla } from "@/componentes/Estado";
 import {
   Apoyo,
   Aviso,
@@ -30,6 +30,70 @@ import { cn } from "@/lib/utils";
 
 const PASOS = ["Estado", "Peso", "Medidas", "Fotos", "Envío"] as const;
 type Paso = 0 | 1 | 2 | 3 | 4;
+
+/** En qué paso retomar, deducido de lo que ya está guardado.
+ *
+ *  No se guarda el número de paso en ningún lado: se deduce del expediente, que es la única
+ *  fuente que sobrevive a cerrar sesión, refrescar o cambiar de teléfono. Guardar el paso
+ *  aparte abriría la puerta a que dijera «vas por las fotos» sobre un chequeo sin peso.
+ *
+ *  Se para en el primero que falte, no en el último que esté: así vuelve justo a lo que
+ *  dejó a medias.
+ */
+/** Las condiciones a medio marcar, en este navegador.
+ *
+ *  El expediente guarda si están **todas** confirmadas, no cuáles: es un solo booleano, y
+ *  cambiarlo por una lista pediría una migración para cuatro casillas que se vuelven a
+ *  marcar en tres segundos. Quien cierra a medio paso las recupera aquí; quien vuelve desde
+ *  otro teléfono las marca otra vez, y no pierde ningún dato por ello.
+ */
+const LLAVE_CONDICIONES = "mfp:chequeo:condiciones";
+
+function condicionesGuardadas(ulid: string): Set<string> {
+  try {
+    const crudo = localStorage.getItem(`${LLAVE_CONDICIONES}:${ulid}`);
+    const ids: unknown = crudo ? JSON.parse(crudo) : [];
+    return new Set(Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string") : []);
+  } catch {
+    // Un almacenamiento lleno o bloqueado no puede impedir hacer el chequeo.
+    return new Set();
+  }
+}
+
+function guardarCondiciones(ulid: string, ids: Set<string>): void {
+  try {
+    localStorage.setItem(`${LLAVE_CONDICIONES}:${ulid}`, JSON.stringify([...ids]));
+  } catch {
+    /* vacío a propósito: es una comodidad, no un dato */
+  }
+}
+
+/** Qué le pasa a una medida, dicho en el propio campo.
+ *
+ *  El resumen de abajo se queda: enumera todo lo que falta antes de avanzar. Pero con ocho
+ *  campos en dos columnas, «revisa Pantorrilla» obliga a buscar cuál es. El aviso tiene que
+ *  estar donde está el número que hay que corregir.
+ */
+function problemaDeMedida(
+  m: { rotulo: string; min: number; max: number },
+  crudo: string | undefined,
+): string | null {
+  const texto = (crudo ?? "").trim();
+  if (!texto) return null;
+  const v = Number.parseFloat(texto);
+  if (Number.isNaN(v)) return "Escribe solo el número.";
+  if (v < m.min) return `Muy poco. ${m.rotulo} va de ${m.min} a ${m.max} cm.`;
+  if (v > m.max) return `Muy alto. ${m.rotulo} va de ${m.min} a ${m.max} cm.`;
+  return null;
+}
+
+function pasoDondeSeQuedo(b: BorradorApi): Paso {
+  if (!b.ayunoConfirmado) return 0;
+  if (b.pesoKg === null) return 1;
+  if (Object.keys(b.medidas).length < MEDIDAS.length) return 2;
+  if (b.fotos.length < ANGULOS.length) return 3;
+  return 4;
+}
 
 const CONDICIONES = [
   { id: "ayunas", titulo: "Estoy en ayunas", detalle: "Nada de comida ni bebida desde anoche, tampoco agua." },
@@ -80,7 +144,12 @@ export function Chequeo() {
         );
         setNota(b.notaAlumna ?? "");
         setVarianzaConfirmada(b.varianzaConfirmada);
-        if (b.ayunoConfirmado) setCondiciones(new Set(CONDICIONES.map((c) => c.id)));
+        // Confirmadas las cuatro, se marcan las cuatro. A medias solo lo sabe este
+        // navegador: el expediente guarda si están todas, no cuáles.
+        setCondiciones(
+          b.ayunoConfirmado ? new Set(CONDICIONES.map((c) => c.id)) : condicionesGuardadas(b.ulid),
+        );
+        setPaso(pasoDondeSeQuedo(b));
       })
       .catch((causa: unknown) => {
         if (!vivo) return;
@@ -211,7 +280,7 @@ export function Chequeo() {
   if (borrador === null) {
     return (
       <div className="mx-auto w-full max-w-2xl px-5 pt-10 sm:px-6">
-        <Cargando que="tu chequeo" />
+        <CargandoPantalla que="tu chequeo" texto={2} filas={4} />
       </div>
     );
   }
@@ -280,6 +349,9 @@ export function Chequeo() {
                     const n = new Set(s);
                     if (e.target.checked) n.add(c.id);
                     else n.delete(c.id);
+                    // Se anota al marcar, no al avanzar: quien cierra a media casilla las
+                    // encuentra igual al volver.
+                    guardarCondiciones(borrador.ulid, n);
                     return n;
                   })
                 }
@@ -375,7 +447,7 @@ export function Chequeo() {
             </Apoyo>
 
             {pesajes.length ? (
-              <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+              <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
                 {pesajes.map((p) => (
                   <li key={p.fecha} className="flex items-baseline justify-between gap-3 py-2.5">
                     <span className="text-menor">{fecha(p.fecha)}</span>
@@ -451,12 +523,14 @@ export function Chequeo() {
               const valor = medidas[m.tipo];
               const anterior = previoMedidas[m.tipo];
               const d = valor && anterior ? delta(valor, anterior, "cm") : null;
+              const problema = problemaDeMedida(m, textoMedidas[m.tipo]);
               return (
                 <Campo
                   key={m.tipo}
                   id={`m-${m.tipo}`}
                   etiqueta={m.rotulo}
                   sufijo="cm"
+                  {...(problema ? { error: problema } : {})}
                   ayuda={
                     <span className="flex items-center gap-2">
                       <span>{anterior ? `Mes pasado: ${num(anterior)} cm` : "Sin referencia previa"}</span>
@@ -483,7 +557,11 @@ export function Chequeo() {
                     onChange={(e) =>
                       setTextoMedidas((prev) => ({ ...prev, [m.tipo]: e.target.value }))
                     }
-                    className="rounded-r-none"
+                    aria-invalid={problema ? true : undefined}
+                    className={cn(
+                      "rounded-r-none",
+                      problema && "border-peligro focus:border-peligro",
+                    )}
                   />
                 </Campo>
               );
@@ -569,7 +647,7 @@ export function Chequeo() {
 
           <div className="flex flex-col gap-3">
             <Titulo>Las ocho medidas</Titulo>
-            <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+            <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
               {MEDIDAS.map((m) => {
                 const valor = medidas[m.tipo];
                 const anterior = previoMedidas[m.tipo];
@@ -635,10 +713,10 @@ export function Chequeo() {
           <Boton
             className="flex-1"
             medida="grande"
+            cargando={guardando}
             disabled={!puedeAvanzar[paso] || guardando}
             onClick={paso === 4 ? enviar : avanzar}
           >
-            {guardando ? <Loader2 className="size-4 animate-spin" /> : null}
             {paso === 4 ? "Enviar a mi coach" : "Continuar"}
           </Boton>
         </div>
@@ -792,12 +870,10 @@ function CapturaDeFoto({ angulo, rotulo, guia, chequeoUlid, estado, onCambio }: 
         tono={lista ? "contorno" : "solido"}
         ancho="completo"
         medida="chica"
-        disabled={subiendo}
+        cargando={subiendo}
         onClick={() => (lista ? void repetir() : entrada.current?.click())}
       >
-        {subiendo ? (
-          <Loader2 className="size-3.5 animate-spin" />
-        ) : lista ? (
+        {subiendo ? null : lista ? (
           <>
             <RotateCcw className="size-3.5" /> Repetir
           </>

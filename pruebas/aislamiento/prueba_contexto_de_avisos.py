@@ -83,9 +83,7 @@ def _aviso_literal(nodo: ast.expr) -> Aviso | None:
 def _claves(nodo: ast.expr | None) -> set[str] | None:
     if not isinstance(nodo, ast.Dict):
         return None
-    return {
-        k.value for k in nodo.keys if isinstance(k, ast.Constant) and isinstance(k.value, str)
-    }
+    return {k.value for k in nodo.keys if isinstance(k, ast.Constant) and isinstance(k.value, str)}
 
 
 def avisos_por_funcion_del_dominio() -> dict[str, Aviso]:
@@ -148,7 +146,11 @@ def casos() -> list[tuple[str, Aviso, set[str]]]:
             # la línea: `correr()` reutiliza el mismo nombre cinco veces con avisos
             # distintos, y quedarse con la última asignación revisaría el aviso equivocado.
             asignaciones = sorted(
-                (asignacion.lineno, asignacion.targets[0].id, DEL_DOMINIO[asignacion.value.func.attr])
+                (
+                    asignacion.lineno,
+                    asignacion.targets[0].id,
+                    DEL_DOMINIO[asignacion.value.func.attr],
+                )
                 for asignacion in ast.walk(funcion)
                 if isinstance(asignacion, ast.Assign)
                 and asignacion.targets

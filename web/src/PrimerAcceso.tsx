@@ -10,6 +10,7 @@
 
 import { Navigate } from "react-router-dom";
 
+import { BotonSalir } from "@/componentes/Seguridad";
 import { CambiarContrasena } from "@/componentes/Seguridad";
 import { Apoyo, Aviso, Etiqueta, Portada } from "@/componentes/primitivas";
 import { actorGuardado } from "@/lib/sesion";
@@ -37,6 +38,12 @@ export function PrimerAcceso() {
       </Aviso>
 
       <CambiarContrasena />
+
+      {/* Sin esto, quien entra en la cuenta equivocada se queda encerrado: es la única
+          pantalla que abre el servidor, y no había forma de volver al acceso. */}
+      <div className="flex justify-center border-t border-linea pt-6">
+        <BotonSalir />
+      </div>
     </div>
   );
 }

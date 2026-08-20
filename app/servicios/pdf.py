@@ -539,9 +539,7 @@ def recibo(
     bloques: list[Flowable] = _encabezado("Recibo", f"Folio {folio} · {coach}", marca)
     filas = [["Alumna", alumna], ["Concepto", concepto]]
     if vigencia_inicia is not None and vigencia_termina is not None:
-        filas.append(
-            ["Vigencia", f"{vigencia_inicia:%d/%m/%Y} al {vigencia_termina:%d/%m/%Y}"]
-        )
+        filas.append(["Vigencia", f"{vigencia_inicia:%d/%m/%Y} al {vigencia_termina:%d/%m/%Y}"])
     filas += [["Método de pago", metodo], ["Fecha de pago", f"{pagado_el:%d/%m/%Y}"]]
 
     bloques += [

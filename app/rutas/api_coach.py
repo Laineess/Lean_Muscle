@@ -587,9 +587,15 @@ def estimar_grasa(
             Codigo.PORCENTAJE_DE_GRASA_INVALIDO, valor=str(cuerpo.porcentaje_grasa)
         )
 
+    from app.dominio.chequeo import ABIERTO_A_LA_COACH, EstadoChequeo, exigir_abierto
+
     chequeo = q.chequeo_por_ulid(s, ulid)
     if chequeo is None:
         raise HTTPException(404, "No existe ese chequeo")
+
+    # De este número sale el plan. Reescribirlo después de validar deja el plan publicado
+    # calculado sobre un valor que ya no está en el expediente.
+    exigir_abierto(EstadoChequeo(chequeo.estado), ABIERTO_A_LA_COACH)
 
     chequeo.porcentaje_grasa = cuerpo.porcentaje_grasa
     chequeo.estimado_por = actor.usuario_id
@@ -913,6 +919,7 @@ def ver_marca(
         nombre=coach.nombre,
         marca=coach.marca or coach.nombre,
         color_acento=coach.color_acento,
+        color_secundario=coach.color_secundario,
         tiene_logo=coach.logo_key is not None,
     )
 
@@ -931,18 +938,21 @@ def editar_marca(
 
     if not cuerpo.nombre.strip() or not cuerpo.marca.strip():
         raise ErrorDeDominio(Codigo.CONCEPTO_REQUERIDO)
-    if not re.fullmatch(r"#[0-9a-fA-F]{6}", cuerpo.color_acento):
-        raise HTTPException(422, "El color va en formato #rrggbb")
+    for color in (cuerpo.color_acento, cuerpo.color_secundario):
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+            raise HTTPException(422, "El color va en formato #rrggbb")
 
     coach.nombre = cuerpo.nombre.strip()[:120]
     coach.marca = cuerpo.marca.strip()[:120]
     coach.color_acento = cuerpo.color_acento
+    coach.color_secundario = cuerpo.color_secundario
     s.flush()
 
     return MarcaPublica(
         nombre=coach.nombre,
         marca=coach.marca,
         color_acento=coach.color_acento,
+        color_secundario=coach.color_secundario,
         tiene_logo=coach.logo_key is not None,
     )
 
@@ -973,6 +983,7 @@ async def subir_logo(
         nombre=coach.nombre,
         marca=coach.marca or coach.nombre,
         color_acento=coach.color_acento,
+        color_secundario=coach.color_secundario,
         tiene_logo=True,
     )
 

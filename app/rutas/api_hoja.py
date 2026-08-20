@@ -31,7 +31,14 @@ from app.dominio.calculadora import (
     proyectar_ganancia,
     proyectar_perdida,
 )
-from app.rutas.esquemas import BloqueDeHoja, CeldaDeHoja, HojaDeCalculo, TablaDeHoja
+from app.rutas.esquemas import (
+    BloqueDeHoja,
+    CeldaDeHoja,
+    FilaDeTabla,
+    HojaDeCalculo,
+    TablaDeHoja,
+    TramoDeImc,
+)
 from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_coach
 from app.servicios import bitacora, hoja
 
@@ -133,13 +140,15 @@ def hoja_de_alumna(
     armada = hoja.construir(
         alumna=alumna.nombre,
         edad=_edad(alumna.fecha_nacimiento, ahora_utc().date()),
-        sexo="Masculino" if alumna.sexo == "M" else "Femenino",
+        sexo=Sexo.MASCULINO if alumna.sexo == "M" else Sexo.FEMENINO,
         prescripcion=r,
         actividad=actividad,
         porcentaje_ajuste=guardados.porcentaje_ajuste,
         base_proteina=base,
         dia_bajo=abs(guardados.porcentaje_ajuste),
         dias_refeed=guardados.dias_refeed,
+        relacion_ganancia=RelacionGanancia(guardados.relacion_ganancia),
+        semanas_ganancia=SEMANAS_GANANCIA,
         perdida=perdida,
         ganancia=ganancia,
     )
@@ -165,8 +174,18 @@ def hoja_de_alumna(
             for b in armada.bloques
         ],
         tablas=[
-            TablaDeHoja(titulo=t.titulo, rango=t.rango, encabezados=t.encabezados, filas=t.filas)
+            TablaDeHoja(
+                titulo=t.titulo,
+                encabezados=t.encabezados,
+                filas=[FilaDeTabla(celdas=f.celdas, suya=f.suya, fuera=f.fuera) for f in t.filas],
+                nota=t.nota,
+                columna_suya=t.columna_suya,
+            )
             for t in armada.tablas
+        ],
+        escala_imc=[
+            TramoDeImc(nombre=g.nombre, desde=g.desde, hasta=g.hasta, suyo=g.suyo, valor=g.valor)
+            for g in armada.escala_imc
         ],
         falta=None,
     )

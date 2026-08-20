@@ -621,9 +621,7 @@ def sembrar_coach(
         else ((5, time(8), time(12)),)
     )
     for dia, desde, hasta in tramos:
-        sesion.add(
-            HorarioDeAtencion(coach_id=coach.id, dia_semana=dia, desde=desde, hasta=hasta)
-        )
+        sesion.add(HorarioDeAtencion(coach_id=coach.id, dia_semana=dia, desde=desde, hasta=hasta))
 
     for orden, (texto_pregunta, tipo, opciones, obligatoria) in enumerate(PREGUNTAS_DEMO, start=1):
         sesion.add(
@@ -1115,9 +1113,7 @@ def sembrar_solicitud(sesion: Any, coach_id: int) -> None:
             )
         )
 
-    arranque = datetime.combine(date.today() + timedelta(days=3), time(hour=16)).replace(
-        tzinfo=UTC
-    )
+    arranque = datetime.combine(date.today() + timedelta(days=3), time(hour=16)).replace(tzinfo=UTC)
     sesion.add(
         Cita(
             coach_id=coach_id,

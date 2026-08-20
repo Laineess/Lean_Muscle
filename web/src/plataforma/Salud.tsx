@@ -10,7 +10,8 @@
  *  siendo imposible reconstruir a qué alumna corresponde cada movimiento.
  */
 
-import { Cargando } from "@/componentes/Estado";
+import { Activity, HeartPulse } from "lucide-react";
+import { Cargando, CargandoPantalla, EsqueletoLista } from "@/componentes/Estado";
 import {
   Apoyo,
   Aviso,
@@ -30,7 +31,7 @@ export function Salud() {
     api.plataforma.auditoria(60, senal),
   );
 
-  if (salud.cargando) return <Cargando que="el estado del sistema" />;
+  if (salud.cargando) return <CargandoPantalla que="el estado del sistema" cifras={4} filas={4} />;
   if (salud.error) {
     return (
       <Aviso tono="error" titulo="No se pudo consultar el estado">
@@ -45,7 +46,7 @@ export function Salud() {
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-3">
-        <Etiqueta>Estado del sistema</Etiqueta>
+        <Etiqueta icono={HeartPulse}>Estado del sistema</Etiqueta>
         <Portada>Salud</Portada>
       </header>
 
@@ -102,7 +103,7 @@ export function Salud() {
       <Regla />
 
       <section className="flex flex-col gap-4">
-        <Titulo>Movimientos recientes</Titulo>
+        <Titulo icono={Activity}>Movimientos recientes</Titulo>
         <Apoyo className="medida">
           Qué se hizo y en qué cuenta. Sin el detalle ni el identificador de la entidad: este
           panel no puede reconstruir a qué alumna corresponde cada movimiento, y esa es
@@ -110,7 +111,7 @@ export function Salud() {
         </Apoyo>
 
         {auditoria.cargando ? (
-          <Cargando que="la auditoría" />
+          <Cargando que="la auditoría" esqueleto={<EsqueletoLista filas={5} />} />
         ) : (auditoria.datos ?? []).length === 0 ? (
           <Vacio>Todavía no hay movimientos registrados.</Vacio>
         ) : (

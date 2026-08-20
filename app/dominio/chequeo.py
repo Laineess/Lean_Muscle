@@ -141,7 +141,10 @@ def guardas_de_envio(inst: Instantanea) -> ResultadoEnvio:
 
     if inst.fecha_pesaje is None or inst.peso_kg is None:
         faltan.setdefault("peso", []).append("pesaje")
-        errores.append(ErrorDeDominio(Codigo.MEDIDAS_INCOMPLETAS, faltantes=["peso"]))
+        # Código propio y no el de las medidas: compartirlo sacaba dos veces «faltan
+        # medidas», y la segunda mandaba a la alumna a revisar una pantalla donde no
+        # faltaba nada. Lo que falta es el peso, y así lo dice.
+        errores.append(ErrorDeDominio(Codigo.PESO_SIN_CAPTURAR))
 
     # --- Sincronia peso-fotos: mismo dia calendario, no ventana movil de 24 h ----
     dias = {d for d in (inst.fecha_pesaje, *inst.fechas_de_fotos) if d is not None}
@@ -170,6 +173,32 @@ def guardas_de_envio(inst: Instantanea) -> ResultadoEnvio:
             )
 
     return ResultadoEnvio(tuple(errores), alerta_outlier, faltan)
+
+
+#: Mientras espera resolución, la coach todavía puede estimar y corregir. Después no: de ese
+#: porcentaje sale el plan que ya se calculó, y cambiarlo por detrás deja el plan publicado
+#: diciendo una cosa y el expediente otra.
+ABIERTO_A_LA_COACH: frozenset[EstadoChequeo] = frozenset({EstadoChequeo.PENDIENTE_EVALUACION})
+
+#: La alumna captura mientras es suyo. Enviado, ya no lo toca.
+ABIERTO_A_LA_ALUMNA: frozenset[EstadoChequeo] = frozenset(
+    {EstadoChequeo.BORRADOR, EstadoChequeo.RECHAZADO_CALIDAD}
+)
+
+
+def exigir_abierto(estado: EstadoChequeo, abiertos: frozenset[EstadoChequeo]) -> None:
+    """Lanza si el chequeo ya no admite cambios.
+
+    Va aparte de `transicionar` porque no todo cambio es una transición: estimar el
+    porcentaje de grasa o borrar una foto no mueven el estado, y sin esta guarda se colaban
+    sobre un expediente ya cerrado.
+    """
+    if estado not in abiertos:
+        raise ErrorDeDominio(
+            Codigo.CHEQUEO_YA_RESUELTO,
+            estado=estado.value,
+            abiertos=sorted(e.value for e in abiertos),
+        )
 
 
 def transicionar(

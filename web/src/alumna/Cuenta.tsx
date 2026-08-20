@@ -4,6 +4,7 @@
  *  accesible, y quien no encuentra dónde descargar sus fotos no tiene ese derecho.
  */
 
+import { AtSign, ClipboardList, Download, HeartPulse, Palette, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -96,7 +97,7 @@ export function Cuenta() {
       {/* ---- Tema ---- */}
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <Titulo>Apariencia</Titulo>
+          <Titulo icono={Palette}>Apariencia</Titulo>
           <Apoyo>De fábrica sigue a tu teléfono. Si prefieres uno fijo, elígelo aquí.</Apoyo>
         </div>
         <InterruptorDeTema className="w-fit" />
@@ -106,7 +107,7 @@ export function Cuenta() {
 
       {/* ---- Contacto ---- */}
       <section className="flex max-w-md flex-col gap-4">
-        <Titulo>Datos de contacto</Titulo>
+        <Titulo icono={AtSign}>Datos de contacto</Titulo>
         <Campo id="cu-correo" etiqueta="Correo">
           <Entrada id="cu-correo" type="email" value={perfil?.correo ?? ""} readOnly />
         </Campo>
@@ -122,7 +123,7 @@ export function Cuenta() {
       {/* ---- Rutina de chequeo ---- */}
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <Titulo>Tu rutina de chequeo</Titulo>
+          <Titulo icono={ClipboardList}>Tu rutina de chequeo</Titulo>
           <Apoyo>Se precargan cada mes. Cámbialas solo si de verdad cambió algo.</Apoyo>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
@@ -144,7 +145,7 @@ export function Cuenta() {
       {/* ---- Salud ---- */}
       <section className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Titulo>Tu historial de salud</Titulo>
+          <Titulo icono={HeartPulse}>Tu historial de salud</Titulo>
           <Chip tono="espera">Dato sensible</Chip>
         </div>
         <Apoyo>
@@ -177,11 +178,11 @@ export function Cuenta() {
 
       {/* ---- Privacidad ---- */}
       <section className="flex flex-col gap-5">
-        <Titulo>Privacidad</Titulo>
+        <Titulo icono={ShieldCheck}>Privacidad</Titulo>
 
         <div className="flex flex-col gap-2">
           <Etiqueta>Lo que aceptaste</Etiqueta>
-          <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+          <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
             {CONSENTIMIENTOS.map(([titulo, version, sensible, ruta]) => (
               <li key={titulo} className="flex flex-wrap items-center gap-3 py-3">
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -212,21 +213,26 @@ export function Cuenta() {
           <div className="flex flex-col gap-3">
             <Etiqueta>Tus fotos</Etiqueta>
             <Apoyo>
-              Se guardan cifradas, del cuello para abajo, y se borran solas a los 4 meses. Te
-              avisamos 15 días antes de cada purga.
+              Se guardan cifradas y del cuello para abajo. A los 4 meses se borran, menos tu
+              primera y tu última de cada ángulo, que se quedan para tu comparativa.
             </Apoyo>
-            <div>
+            <div className="flex flex-wrap gap-2">
+              <Boton asChild tono="contorno" medida="chica">
+                <a href="/api/documentos/expediente" download>
+                  <Download className="size-3.5" /> Descargar todo
+                </a>
+              </Boton>
               <Boton
-                tono="contorno"
+                tono="discreto"
                 medida="chica"
                 onClick={() => void descargarPdf("/documentos/evolucion", "mi-evolucion.pdf")}
               >
-                Descargar mi expediente
+                Solo el historial
               </Boton>
             </div>
             <Apoyo>
-              El PDF lleva tus medidas y tu peso. Las fotos se ven en Evolución: no salen de la
-              plataforma, que es lo que permite borrarlas a los 4 meses.
+              «Descargar todo» trae tus fotos y tu historial en un ZIP. El historial suelto es
+              un PDF con tus medidas y tu peso.
             </Apoyo>
           </div>
 
@@ -354,7 +360,7 @@ function SolicitudesArco({ filas }: { filas: SolicitudArcoApi[] }) {
   if (filas.length === 0) return null;
 
   return (
-    <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+    <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
       {filas.map((s) => (
         <li key={s.ulid} className="flex flex-wrap items-baseline justify-between gap-2 py-2.5">
           <span className="flex min-w-0 flex-col gap-0.5">

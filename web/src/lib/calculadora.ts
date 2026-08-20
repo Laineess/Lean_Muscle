@@ -5,30 +5,30 @@
  *  resultado y este archivo queda solo para la vista previa optimista.
  *
  *  Fórmulas y constantes salen de `Calculadora del Fitness.xlsm`, hoja «Calculo bajar de
- *  peso». Cada una lleva su celda. Cambiar un número aquí cambia el plan de todas las
+ *  peso». Cambiar un número aquí cambia el plan de todas las
  *  alumnas, así que no se toca sin tocar también el módulo de Python y sus pruebas.
  */
 
 /* ------------------------------------------------------ Constantes de la hoja --- */
 
-// Ecuación de tasa metabólica basal, celdas B87 y B88.
+// Ecuación de tasa metabólica basal.
 const COEF_MLG = 13.587;
 const COEF_MG = 9.613;
 const COEF_SEXO_MASCULINO = 198;
 const COEF_EDAD = 3.351;
 const COEF_BASE = 674;
 
-/** Celda C19: el 1.1 es el efecto térmico de los alimentos, aplicado plano. */
+/** Efecto térmico de los alimentos, aplicado plano sobre el mantenimiento. */
 const FACTOR_TERMICO = 1.1;
-/** Celda H17: kcal de superávit por kilo de peso ganado. */
+/** Kcal de superávit por kilo de peso ganado. */
 const KCAL_POR_KILO_GANADO = 8400;
 
-// Composición del peso que se pierde, celdas H105:H107.
+// Composición del peso que se pierde.
 const FRACCION_GRASA_PURA = 0.87;
 const FRACCION_MLG_PERDIDA = 0.2;
 const FRACCION_PROTEINA_EN_MLG = 0.3;
 
-// Celda H7: reducción semanal recomendada, entre 0.5 % y 1.0 % del peso.
+// Reducción semanal recomendada, entre 0.5 % y 1.0 % del peso.
 const REDUCCION_MIN = 0.005;
 const REDUCCION_MAX = 0.01;
 
@@ -39,7 +39,7 @@ export type BaseProteina = "peso_total" | "masa_libre_de_grasa";
 export type RelacionGanancia = "2:1" | "1:1";
 export type Macro = "carbohidrato" | "proteina" | "grasa";
 
-/** Lista desplegable de la celda C16. */
+/** Multiplicador con el que se pasa de tasa basal a mantenimiento. */
 export const ACTIVIDAD = [
   { id: "muy_poco_activo", rotulo: "Muy poco activa", factor: 1.2 },
   { id: "poco_activo", rotulo: "Poco activa", factor: 1.3 },
@@ -53,7 +53,7 @@ export const ACTIVIDAD = [
 
 export type IdActividad = (typeof ACTIVIDAD)[number]["id"];
 
-/** Rangos de referencia en g/kg, celdas E30:E32. Avisan, no bloquean. */
+/** Rangos de referencia en g/kg. Avisan, no bloquean. */
 export const RANGO_GKG: Record<Macro, [number, number]> = {
   carbohidrato: [2.0, 5.0],
   proteina: [1.8, 3.0],
@@ -68,13 +68,17 @@ export const ROTULO_MACRO: Record<Macro, string> = {
 
 const KCAL_POR_GRAMO: Record<Macro, number> = { carbohidrato: 4, proteina: 4, grasa: 9 };
 
+// Reparto del peso que se baja, en la «regla del cuarto»: tres cuartas partes de grasa.
+const FRACCION_GRASA_EN_LO_PERDIDO = 0.75;
+const FRACCION_MLG_EN_LO_PERDIDO = 0.25;
+
 export function factorDe(id: IdActividad): number {
   return ACTIVIDAD.find((a) => a.id === id)?.factor ?? 1.4;
 }
 
 /* ------------------------------------------------------- Composición corporal --- */
 
-/** Tabla E65:F84 de la hoja. */
+/** Clasificación de IMC. La hoja la tabula de 16 a 35. */
 export function clasificarImc(imc: number): string {
   if (imc < 18) return "Muy delgado";
   if (imc < 21) return "Delgado";
@@ -95,24 +99,24 @@ export interface Composicion {
 }
 
 export function composicion(pesoKg: number, porcentajeGrasa: number, estaturaCm: number): Composicion {
-  const masaGrasaKg = pesoKg * porcentajeGrasa; // C14
+  const masaGrasaKg = pesoKg * porcentajeGrasa;
   const metros = estaturaCm / 100;
-  const imc = pesoKg / (metros * metros); // C11
+  const imc = pesoKg / (metros * metros);
   return {
     pesoKg,
     porcentajeGrasa,
     masaGrasaKg,
-    masaLibreDeGrasaKg: pesoKg - masaGrasaKg, // C13
+    masaLibreDeGrasaKg: pesoKg - masaGrasaKg,
     imc,
     clasificacionImc: clasificarImc(imc),
-    pesoIdealBrocaKg: estaturaCm - 100, // B66
-    diferenciaPesoEstaturaKg: pesoKg - (estaturaCm - 100), // C12
+    pesoIdealBrocaKg: estaturaCm - 100, // Broca
+    diferenciaPesoEstaturaKg: pesoKg - (estaturaCm - 100),
   };
 }
 
 /* --------------------------------------------------------------------- Energía --- */
 
-/** Celdas B87/B88. La única diferencia entre sexos es el término de 198 kcal. */
+/** La única diferencia entre sexos es el término de 198 kcal. */
 export function tmb(comp: Composicion, sexo: Sexo, edad: number): number {
   const terminoSexo = sexo === "masculino" ? COEF_SEXO_MASCULINO : 0;
   return (
@@ -133,7 +137,7 @@ export interface Energia {
   esDeficit: boolean;
 }
 
-/** Celdas C19 a C23. `porcentajeAjuste` con signo: −0.28 es déficit del 28 %. */
+/** De mantenimiento a calorías ajustadas. `porcentajeAjuste` con signo: −0.28 es déficit del 28 %. */
 export function energia(tasaBasal: number, actividad: IdActividad, porcentajeAjuste: number): Energia {
   const mantenimiento = tasaBasal * factorDe(actividad) * FACTOR_TERMICO;
   const ajustadas = mantenimiento + mantenimiento * porcentajeAjuste;
@@ -153,7 +157,7 @@ export function energia(tasaBasal: number, actividad: IdActividad, porcentajeAju
 export type Reparto = Record<Macro, number>;
 export type Macros = Record<Macro, number>;
 
-/** Celdas B93:B95. */
+/** Calorías ajustadas por el porcentaje de cada macro, entre sus kcal por gramo. */
 export function macros(kcalAjustadas: number, reparto: Reparto): Macros {
   return {
     carbohidrato: (kcalAjustadas * reparto.carbohidrato) / KCAL_POR_GRAMO.carbohidrato,
@@ -166,7 +170,7 @@ export function kcalDe(macro: Macro, gramos: number): number {
   return gramos * KCAL_POR_GRAMO[macro];
 }
 
-/** Celdas C30:C32. La proteína se expresa contra peso total o contra masa libre de grasa. */
+/** La proteína se expresa contra peso total o contra masa libre de grasa. */
 export function gramosPorKilo(m: Macros, comp: Composicion, base: BaseProteina): Macros {
   const referencia = base === "peso_total" ? comp.pesoKg : comp.masaLibreDeGrasaKg;
   return {
@@ -185,7 +189,8 @@ export function fueraDeRango(gkg: Macros): Macro[] {
 
 /* --------------------------------------------------------------------- Refeeds --- */
 
-/** Celdas B72:B75. Con 1 día a mantenimiento y 26 % los otros seis, el promedio cae a 22.29 %. */
+/** Con 1 día a mantenimiento y 26 % los otros seis, el promedio cae a 22.29 %.
+ *  La hoja suma el día de refeed una sola vez aunque sean dos; aquí se suma por cada día. */
 export function deficitPromedioSemanal(
   porcentajeDiaBajo: number,
   diasRefeed: number,
@@ -193,6 +198,32 @@ export function deficitPromedioSemanal(
 ): number {
   const diasBajos = 7 - diasRefeed;
   return (porcentajeDiaBajo * diasBajos + porcentajeDiaRefeed * diasRefeed) / 7;
+}
+
+/* ---------------------------------------------------------- Déficit recomendado --- */
+
+/** Kcal en un kilo de peso bajado, unas 6 172: 750 g de grasa al 87 % de lípido y 250 g de
+ *  masa magra al 30 % de proteína. */
+export function energiaPorKiloPerdido(): number {
+  const grasa = FRACCION_GRASA_EN_LO_PERDIDO * FRACCION_GRASA_PURA * KCAL_POR_GRAMO.grasa;
+  const proteina = FRACCION_MLG_EN_LO_PERDIDO * FRACCION_PROTEINA_EN_MLG * KCAL_POR_GRAMO.proteina;
+  return (grasa + proteina) * 1000;
+}
+
+export interface DeficitRecomendado {
+  minimoKcal: number;
+  maximoKcal: number;
+  kcalPorKilo: number;
+}
+
+/** El inverso del ritmo recomendado: de 0.5 % a 1 % del peso por semana, en kcal al día. */
+export function deficitRecomendado(comp: Composicion): DeficitRecomendado {
+  const porDia = (comp.pesoKg * energiaPorKiloPerdido()) / 7;
+  return {
+    minimoKcal: porDia * REDUCCION_MIN,
+    maximoKcal: porDia * REDUCCION_MAX,
+    kcalPorKilo: energiaPorKiloPerdido(),
+  };
 }
 
 /* ----------------------------------------------------------------- Proyecciones --- */
@@ -210,7 +241,7 @@ export interface ProyeccionPerdida {
   dentroDeLoRecomendado: boolean;
 }
 
-/** Celdas H105:H117. **Solo la ve la coach**: asume adherencia perfecta. */
+/** **Solo la ve la coach**: asume adherencia perfecta. */
 export function proyectarPerdida(
   comp: Composicion,
   porcentajeObjetivo: number,
@@ -218,18 +249,18 @@ export function proyectarPerdida(
 ): ProyeccionPerdida | null {
   if (!e.esDeficit || porcentajeObjetivo >= comp.porcentajeGrasa) return null;
 
-  const grasaEnObjetivo = (porcentajeObjetivo * comp.masaGrasaKg) / comp.porcentajeGrasa; // H109
-  const grasaPorBajar = comp.masaGrasaKg - grasaEnObjetivo; // H108
+  const grasaEnObjetivo = (porcentajeObjetivo * comp.masaGrasaKg) / comp.porcentajeGrasa;
+  const grasaPorBajar = comp.masaGrasaKg - grasaEnObjetivo;
 
   // El modelo no supone que todo lo perdido sea grasa: por cada kilo se pierden 0.2 de MLG.
   const grasaPura = grasaPorBajar * FRACCION_GRASA_PURA;
   const mlgPerdida = grasaPorBajar * FRACCION_MLG_PERDIDA;
   const proteinaPura = mlgPerdida * FRACCION_PROTEINA_EN_MLG;
 
-  const totales = grasaPorBajar + mlgPerdida; // H6
-  const kcalTotales = (grasaPura * 9 + proteinaPura * 4) * 1000; // H113
+  const totales = grasaPorBajar + mlgPerdida;
+  const kcalTotales = (grasaPura * 9 + proteinaPura * 4) * 1000;
 
-  const perdidaSemanal = (-e.ajusteSemanalKcal * totales) / kcalTotales; // H117
+  const perdidaSemanal = (-e.ajusteSemanalKcal * totales) / kcalTotales;
   const minimo = comp.pesoKg * REDUCCION_MIN;
   const maximo = comp.pesoKg * REDUCCION_MAX;
 
@@ -240,7 +271,7 @@ export function proyectarPerdida(
     kcalTotales,
     perdidaSemanalKg: perdidaSemanal,
     porcentajeSemanal: perdidaSemanal / comp.pesoKg,
-    diasEstimados: kcalTotales / -e.ajusteDiarioKcal, // H10
+    diasEstimados: kcalTotales / -e.ajusteDiarioKcal,
     recomendadoMinKg: minimo,
     recomendadoMaxKg: maximo,
     dentroDeLoRecomendado: perdidaSemanal >= minimo && perdidaSemanal <= maximo,
@@ -257,7 +288,7 @@ export interface ProyeccionGanancia {
   grasaTotalKg: number;
 }
 
-/** Celdas G16:J23. */
+/** Etapa de volumen. */
 export function proyectarGanancia(
   comp: Composicion,
   e: Energia,
@@ -308,6 +339,7 @@ export interface Prescripcion {
   gramosPorKilo: Macros;
   avisosDeRango: Macro[];
   deficitPromedioSemanal: number | null;
+  deficitRecomendado: DeficitRecomendado;
   proyeccionPerdida: ProyeccionPerdida | null;
   proyeccionGanancia: ProyeccionGanancia | null;
 }
@@ -326,6 +358,7 @@ export function calcular(e: EntradasCalculadora): Prescripcion {
     macros: m,
     gramosPorKilo: gkg,
     avisosDeRango: fueraDeRango(gkg),
+    deficitRecomendado: deficitRecomendado(comp),
     deficitPromedioSemanal: e.diasRefeed
       ? deficitPromedioSemanal(Math.abs(e.porcentajeAjuste), e.diasRefeed, e.porcentajeDiaRefeed)
       : null,

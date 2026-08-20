@@ -5,6 +5,7 @@
  *  devuelve al acceso: no es un fallo, es la mitad del valor de este flujo.
  */
 
+import { KeyRound } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -63,7 +64,7 @@ export function CambiarContrasena() {
     <section className="flex max-w-md flex-col gap-5">
       <div className="flex flex-col gap-1">
         <Etiqueta>Seguridad</Etiqueta>
-        <Titulo>Cambiar mi contraseña</Titulo>
+        <Titulo icono={KeyRound}>Cambiar mi contraseña</Titulo>
       </div>
 
       <Campo id="c-actual" etiqueta="Contraseña actual">

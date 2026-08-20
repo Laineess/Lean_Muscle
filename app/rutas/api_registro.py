@@ -82,9 +82,7 @@ def _solicitud_por_correo(s: Session, coach_id: int, correo: str) -> SolicitudDe
         raise HTTPException(404, "No hay ningún registro con ese correo")
 
     alumna = s.scalars(
-        select(Alumna)
-        .where(Alumna.usuario_id == usuario.id)
-        .execution_options(sin_alcance=True)
+        select(Alumna).where(Alumna.usuario_id == usuario.id).execution_options(sin_alcance=True)
     ).first()
     if alumna is None:
         raise HTTPException(404, "No hay ningún registro con ese correo")

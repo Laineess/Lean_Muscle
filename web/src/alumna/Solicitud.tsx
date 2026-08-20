@@ -5,11 +5,11 @@
  *  existe. Aquí solo ve lo que le falta, en orden, y cuánto tiempo tiene para terminarlo.
  */
 
-import { ArrowRight, Check, Loader2, Upload } from "lucide-react";
+import { ArrowRight, Check, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { Cargando } from "@/componentes/Estado";
+import { CargandoPantalla } from "@/componentes/Estado";
 import {
   Apoyo,
   Aviso,
@@ -66,7 +66,7 @@ export function Solicitud() {
   const navegar = useNavigate();
   const carga = usarApi<EstadoDeSolicitudApi>((s) => api.alumna.solicitud(s));
 
-  if (carga.cargando) return <Cargando que="tu registro" />;
+  if (carga.cargando) return <CargandoPantalla que="tu registro" texto={3} filas={0} />;
 
   if (carga.error) {
     return (
@@ -225,16 +225,8 @@ function SubirInscripcion({ onHecho }: { onHecho: () => void }) {
     <span className="mt-2 flex flex-col gap-2">
       <span className="flex flex-wrap items-center gap-3">
         <span className="cifra font-semibold">${num(inscripcion.monto)}</span>
-        <Boton
-          medida="chica"
-          disabled={subiendo}
-          onClick={() => entrada.current?.click()}
-        >
-          {subiendo ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Upload className="size-3.5" />
-          )}
+        <Boton medida="chica" cargando={subiendo} onClick={() => entrada.current?.click()}>
+          {subiendo ? null : <Upload className="size-3.5" />}
           Subir comprobante
         </Boton>
         <input

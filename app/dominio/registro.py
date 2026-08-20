@@ -150,9 +150,7 @@ def exigir_decidible(estado: Estado) -> None:
         raise ErrorDeDominio(Codigo.SOLICITUD_YA_DECIDIDA, estado=estado.value)
 
 
-def toca_recordar(
-    estado: Estado, creada_en: datetime, ahora: datetime, ya_enviado: bool
-) -> bool:
+def toca_recordar(estado: Estado, creada_en: datetime, ahora: datetime, ya_enviado: bool) -> bool:
     """Dos días antes de borrarla, y una sola vez.
 
     Se avisa aunque falte poco: quien dejó a medias su registro no tiene por qué saber que
@@ -172,6 +170,4 @@ def exigir_abierto(abierto: bool, servicios_de_inscripcion: int) -> None:
     if not abierto:
         raise ErrorDeDominio(Codigo.REGISTRO_CERRADO)
     if servicios_de_inscripcion != 1:
-        raise ErrorDeDominio(
-            Codigo.SIN_PRECIO_DE_INSCRIPCION, servicios=servicios_de_inscripcion
-        )
+        raise ErrorDeDominio(Codigo.SIN_PRECIO_DE_INSCRIPCION, servicios=servicios_de_inscripcion)

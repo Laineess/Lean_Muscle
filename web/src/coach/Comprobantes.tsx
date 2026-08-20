@@ -4,7 +4,7 @@
  *  nada: un comprobante es una captura editable y la coach confirma contra su banco.
  */
 
-import { AlertTriangle, Check, Loader2, X } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, X } from "lucide-react";
 import { useState } from "react";
 
 import { Dialogo } from "@/componentes/Dialogo";
@@ -36,7 +36,7 @@ export function Comprobantes({ onCambio }: { onCambio: () => void }) {
         cobro deja de contar como adeudo.
       </Apoyo>
 
-      <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+      <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
         {filas.map((c) => (
           <li key={c.cobroUlid} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -133,8 +133,8 @@ function RevisarComprobante({
             <Boton tono="peligro" medida="chica" onClick={() => setRechazando(true)}>
               <X className="size-3.5" /> Rechazar
             </Boton>
-            <Boton medida="chica" disabled={ocupado} onClick={() => void resolver("validar")}>
-              {ocupado ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+            <Boton medida="chica" cargando={ocupado} onClick={() => void resolver("validar")}>
+              {ocupado ? null : <Check className="size-3.5" />}
               Validar pago
             </Boton>
           </>
@@ -149,12 +149,12 @@ function RevisarComprobante({
         </Aviso>
       ) : null}
 
-      {/* La imagen manda sobre lo que leyó el OCR: es lo único que la coach puede contrastar
-          con su banco. */}
-      <img
-        src={urlDeComprobante(comprobante.cobroUlid)}
-        alt={`Comprobante de ${comprobante.alumna}`}
-        className="max-h-96 w-full rounded-marco border border-linea object-contain"
+      {/* El comprobante manda sobre lo que leyó el OCR: es lo único que la coach puede
+          contrastar con su banco. Un PDF no cabe en un `<img>`, así que va en su visor. */}
+      <VistaDelComprobante
+        cobroUlid={comprobante.cobroUlid}
+        alumna={comprobante.alumna}
+        esPdf={comprobante.esPdf}
       />
 
       <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-menor">
@@ -196,5 +196,66 @@ function RevisarComprobante({
       {error ? <Aviso tono="error">{error}</Aviso> : null}
       <Etiqueta>El OCR solo sugiere: lo que vale es tu estado de cuenta.</Etiqueta>
     </Dialogo>
+  );
+}
+
+
+/* ------------------------------------------------- Vista del comprobante --- */
+
+/** La imagen, o el PDF en su visor.
+ *
+ *  El navegador trae visor de PDF; lo que no hace es pintarlos dentro de un `<img>`, que era
+ *  lo que había: el comprobante existía, se servía bien, y en pantalla no salía nada.
+ *
+ *  Debajo va siempre el enlace para abrirlo aparte: un PDF de varias hojas o una foto girada
+ *  se revisan mejor a pantalla completa, y si el visor del navegador falla queda la salida.
+ */
+function VistaDelComprobante({
+  cobroUlid,
+  alumna,
+  esPdf,
+}: {
+  cobroUlid: string;
+  alumna: string;
+  esPdf: boolean;
+}) {
+  const [rota, setRota] = useState(false);
+  const url = urlDeComprobante(cobroUlid);
+
+  return (
+    <div className="flex flex-col gap-2">
+      {esPdf ? (
+        <object
+          data={url}
+          type="application/pdf"
+          aria-label={`Comprobante de ${alumna}`}
+          className="h-96 w-full rounded-marco border border-linea bg-fondo-sutil"
+        >
+          <div className="grid h-full place-items-center p-6 text-center">
+            <Apoyo>Tu navegador no puede enseñar el PDF aquí. Ábrelo en otra pestaña.</Apoyo>
+          </div>
+        </object>
+      ) : rota ? (
+        <div className="grid h-40 place-items-center rounded-marco border border-dashed border-linea">
+          <Apoyo>No se pudo cargar la imagen del comprobante.</Apoyo>
+        </div>
+      ) : (
+        <img
+          src={url}
+          alt={`Comprobante de ${alumna}`}
+          onError={() => setRota(true)}
+          className="max-h-96 w-full rounded-marco border border-linea object-contain"
+        />
+      )}
+
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-1.5 self-start text-menor text-tinta-media underline underline-offset-4 transition-colors hover:text-tinta"
+      >
+        <ExternalLink className="size-3.5" /> Abrir en otra pestaña
+      </a>
+    </div>
   );
 }

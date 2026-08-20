@@ -50,6 +50,7 @@ def _publica(fila: PresentacionCoach | None, coach: Coach | None) -> Presentacio
         tiene_foto=bool(fila and fila.foto_key),
         marca=(coach.marca or coach.nombre) if coach else "",
         color_acento=coach.color_acento if coach else "#c9a227",
+        color_secundario=coach.color_secundario if coach else "#0e3b2b",
     )
 
 

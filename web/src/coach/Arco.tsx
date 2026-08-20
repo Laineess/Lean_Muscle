@@ -4,6 +4,7 @@
  *  hábiles para contestar y 15 más para ejecutar. Por eso lo primero es lo que vence antes.
  */
 
+import { Scale } from "lucide-react";
 import { useState } from "react";
 
 import { Apoyo, Aviso, Boton, Campo, Chip, Titulo, Vacio } from "@/componentes/primitivas";
@@ -44,7 +45,7 @@ export function Arco() {
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <Titulo>Derechos de tus alumnas</Titulo>
+        <Titulo icono={Scale}>Derechos de tus alumnas</Titulo>
         <Apoyo>
           Acceso, rectificación, cancelación y oposición. Tienes 20 días hábiles para
           contestar y 15 más para ejecutar lo que prometas.
@@ -56,7 +57,7 @@ export function Arco() {
       {carga.cargando ? null : filas.length === 0 ? (
         <Vacio>Ninguna alumna ha ejercido sus derechos.</Vacio>
       ) : (
-        <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+        <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
           {filas.map((s) => (
             <li key={s.ulid} className="flex flex-col gap-2 py-4">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">

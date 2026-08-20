@@ -50,7 +50,8 @@ class Ajustes(BaseSettings):
     vapid_privada: str = ""
     vapid_contacto: str = ""
 
-    conservar_foto_linea_base: bool = False
+    #: Cuanto se guarda una foto de chequeo. La primera y la ultima de cada angulo no
+    #: entran en el plazo: sin ellas no hay comparativa que ensenar.
     retencion_fotos_meses: int = 4
     #: Cuanto se guarda la **imagen** del comprobante. El registro del pago se queda;
     #: lo que ocupa disco es el archivo. El plazo fiscal lo confirma el contador.

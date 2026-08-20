@@ -63,9 +63,10 @@ export function Buscador({ abierto, onCerrar }: { abierto: boolean; onCerrar: ()
       open={abierto}
       onOpenChange={(v) => !v && onCerrar()}
       label="Buscador"
-      className="fixed inset-0 z-50 grid place-items-start justify-items-center bg-tinta/40 pt-[12vh] backdrop-blur-sm"
+      className="animate-aparece fixed inset-0 z-50 grid place-items-start justify-items-center bg-tinta/40 pt-[12vh] backdrop-blur-sm"
     >
-      <div className="w-[min(92vw,36rem)] overflow-hidden rounded-marco border border-linea bg-fondo-elevado">
+      {/* Baja un poco al abrirse, desde el borde superior de donde cuelga. */}
+      <div className="animate-entra w-[min(92vw,36rem)] overflow-hidden rounded-marco border border-linea bg-fondo-elevado shadow-lg">
         <div className="flex items-center gap-3 border-b border-linea px-4">
           <Search className="size-4 shrink-0 text-tinta-suave" strokeWidth={1.6} />
           <Command.Input

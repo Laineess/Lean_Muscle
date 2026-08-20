@@ -14,7 +14,8 @@ from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc, edad_en
-from app.datos.modelos import Alumna, Ciclo, Coach, CobroProgramado, Usuario
+from app.datos.modelos import Alumna, Ciclo, Cita, Coach, CobroProgramado, Servicio, Usuario
+from app.dominio.agenda import EstadoCita, Modalidad, TipoCita
 from app.servicios.seguridad import (
     VIGENCIA_CLAVE_TEMPORAL,
     contrasena_inicial,
@@ -138,7 +139,8 @@ def dar_de_alta(
     s.add(alumna)
     s.flush()
 
-    hoy = ahora_utc().date()
+    ahora = ahora_utc()
+    hoy = ahora.date()
     precio = plan.precio if plan is not None else coach.precio_ciclo
     s.add(
         Ciclo(
@@ -152,16 +154,42 @@ def dar_de_alta(
         )
     )
 
-    # El primer cobro nace con ella: el flujo de pagos cuelga del cobro y no del ciclo, así
-    # que sin esta fila veía que debía pagar sin tener contra qué subir su comprobante.
-    if precio > 0:
+    # Los cobros nacen con ella: el flujo de pagos cuelga del cobro y no del ciclo, así que
+    # sin estas filas veía que debía pagar sin tener contra qué subir su comprobante.
+    #
+    # Son dos y no uno. La inscripción se paga una vez al entrar y la mensualidad cada ciclo;
+    # juntarlas en una fila etiquetada «Inscripción» por el precio del ciclo cobraba de menos
+    # y dejaba la inscripción sin registrar en ningún lado.
+    inscripcion = next(
+        (
+            x
+            for x in s.scalars(
+                select(Servicio).where(Servicio.motivo == "inscripcion", Servicio.activo.is_(True))
+            ).all()
+        ),
+        None,
+    )
+    if inscripcion is not None and inscripcion.precio > 0:
         s.add(
             CobroProgramado(
                 coach_id=coach_id,
                 alumna_id=alumna.id,
                 fecha=hoy,
                 motivo="inscripcion",
-                concepto=f"Inscripción · {plan.nombre}" if plan is not None else "Inscripción",
+                concepto=inscripcion.nombre,
+                monto=inscripcion.precio,
+                estado="pendiente",
+            )
+        )
+
+    if precio > 0:
+        s.add(
+            CobroProgramado(
+                coach_id=coach_id,
+                alumna_id=alumna.id,
+                fecha=hoy,
+                motivo="mensualidad",
+                concepto=f"Ciclo 1 · {plan.nombre}" if plan is not None else "Ciclo 1",
                 monto=precio,
                 estado="pendiente",
             )
@@ -170,6 +198,27 @@ def dar_de_alta(
     # La misma constancia que un restablecimiento: la contraseña inicial es pública, así que
     # tiene que caducar. Sin esta fila el login no sabría desde cuándo cuenta el plazo.
     _anotar_clave(s, coach_id, alumna.id, emitida_por, clave, "alta de la alumna")
+
+    # La consulta que esta ocurriendo ahora mismo. Un alta desde el panel se hace con la
+    # alumna delante, y el chequeo no abre sin una consulta del ciclo: sin esto, la primera
+    # medicion queda bloqueada justo el dia en que las dos estan sentadas para tomarla.
+    #
+    # No pasa por la comprobacion de solape a proposito. No se esta reservando un hueco a
+    # futuro: se esta registrando lo que pasa mientras se teclea, y rechazarla por chocar
+    # con la agenda dejaria a la alumna sin poder medirse.
+    s.add(
+        Cita(
+            coach_id=coach_id,
+            alumna_id=alumna.id,
+            titulo=f"Primera consulta · {nombre.strip().split(' ')[0]}",
+            tipo=TipoCita.CONSULTA.value,
+            modalidad=Modalidad.PRESENCIAL.value,
+            estado=EstadoCita.CONFIRMADA.value,
+            inicia_en=ahora,
+            termina_en=ahora + timedelta(minutes=coach.duracion_consulta_min),
+        )
+    )
+    s.flush()
 
     return AltaHecha(alumna_ulid=alumna.ulid, correo=correo, clave_temporal=clave)
 

@@ -18,6 +18,7 @@ from app.compartido.errores import Codigo, ErrorDeDominio
 from app.dominio.calculadora import (
     BaseProteina,
     Composicion,
+    Energia,
     NivelActividad,
     RelacionGanancia,
     RepartoMacros,
@@ -25,6 +26,7 @@ from app.dominio.calculadora import (
     calcular,
     clasificar_imc,
     deficit_promedio_semanal,
+    deficit_recomendado,
     energia,
     gramos_por_kilo,
     macros,
@@ -182,6 +184,51 @@ class TestRefeeds:
         assert exc.value.codigo is Codigo.DIAS_DE_REFEED_FUERA_DE_RANGO
 
 
+class TestDeficitRecomendado:
+    """La hoja traía «Déficit recomendado» rota en #REF!. De la fórmula original sobrevivió
+    `× 0.75 × 0.87 × 9 / 7`, que es solo la parte de la grasa."""
+
+    def setup_method(self) -> None:
+        self.d = deficit_recomendado(COMP)
+
+    def test_un_kilo_de_peso_bajado_trae_6172_kcal(self) -> None:
+        # (0.75×0.87×9 + 0.25×0.30×4) por mil gramos.
+        assert self.d.kcal_por_kilo == Decimal("6172.5")
+
+    def test_la_banda_corresponde_al_ritmo_de_la_hoja(self) -> None:
+        # 0.5 % de 102.4 kg son 0.512 kg por semana; 1 %, 1.024 kg.
+        assert cerca(self.d.minimo_kcal, "451.4742857143")
+        assert cerca(self.d.maximo_kcal, "902.9485714286")
+
+    def test_el_fragmento_que_sobrevivio_es_la_mitad_de_grasa(self) -> None:
+        """512 g por semana × 0.75 × 0.87 × 9 / 7, tal cual quedó escrito en la hoja."""
+        grasa = Decimal(512) * Decimal("0.75") * Decimal("0.87") * Decimal(9) / Decimal(7)
+        proteina = Decimal(512) * Decimal("0.25") * Decimal("0.30") * Decimal(4) / Decimal(7)
+        assert cerca(grasa, "429.5314285714")
+        assert cerca(grasa + proteina, "451.4742857143")
+
+    def test_su_deficit_del_28_por_ciento_cae_dentro(self) -> None:
+        tmb = tasa_metabolica_basal(COMP, Sexo.MASCULINO, EDAD)
+        e = energia(tmb, NivelActividad.ACTIVO, AJUSTE)
+        assert self.d.contiene(-e.ajuste_diario_kcal)
+
+    def test_un_deficit_agresivo_queda_fuera(self) -> None:
+        assert not self.d.contiene(Decimal(1500))
+
+    def test_la_prescripcion_lo_trae(self) -> None:
+        r = calcular(
+            peso_kg=PESO,
+            porcentaje_grasa=GRASA,
+            estatura_cm=ESTATURA,
+            edad=EDAD,
+            sexo=Sexo.MASCULINO,
+            actividad=NivelActividad.ACTIVO,
+            porcentaje_ajuste=AJUSTE,
+            reparto=RepartoMacros(Decimal("0.50"), Decimal("0.28"), Decimal("0.22")),
+        )
+        assert r.deficit_recomendado.kcal_por_kilo == Decimal("6172.5")
+
+
 class TestProyeccionDePerdida:
     def setup_method(self) -> None:
         tmb = tasa_metabolica_basal(COMP, Sexo.MASCULINO, EDAD)
@@ -234,6 +281,63 @@ class TestProyeccionDePerdida:
         with pytest.raises(ErrorDeDominio) as exc:
             proyectar_perdida(COMP, Decimal("0.35"), self.e)
         assert exc.value.codigo is Codigo.OBJETIVO_DE_GRASA_NO_ES_MENOR
+
+
+class TestLaTablaDeGananciaCuadraConLaHoja:
+    """G16:J23, la tabla «Proyección aumento de músculo».
+
+    La hoja la calcula con el ajuste en déficit, así que le salen negativas —es una tabla
+    de volumen alimentada con un superávit que ese caso no tiene—. Aquí se usa el mismo
+    ajuste semanal con el signo cambiado, que es la fase que sí proyecta, y se comprueba
+    contra las magnitudes que la hoja trae en caché.
+    """
+
+    #: C23 de la hoja, en positivo.
+    AJUSTE_SEMANAL = Decimal("6149.526735968")
+
+    def setup_method(self) -> None:
+        # Solo el ajuste semanal manda en esta tabla; el resto no entra en ninguna fórmula.
+        e = Energia(
+            mantenimiento_kcal=Decimal(0),
+            ajustadas_kcal=Decimal(0),
+            ajuste_diario_kcal=self.AJUSTE_SEMANAL / Decimal(7),
+            ajuste_semanal_kcal=self.AJUSTE_SEMANAL,
+            semanales_kcal=Decimal(0),
+        )
+        self.dos = proyectar_ganancia(COMP, e, 20, RelacionGanancia.DOS_A_UNO)
+        self.uno = proyectar_ganancia(COMP, e, 20, RelacionGanancia.UNO_A_UNO)
+
+    def test_h17_aumento_de_peso_semanal(self) -> None:
+        assert cerca(self.dos.aumento_semanal_kg, "0.7320865161866666")
+
+    def test_h18_musculo_semanal_dos_a_uno(self) -> None:
+        assert cerca(self.dos.musculo_semanal_kg, "0.2415885503416")
+
+    def test_i18_musculo_semanal_uno_a_uno(self) -> None:
+        assert cerca(self.uno.musculo_semanal_kg, "0.3660432580933333")
+
+    def test_h19_porcentaje_de_aumento_mensual(self) -> None:
+        # La fila que faltaba en pantalla: aumento semanal entre el peso, por cuatro semanas.
+        assert cerca(self.dos.porcentaje_mensual, "0.028597129538541665")
+
+    def test_h21_aumento_de_peso_total(self) -> None:
+        assert cerca(self.dos.aumento_total_kg, "14.641730323733332")
+
+    def test_h22_musculo_total_dos_a_uno(self) -> None:
+        assert cerca(self.dos.musculo_total_kg, "4.831771006832001")
+
+    def test_i22_musculo_total_uno_a_uno(self) -> None:
+        assert cerca(self.uno.musculo_total_kg, "7.320865161866666")
+
+    def test_h23_grasa_total_dos_a_uno(self) -> None:
+        assert cerca(self.dos.grasa_total_kg, "9.809959316901331")
+
+    def test_i23_grasa_total_uno_a_uno(self) -> None:
+        # Con relación 1:1 la mitad de lo que sube es grasa, así que iguala al músculo.
+        assert cerca(self.uno.grasa_total_kg, "7.320865161866666")
+
+    def test_las_dos_relaciones_reparten_el_mismo_peso_total(self) -> None:
+        assert self.dos.aumento_total_kg == self.uno.aumento_total_kg
 
 
 class TestProyeccionDeGanancia:

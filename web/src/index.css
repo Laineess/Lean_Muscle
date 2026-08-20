@@ -3,16 +3,19 @@
 /* ===========================================================================
    MyFittPlan — sistema de diseño
 
-   Negro y gris son la estructura y no se tocan. El dorado es el ACENTO, y es una
-   variable: cada Coach define el suyo desde sus ajustes y reemplaza al dorado sin
-   que haya que rehacer una sola pantalla. El dorado de MyFittPlan es el valor
-   por defecto.
+   Negro y gris son la estructura y no se tocan. El color es de la Coach: elige DOS
+   —acento y secundario— y reemplazan a los de fábrica sin rehacer una sola pantalla.
 
    Regla de contraste que manda sobre el gusto: el dorado sobre fondo claro da 2.4:1
-   y el mínimo legible es 4.5:1. Por eso hay DOS tokens de acento:
+   y el mínimo legible es 4.5:1. Por eso cada color tiene TRES tokens:
      --acento        para marcar   → filetes, bordes, estados activos, iconos
-     --acento-texto  para leer     → versión oscurecida, la única que lleva texto
-   En modo oscuro el dorado luce sobre negro y ambos tokens se acercan.
+     --acento-texto  para leer     → la única versión que lleva texto encima
+     --acento-sutil  para el fondo → el color diluido en el papel
+
+   Los valores de aquí abajo son los de fábrica. Con una Coach dentro los recalcula
+   `lib/paleta.ts` a partir de sus dos colores y del tema activo: un verde oscuro se
+   ve sobre blanco y desaparece sobre negro, así que no puede ser el mismo hex en los
+   dos temas.
 
    Estilo: editorial y calmado. Espacio en blanco, tipografía grande, casi sin cajas.
    =========================================================================== */
@@ -30,10 +33,15 @@
   --linea: #e4e4e7;
   --linea-fuerte: #0c0c0c;
 
-  /* ---- Acento: dorado por defecto, reemplazable por la Coach ---- */
+  /* ---- Acento: dorado de fábrica, reemplazable por la Coach ---- */
   --acento: #c9a227;
   --acento-texto: #8a6d14;  /* 4.6:1 sobre blanco */
   --acento-sutil: #faf6e8;
+
+  /* ---- Secundario: acompaña al acento sin disputarle el sitio ---- */
+  --secundario: #0e3b2b;
+  --secundario-texto: #0e3b2b;  /* 12.5:1 sobre blanco */
+  --secundario-sutil: #e7ebea;
 
   /* ---- Semánticos ---- */
   --peligro: #b42318;
@@ -42,6 +50,84 @@
   --exito-sutil: #edf7f1;
 
   --radio: 0.375rem;
+
+  /* ---- Movimiento ----
+     Sobrio con vida: nada dura más de un tercio de segundo y nada se desplaza más de
+     unos pocos píxeles. El movimiento explica de dónde sale lo que aparece; no adorna. */
+  --mov-rapido: 140ms;   /* color, borde, opacidad: hover y foco */
+  --mov-normal: 200ms;   /* entradas de bloques y listas */
+  --mov-calmo: 320ms;    /* diálogos y paneles, que recorren más distancia */
+  --mov-dibujo: 700ms;   /* trazar una línea de gráfica: se sigue con la vista */
+
+  /* Desacelera fuerte al final: la pieza llega y se asienta, no rebota. */
+  --curva-salida: cubic-bezier(0.16, 1, 0.3, 1);
+  --curva-suave: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===========================================================================
+   Fotogramas
+
+   Se apagan solos con `prefers-reduced-motion` al final de este archivo.
+   =========================================================================== */
+
+@keyframes entra {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Abrir un panel hasta su alto natural. El truco es la rejilla: `height: auto` no se puede
+   animar, pero `grid-template-rows` de 0fr a 1fr sí, y da el mismo efecto sin medir nada
+   en JavaScript ni fijar un alto a mano que luego se queda corto. */
+@keyframes despliega {
+  from { grid-template-rows: 0fr; opacity: 0; }
+  to   { grid-template-rows: 1fr; opacity: 1; }
+}
+
+@keyframes emerge {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes se-encoge {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: scale(0.98); }
+}
+
+/* En teléfono el diálogo es una hoja que sube desde el borde de abajo. */
+@keyframes sube-hoja {
+  from { transform: translateY(100%); }
+  to   { transform: none; }
+}
+
+@keyframes baja-hoja {
+  from { transform: none; }
+  to   { transform: translateY(100%); }
+}
+
+@keyframes aparece {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes desaparece {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes gira {
+  to { transform: rotate(360deg); }
+}
+
+/* El brillo que recorre un esqueleto mientras llegan los datos. */
+@keyframes brillo {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* Dibuja una línea de SVG. El largo del trazo lo pone quien la usa, en --largo. */
+@keyframes traza {
+  from { stroke-dashoffset: var(--largo, 1200); }
+  to   { stroke-dashoffset: 0; }
 }
 
 /* El modo oscuro sigue al sistema del teléfono. La alumna hace su chequeo recién
@@ -61,6 +147,10 @@
     --acento-texto: #e5c766;  /* 8.9:1 sobre #0c0c0c */
     --acento-sutil: #1c1810;
 
+    --secundario: #1a6c4f;
+    --secundario-texto: #228d67;
+    --secundario-sutil: #0c110f;
+
     --peligro: #f97066;
     --peligro-sutil: #24120f;
     --exito: #4ade80;
@@ -68,7 +158,10 @@
   }
 }
 
-/* Clase .oscuro para forzarlo desde código (pruebas, capturas de pantalla). */
+/* `.dark` la pone el selector de tema al elegir «Oscuro»; `.oscuro` queda para pruebas y
+   capturas. Antes solo estaba `.oscuro`, así que forzar el tema oscuro con el sistema en
+   claro no cambiaba un solo color: la clase entraba y aquí no la esperaba nadie. */
+.dark,
 .oscuro {
   --fondo: #0c0c0c;
   --fondo-sutil: #18181b;
@@ -81,6 +174,9 @@
   --acento: #d9b441;
   --acento-texto: #e5c766;
   --acento-sutil: #1c1810;
+  --secundario: #1a6c4f;
+  --secundario-texto: #228d67;
+  --secundario-sutil: #0c110f;
   --peligro: #f97066;
   --peligro-sutil: #24120f;
   --exito: #4ade80;
@@ -99,12 +195,29 @@
   --color-acento: var(--acento);
   --color-acento-texto: var(--acento-texto);
   --color-acento-sutil: var(--acento-sutil);
+  --color-secundario: var(--secundario);
+  --color-secundario-texto: var(--secundario-texto);
+  --color-secundario-sutil: var(--secundario-sutil);
   --color-peligro: var(--peligro);
   --color-peligro-sutil: var(--peligro-sutil);
   --color-exito: var(--exito);
   --color-exito-sutil: var(--exito-sutil);
 
   --radius-marco: var(--radio);
+
+  /* Movimiento, como utilidades de Tailwind: `ease-salida`, `animate-entra`… */
+  --ease-salida: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-suave: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --animate-entra: entra var(--mov-normal) var(--curva-salida) both;
+  --animate-emerge: emerge var(--mov-normal) var(--curva-salida) both;
+  --animate-aparece: aparece var(--mov-rapido) var(--curva-suave) both;
+  --animate-desaparece: desaparece var(--mov-rapido) var(--curva-suave) both;
+  --animate-se-encoge: se-encoge var(--mov-rapido) var(--curva-suave) both;
+  --animate-sube-hoja: sube-hoja var(--mov-calmo) var(--curva-salida) both;
+  --animate-baja-hoja: baja-hoja var(--mov-rapido) var(--curva-suave) both;
+  --animate-gira: gira 0.7s linear infinite;
+  --animate-brillo: brillo 1.6s ease-in-out infinite;
 
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
@@ -167,11 +280,19 @@
 }
 
 @layer utilities {
-  /* Filete de acento: el uso principal del dorado. Marca sin tener que leerse. */
+  /* Filete de acento: el uso principal del color. Marca sin tener que leerse. */
   .filete {
-    border-left-width: 2px;
+    border-left-width: 3px;
     border-left-style: solid;
     border-left-color: var(--acento);
+    padding-left: 1rem;
+  }
+
+  /* El mismo filete en el segundo color, para distinguir dos bloques hermanos. */
+  .filete-dos {
+    border-left-width: 3px;
+    border-left-style: solid;
+    border-left-color: var(--secundario);
     padding-left: 1rem;
   }
 
@@ -186,14 +307,101 @@
   .sin-barra {
     scrollbar-width: none;
   }
+
+  /* ---- Movimiento ---- */
+
+  /* Entrada estándar de una pantalla o de un bloque que acaba de recibir datos. */
+  .entra {
+    animation: entra var(--mov-normal) var(--curva-salida) both;
+  }
+
+  /* Los hijos entran uno tras otro. Se corta en el octavo a propósito: con listas
+     largas, la última fila llegaría tan tarde que parecería que algo se trabó. */
+  .escalona > * {
+    animation: entra var(--mov-normal) var(--curva-salida) both;
+  }
+  .escalona > *:nth-child(1) { animation-delay: 0ms; }
+  .escalona > *:nth-child(2) { animation-delay: 40ms; }
+  .escalona > *:nth-child(3) { animation-delay: 80ms; }
+  .escalona > *:nth-child(4) { animation-delay: 120ms; }
+  .escalona > *:nth-child(5) { animation-delay: 160ms; }
+  .escalona > *:nth-child(6) { animation-delay: 200ms; }
+  .escalona > *:nth-child(7) { animation-delay: 240ms; }
+  .escalona > *:nth-child(n + 8) { animation-delay: 280ms; }
+
+  /* Panel que se abre hacia abajo: la hamburguesa, un acordeón. El hijo directo recorta. */
+  .despliega {
+    display: grid;
+    animation: despliega var(--mov-normal) var(--curva-salida) both;
+  }
+  .despliega > * {
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* Bloque que respira en el hueco donde va a caer un dato. */
+  .esqueleto {
+    background-color: var(--fondo-sutil);
+    background-image: linear-gradient(
+      90deg,
+      transparent 20%,
+      var(--linea) 50%,
+      transparent 80%
+    );
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: brillo 1.6s ease-in-out infinite;
+    border-radius: var(--radio);
+  }
+
+  /* Una línea de SVG que se dibuja de izquierda a derecha. Quien la usa mide el trazo
+     y lo pasa en `--largo`; sin ese dato el guion no cubriría la línea entera. */
+  .traza {
+    stroke-dasharray: var(--largo);
+    animation: traza var(--mov-dibujo) var(--curva-suave) both;
+  }
+
+  /* Se levanta apenas al pasar el puntero. Solo donde hay algo que abrir. */
+  .alza {
+    transition:
+      transform var(--mov-rapido) var(--curva-salida),
+      border-color var(--mov-rapido) var(--curva-suave);
+  }
+  .alza:hover {
+    transform: translateY(-2px);
+  }
+
+  /* Un toque de dedo tiene que responder aunque no haya hover. */
+  .hunde {
+    transition: transform var(--mov-rapido) var(--curva-salida);
+  }
+  .hunde:active {
+    transform: scale(0.97);
+  }
 }
 
+/* Quien pidió menos movimiento recibe la interfaz entera, quieta. No se le esconde
+   nada: los esqueletos siguen ahí, el `role="status"` sigue anunciando, y las
+   entradas escalonadas aparecen de golpe en vez de una por una. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Sin animación, el degradado del esqueleto quedaría congelado a media pasada. */
+  .esqueleto {
+    background-image: none;
+  }
+
+  .alza:hover,
+  .hunde:active {
+    transform: none;
   }
 }

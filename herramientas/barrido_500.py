@@ -27,8 +27,12 @@ NEGATIVO = -(10**12)
 
 def cliente(correo: str):
     op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
-    pedir(op, "/api/auth/login", "POST",
-          {"correo": correo, "contrasena": "Demo1234!", "recordarme": False})
+    pedir(
+        op,
+        "/api/auth/login",
+        "POST",
+        {"correo": correo, "contrasena": "Demo1234!", "recordarme": False},
+    )
     return op
 
 

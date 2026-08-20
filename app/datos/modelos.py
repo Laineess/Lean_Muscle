@@ -53,6 +53,9 @@ class Coach(Base):
     # White-label parcial: logo y color. Sin dominio propio en el MVP.
     logo_key: Mapped[str | None] = mapped_column(String(255))
     color_acento: Mapped[str] = mapped_column(String(9), default="#0E3B2B", nullable=False)
+    #: El que acompana al acento. Los dos se recalculan por tema en el navegador: un verde
+    #: oscuro se ve sobre blanco y desaparece sobre negro, asi que el hex no basta.
+    color_secundario: Mapped[str] = mapped_column(String(9), default="#C9A227", nullable=False)
 
     precio_ciclo: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     dia_chequeo: Mapped[int] = mapped_column(TINYINT, default=1, nullable=False)

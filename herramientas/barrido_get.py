@@ -55,10 +55,14 @@ def pedir(op, ruta: str, metodo: str = "GET", cuerpo: Any = None) -> tuple[int, 
 def subir(op, ruta: str, contenido: bytes, nombre: str, metodo: str = "PUT") -> tuple[int, str]:
     borde = uuid.uuid4().hex
     cuerpo = (
-        f"--{borde}\r\n"
-        f'Content-Disposition: form-data; name="archivo"; filename="{nombre}"\r\n'
-        "Content-Type: application/octet-stream\r\n\r\n"
-    ).encode() + contenido + f"\r\n--{borde}--\r\n".encode()
+        (
+            f"--{borde}\r\n"
+            f'Content-Disposition: form-data; name="archivo"; filename="{nombre}"\r\n'
+            "Content-Type: application/octet-stream\r\n\r\n"
+        ).encode()
+        + contenido
+        + f"\r\n--{borde}--\r\n".encode()
+    )
     pet = urllib.request.Request(BASE + ruta, data=cuerpo, method=metodo)
     pet.add_header("Content-Type", f"multipart/form-data; boundary={borde}")
     try:
@@ -91,7 +95,9 @@ def main() -> None:
             consulta = []
             for p in params:
                 if p["in"] == "path":
-                    concreta = concreta.replace("{" + p["name"] + "}", urllib.parse.quote(hostil, safe=""))
+                    concreta = concreta.replace(
+                        "{" + p["name"] + "}", urllib.parse.quote(hostil, safe="")
+                    )
                 else:
                     consulta.append(f"{p['name']}={urllib.parse.quote(hostil, safe='')}")
             if "{" in concreta:

@@ -10,6 +10,7 @@ llaves de almacenamiento por inquilino; vistas `v_tabla` en MySQL.
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
@@ -17,7 +18,7 @@ from typing import Any
 from sqlalchemy import Engine, create_engine, event, text
 from sqlalchemy.orm import ORMExecuteState, Session, sessionmaker, with_loader_criteria
 
-from app.compartido.errores import SinAlcanceDeInquilino
+from app.compartido.errores import BorradoDeEsquemaProhibido, SinAlcanceDeInquilino
 from app.config import ajustes
 from app.datos.base import BaseMultiInquilino
 
@@ -35,6 +36,10 @@ ALCANCE = "alcance_de_inquilino"
 EXENTA = "sesion_sin_alcance"
 
 
+#: Lo que nunca corre contra una base que no sea la de pruebas.
+_DDL_DESTRUCTIVO = re.compile(r"^\s*(drop\s+(table|database|schema)|truncate)\b", re.I)
+
+
 def crear_motor(url: str | None = None) -> Engine:
     maquina = create_engine(
         url or ajustes().bd_url,
@@ -48,6 +53,26 @@ def crear_motor(url: str | None = None) -> Engine:
         """UTC también para los `DEFAULT now(3)` que calcula el servidor."""
         with conexion.cursor() as cursor:
             cursor.execute("SET time_zone = '+00:00'")
+
+    @event.listens_for(maquina, "before_cursor_execute")
+    def _sin_tirar_tablas(
+        _conexion: Any, _cursor: Any, sentencia: str, *_resto: Any, **_llaves: Any
+    ) -> None:
+        """Frena un `DROP TABLE` cuando la base no es la de pruebas.
+
+        No es defensivo de más: la suite tira el esquema en cada corrida, y un script suelto
+        que importe el motor sin pasar por el `conftest` apunta a la base de desarrollo. Se
+        para en la primera sentencia, con la base todavía entera, en vez de descubrirlo
+        cuando la aplicación responde 500 porque falta una tabla.
+        """
+        if ajustes().entorno == "pruebas":
+            return
+        if _DDL_DESTRUCTIVO.match(sentencia):
+            raise BorradoDeEsquemaProhibido(
+                f"Se intentó «{sentencia.strip()[:60]}» sobre la base «{ajustes().entorno}». "
+                "Solo se tiran tablas con LM_ENTORNO=pruebas. Si de verdad quieres "
+                "reconstruir esta base, usa alembic."
+            )
 
     return maquina
 

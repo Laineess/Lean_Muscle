@@ -11,7 +11,7 @@ import { Check, Copy } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Dialogo } from "@/componentes/Dialogo";
-import { Cargando } from "@/componentes/Estado";
+import { CargandoPantalla } from "@/componentes/Estado";
 import { Apoyo, Aviso, Boton, Campo, Entrada, Etiqueta, Selector } from "@/componentes/primitivas";
 import {
   ErrorApi,
@@ -253,7 +253,7 @@ export function FormAlumna({
       }
     >
       {cargando ? (
-        <Cargando que="sus datos" />
+        <CargandoPantalla que="sus datos" texto={2} filas={3} portada={false} />
       ) : (
         <>
       <Campo id="a-nombre" etiqueta="Nombre completo">

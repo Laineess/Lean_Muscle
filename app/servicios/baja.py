@@ -130,9 +130,7 @@ def borrar_expediente(s: Session, alumna: Alumna) -> None:
     chequeos = list(s.scalars(select(Chequeo).where(Chequeo.alumna_id == alumna.id)))
     ciclos = list(s.scalars(select(Ciclo).where(Ciclo.alumna_id == alumna.id)))
 
-    for foto in s.scalars(
-        select(Foto).where(Foto.chequeo_id.in_([c.id for c in chequeos] or [0]))
-    ):
+    for foto in s.scalars(select(Foto).where(Foto.chequeo_id.in_([c.id for c in chequeos] or [0]))):
         _borrar_archivo(foto.storage_key)
         if foto.storage_key:
             _borrar_archivo(foto.storage_key.replace(".webp", "-mini.webp"))
@@ -140,9 +138,7 @@ def borrar_expediente(s: Session, alumna: Alumna) -> None:
     for comida in s.scalars(select(FotoDeComida).where(FotoDeComida.alumna_id == alumna.id)):
         _borrar_archivo(comida.storage_key)
 
-    for cobro in s.scalars(
-        select(CobroProgramado).where(CobroProgramado.alumna_id == alumna.id)
-    ):
+    for cobro in s.scalars(select(CobroProgramado).where(CobroProgramado.alumna_id == alumna.id)):
         _borrar_archivo(cobro.comprobante_key)
 
     for pago in s.scalars(select(Pago).where(Pago.alumna_id == alumna.id)):
@@ -236,9 +232,7 @@ def vencidas(s: Session, ahora: datetime) -> list[Alumna]:
     el dominio."""
     return [
         a
-        for a in s.scalars(
-            select(Alumna).where(Alumna.estado == dom.EstadoDeAlumna.BAJA.value)
-        )
+        for a in s.scalars(select(Alumna).where(Alumna.estado == dom.EstadoDeAlumna.BAJA.value))
         if dom.esta_vencida(a.baja_en, ahora)
     ]
 
@@ -255,14 +249,10 @@ def _borrar_archivo(llave: str | None) -> None:
 
 def consentimientos_de(s: Session, alumna_id: int) -> list[Consentimiento]:
     """Se quedan colgados de la ficha vacía; esto existe para poder comprobarlo."""
-    return list(
-        s.scalars(select(Consentimiento).where(Consentimiento.alumna_id == alumna_id))
-    )
+    return list(s.scalars(select(Consentimiento).where(Consentimiento.alumna_id == alumna_id)))
 
 
 def movimientos_de(s: Session, alumna_id: int) -> list[MovimientoFinanciero]:
     return list(
-        s.scalars(
-            select(MovimientoFinanciero).where(MovimientoFinanciero.alumna_id == alumna_id)
-        )
+        s.scalars(select(MovimientoFinanciero).where(MovimientoFinanciero.alumna_id == alumna_id))
     )

@@ -43,9 +43,7 @@ class TestLecturaDeGracia:
     def test_pasado_el_plazo_ya_no_entra(self) -> None:
         # Aunque el trabajo de purga no haya corrido: el plazo lo fija la fecha de la baja,
         # no la puntualidad del servidor.
-        assert not puede_leer_lo_suyo(
-            EstadoDeAlumna.BAJA.value, AHORA - GRACIA_DE_LECTURA, AHORA
-        )
+        assert not puede_leer_lo_suyo(EstadoDeAlumna.BAJA.value, AHORA - GRACIA_DE_LECTURA, AHORA)
 
     @pytest.mark.parametrize(
         "estado",

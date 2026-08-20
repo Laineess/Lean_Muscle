@@ -5,7 +5,7 @@
  *  tocar la fila de al lado.
  */
 
-import { Loader2 } from "lucide-react";
+import {  } from "lucide-react";
 import { useState } from "react";
 
 import { Dialogo } from "@/componentes/Dialogo";
@@ -60,10 +60,10 @@ export function DarDeBaja({
           <Boton
             tono="peligro"
             medida="chica"
+            cargando={ocupado}
             disabled={ocupado || !escrito.trim() || carga.cargando}
             onClick={() => void confirmar()}
           >
-            {ocupado ? <Loader2 className="size-3.5 animate-spin" /> : null}
             Dar de baja
           </Boton>
         </>

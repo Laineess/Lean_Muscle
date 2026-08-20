@@ -163,7 +163,7 @@ export function Avisos() {
         {historial.cargando ? null : (historial.datos ?? []).length === 0 ? (
           <Vacio>Nada pendiente. Lo que mandaste y ya leyeron desaparece de aquí.</Vacio>
         ) : (
-          <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+          <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
             {(historial.datos ?? []).map((a) => (
               <li key={a.ulid} className="flex flex-col gap-1.5 py-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">

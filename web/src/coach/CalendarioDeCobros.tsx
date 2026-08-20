@@ -163,7 +163,7 @@ export function CalendarioDeCobros({
       {proximasConsultas.length > 0 ? (
         <div className="flex flex-col gap-2">
           <Etiqueta>Consultas agendadas</Etiqueta>
-          <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+          <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
             {proximasConsultas.map((c) => (
               <li key={c.ulid} className="flex items-baseline justify-between gap-2 py-2">
                 <span className="text-micro">{c.titulo}</span>
@@ -185,7 +185,7 @@ export function CalendarioDeCobros({
       )}
 
       {cobros.length > 0 ? (
-        <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+        <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
           {cobros.slice(-4).map((c) => (
             <li key={c.ulid} className="flex items-baseline justify-between gap-2 py-2">
               <span className="flex min-w-0 flex-col">
@@ -319,7 +319,7 @@ function FormularioDeCobro({
       {existentes.length > 0 ? (
         <div className="flex flex-col gap-2">
           <Etiqueta>Ya programado ese día</Etiqueta>
-          <ul className="flex flex-col divide-y divide-linea border-y border-linea">
+          <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
             {existentes.map((c) => (
               <li key={c.ulid} className="flex items-center justify-between gap-3 py-2">
                 <span className="text-menor">{c.concepto}</span>

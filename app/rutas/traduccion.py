@@ -51,6 +51,11 @@ RESPUESTAS: dict[Codigo, tuple[int, str]] = {
         "Tu peso y tus fotos tienen que ser del mismo día para poder compararlos.",
     ),
     Codigo.TRANSICION_NO_PERMITIDA: (409, "Ese cambio no aplica al estado actual del chequeo."),
+    Codigo.CHEQUEO_YA_RESUELTO: (
+        409,
+        "Este chequeo ya se resolvió y no admite cambios.",
+    ),
+    Codigo.PESO_SIN_CAPTURAR: (409, "Falta tu peso: pésate antes de enviar el chequeo."),
     Codigo.MOTIVO_DE_RECHAZO_REQUERIDO: (
         422,
         "Escribe el motivo del rechazo: es lo que la alumna va a leer.",

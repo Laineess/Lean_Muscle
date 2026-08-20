@@ -284,12 +284,12 @@ def esperando(s: Session) -> list[SolicitudDeRegistro]:
 
 
 def por_ulid(s: Session, ulid: str) -> SolicitudDeRegistro | None:
-    return s.scalars(
-        select(SolicitudDeRegistro).where(SolicitudDeRegistro.ulid == ulid)
-    ).first()
+    return s.scalars(select(SolicitudDeRegistro).where(SolicitudDeRegistro.ulid == ulid)).first()
 
 
-def aceptar(s: Session, solicitud: SolicitudDeRegistro, alumna: Alumna, tarifa: Tarifa | None) -> Ciclo:
+def aceptar(
+    s: Session, solicitud: SolicitudDeRegistro, alumna: Alumna, tarifa: Tarifa | None
+) -> Ciclo:
     """La convierte en alumna: estado activo, plan confirmado y su primer ciclo abierto.
 
     El ciclo nace aquí y no al registrarse porque hasta ahora el plan era una petición suya;
@@ -405,9 +405,7 @@ def borrar(s: Session, solicitud: SolicitudDeRegistro) -> None:
     alumna = s.get(Alumna, alumna_id)
     usuario_id = alumna.usuario_id if alumna is not None else None
 
-    for cobro in s.scalars(
-        select(CobroProgramado).where(CobroProgramado.alumna_id == alumna_id)
-    ):
+    for cobro in s.scalars(select(CobroProgramado).where(CobroProgramado.alumna_id == alumna_id)):
         if cobro.comprobante_key:
             almacenamiento.almacen().borrar(cobro.comprobante_key)
 

@@ -43,7 +43,9 @@ class TestPlazo:
         assert p.vence_el == sumar_habiles(date(2026, 8, 20), 15)
 
     def test_resuelta_ya_no_tiene_plazo(self) -> None:
-        assert plazo_de(Estado.RESUELTA, date(2026, 1, 1), date(2026, 1, 2), date(2026, 8, 14)) is None
+        assert (
+            plazo_de(Estado.RESUELTA, date(2026, 1, 1), date(2026, 1, 2), date(2026, 8, 14)) is None
+        )
 
     def test_pasado_el_dia_queda_vencida(self) -> None:
         p = plazo_de(Estado.RECIBIDA, date(2026, 1, 1), None, date(2026, 8, 14))
