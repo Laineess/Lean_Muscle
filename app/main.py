@@ -7,9 +7,12 @@ equipo y un presupuesto cerrado, partir en servicios solo agrega despliegues y l
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -40,10 +43,76 @@ from app.rutas import (
 )
 from app.rutas.plataforma import api as api_plataforma
 from app.rutas.traduccion import respuesta_para
+from app.servicios import correo, push
+
+if TYPE_CHECKING:
+    from app.trabajos.emisor_avisos import Resultado
 
 RAIZ = Path(__file__).resolve().parent
 
 _registro = logging.getLogger("myfittplan")
+
+#: Cada cuánto se revisan las colas fuera del VPS. Corto a propósito: quien prueba un alta
+#: está mirando su bandeja, no esperando cinco minutos.
+ESPERA_DE_LA_COLA = 15
+
+
+def _colas_a_vaciar() -> list[tuple[str, Callable[[], Resultado]]]:
+    """Los canales que en esta instancia salen de verdad, y solo esos.
+
+    Vaciar una cola con el emisor de memoria marcaría los avisos como enviados sin que
+    salga nada, y un aviso marcado ya no vuelve.
+    """
+    from app.trabajos.emisor_avisos import enviar_pendientes, enviar_push_pendientes
+
+    colas: list[tuple[str, Callable[[], Resultado]]] = []
+    if correo.manda_de_verdad():
+        colas.append(("correo", enviar_pendientes))
+    if push.manda_de_verdad():
+        colas.append(("push", enviar_push_pendientes))
+    return colas
+
+
+async def _vaciar_las_colas(colas: list[tuple[str, Callable[[], Resultado]]]) -> None:
+    """Hace en local lo que en el VPS hace `myfittplan-correo.timer`."""
+    while True:
+        for canal, vaciar in colas:
+            try:
+                r = await asyncio.to_thread(vaciar)
+                if r.enviados or r.fallidos:
+                    _registro.info(
+                        "cola de %s: enviados=%d fallidos=%d agotados=%d",
+                        canal,
+                        r.enviados,
+                        r.fallidos,
+                        r.agotados,
+                    )
+            except Exception:  # pragma: no cover - una cola no puede tumbar el servidor
+                _registro.exception("falló el vaciado de la cola de %s", canal)
+        await asyncio.sleep(ESPERA_DE_LA_COLA)
+
+
+@asynccontextmanager
+async def ciclo_de_vida(_: FastAPI) -> AsyncIterator[None]:
+    """Fuera del VPS no hay systemd, así que las colas de avisos no las vacía nadie.
+
+    Todo salvo el código de registro se encola y lo manda un trabajo aparte —correo y push
+    en dos colas—. En el servidor lo dispara un temporizador cada cinco minutos; en local
+    ese temporizador no existe y la bienvenida, la clave temporal o el recibo se quedan
+    esperando para siempre: parece roto el envío cuando lo que falta es quien vacíe la cola.
+    """
+    incoherencia = correo.remitente_incoherente()
+    if incoherencia:
+        _registro.warning("%s", incoherencia)
+
+    colas = [] if ajustes().es_produccion else _colas_a_vaciar()
+    tarea = asyncio.create_task(_vaciar_las_colas(colas)) if colas else None
+    try:
+        yield
+    finally:
+        if tarea is not None:
+            tarea.cancel()
+
 
 app = FastAPI(
     title="MyFittPlan",
@@ -53,6 +122,7 @@ app = FastAPI(
     # completa de una API que maneja datos de salud.
     docs_url=None if ajustes().es_produccion else "/docs",
     redoc_url=None,
+    lifespan=ciclo_de_vida,
 )
 
 

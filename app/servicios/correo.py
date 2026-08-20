@@ -19,10 +19,22 @@ import smtplib
 import time
 from dataclasses import dataclass, field
 from email.message import EmailMessage
-from email.utils import formataddr
+from email.utils import formataddr, parseaddr
 from typing import Protocol
 
 from app.config import ajustes
+
+
+def _remitente(configurado: str, usuario: str) -> str:
+    """Arma el `From` aceptando las dos formas de escribir el remitente.
+
+    `LM_SMTP_REMITENTE` se escribe indistintamente como `no-reply@myfittplan.com` o como
+    `MyFittPlan <no-reply@myfittplan.com>`. La segunda pasada por `formataddr` como si fuera
+    una dirección daba `MyFittPlan <MyFittPlan <no-reply@...>>`: un `From` inválido que el
+    proveedor rechaza o reescribe, y un correo reescrito es un correo que cae en spam.
+    """
+    nombre, direccion = parseaddr(configurado)
+    return formataddr((nombre or "MyFittPlan", direccion or usuario))
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,7 +102,7 @@ class EmisorSmtp:
             time.sleep(espera)
 
         mensaje = EmailMessage()
-        mensaje["From"] = formataddr(("MyFittPlan", cfg.smtp_remitente or cfg.smtp_usuario))
+        mensaje["From"] = _remitente(cfg.smtp_remitente, cfg.smtp_usuario)
         mensaje["To"] = correo.para
         mensaje["Subject"] = correo.asunto
         if correo.responder_a:
@@ -134,6 +146,40 @@ def emisor() -> Emisor:
         real = (cfg.es_produccion or cfg.correo_real) and cfg.entorno != "pruebas"
         _emisor = EmisorSmtp() if real else EmisorEnMemoria()
     return _emisor
+
+
+def manda_de_verdad() -> bool:
+    """Si el correo de esta instancia sale al mundo o solo se guarda en memoria.
+
+    La pantalla de registro enseña el código en claro cuando no llega a ningún buzón. Ese
+    cartel colgaba de «no es producción», así que seguía apareciendo con `LM_CORREO_REAL=true`
+    y el correo ya saliendo: parecía roto justo lo que ya funcionaba.
+    """
+    return isinstance(emisor(), EmisorSmtp)
+
+
+def remitente_incoherente() -> str | None:
+    """Avisa cuando el `From` no es la cuenta que autentica el envío.
+
+    Un proveedor no deja mandar como otra dirección salvo que el alias esté verificado:
+    reescribe el `From` a la cuenta autenticada, y un correo con el remitente reescrito es
+    un correo que cae en spam. Eso no da error en el envío —el mensaje se acepta— así que
+    se dice en el arranque o no se entera nadie.
+    """
+    cfg = ajustes()
+    if not cfg.smtp_usuario or not cfg.smtp_remitente:
+        return None
+
+    _, direccion = parseaddr(cfg.smtp_remitente)
+    if not direccion or direccion.lower() == cfg.smtp_usuario.lower():
+        return None
+
+    return (
+        f"LM_SMTP_REMITENTE ({direccion}) no es la cuenta que autentica el envío "
+        f"({cfg.smtp_usuario}): el proveedor puede reescribir el remitente y el correo "
+        "acaba en spam. Verifica el alias en el proveedor o manda desde un buzón propio "
+        "con SPF, DKIM y DMARC."
+    )
 
 
 def usar_emisor(nuevo: Emisor) -> None:

@@ -20,7 +20,6 @@ from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc, edad_en, en_zona
-from app.config import ajustes
 from app.datos.alcance import motor, sesion_con_alcance
 from app.datos.modelos import (
     Alumna,
@@ -54,6 +53,7 @@ from app.rutas.esquemas import (
 from app.rutas.sesion import Actor, RutaQueConfirma, datos, solo_alumna, solo_coach
 from app.servicios import avisos as cola
 from app.servicios import bitacora, limites, registro
+from app.servicios.correo import manda_de_verdad
 
 ruteador = APIRouter(prefix="/api", tags=["registro abierto"], route_class=RutaQueConfirma)
 
@@ -191,9 +191,10 @@ def registrarse(slug: str, cuerpo: RegistroNuevo, peticion: Request) -> Registro
 
     return RegistroAceptado(
         correo=alta.correo,
-        # En local el emisor es de mentira y el código no llega a ningún buzón; sin esto no
-        # se puede recorrer la pantalla siguiente.
-        codigo=None if ajustes().es_produccion else alta.codigo,
+        # Solo cuando el emisor es de mentira y el código no llega a ningún buzón: sin esto
+        # no se puede recorrer la pantalla siguiente. Colgarlo de «no es producción» lo
+        # dejaba visible con `LM_CORREO_REAL=true`, con el correo saliendo de verdad.
+        codigo=None if manda_de_verdad() else alta.codigo,
     )
 
 

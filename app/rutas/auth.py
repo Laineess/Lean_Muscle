@@ -116,6 +116,23 @@ def entrar(datos: Credenciales, peticion: Request, respuesta: Response) -> Actor
     return actor_publico(coach_id, usuario_id, rol, debe_cambiar)
 
 
+def _cookie_segura(peticion: Request) -> bool:
+    """`secure` en cuanto la petición viene por HTTPS, diga lo que diga la configuración.
+
+    Colgarlo solo de `LM_ENTORNO` deja que una línea mal puesta en el servidor mande la
+    cookie de sesión sin exigir HTTPS, y eso no se nota: la plataforma arranca y todo el
+    mundo entra. El esquema de verdad lo sabe la petición —nginx lo reenvía en
+    `X-Forwarded-Proto`—, así que se le pregunta a ella y no al archivo.
+
+    Sobre `http://localhost` sigue saliendo `False`, que es lo que deja funcionar el local.
+    Y una cabecera falsificada solo puede endurecer la cookie, nunca aflojarla.
+    """
+    if ajustes().es_produccion:
+        return True
+    reenviado = (peticion.headers.get("x-forwarded-proto") or "").split(",")[0].strip()
+    return (reenviado or peticion.url.scheme) == "https"
+
+
 def crear_sesion(
     s: Session,
     coach_id: int,
@@ -146,7 +163,7 @@ def crear_sesion(
         max_age=int(vigencia.total_seconds()),
         httponly=True,
         samesite="lax",
-        secure=ajustes().es_produccion,
+        secure=_cookie_segura(peticion),
         path="/",
     )
 

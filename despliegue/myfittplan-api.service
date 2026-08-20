@@ -1,0 +1,52 @@
+[Unit]
+Description=API y aplicacion web de MyFittPlan
+After=network-online.target mysql.service
+Requires=mysql.service
+
+[Service]
+Type=exec
+User=myfittplan
+Group=myfittplan
+WorkingDirectory=/opt/myfittplan
+EnvironmentFile=/etc/myfittplan/config.env
+
+# El entorno es el interruptor del que cuelgan la cookie `secure`, el HSTS, `/docs` apagado
+# y las fotos servidas por nginx en vez de por Python. Olvidarlo no rompe nada visible: la
+# plataforma arranca igual y todo el mundo entra, solo que sin nada de eso.
+#
+# Va en `config.env` como el resto de la configuracion; esta linea es para el archivo al que
+# se le olvido. Si `config.env` declara `LM_ENTORNO`, es el archivo el que manda: en el
+# servidor no lo dejes en `local`.
+Environment=LM_ENTORNO=produccion
+
+# Solo por loopback. Quien habla con uvicorn es nginx, que ya puso el TLS y los limites de
+# peticion; escuchar en 0.0.0.0 lo dejaria alcanzable saltandose esa capa.
+#
+# `--proxy-headers` con la lista de confianza acotada al propio nginx: sin ella, la IP que
+# queda en la bitacora y la que cuenta los intentos de acceso serian siempre 127.0.0.1.
+ExecStart=/opt/myfittplan/.venv/bin/uvicorn app.main:app \
+    --host 127.0.0.1 --port 8000 --workers 2 \
+    --proxy-headers --forwarded-allow-ips 127.0.0.1
+
+# Un proceso caido a las tres de la manana se levanta solo. `SIGINT` y no `SIGTERM` porque
+# es lo que uvicorn entiende como apagado ordenado: termina lo que esta sirviendo antes.
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+# Escribe en el volumen de datos y en ningun otro sitio. El codigo de /opt queda de solo
+# lectura para el propio servicio: si alguien logra ejecutar algo dentro, no puede dejarlo
+# escrito para el siguiente arranque.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/var/lib/myfittplan
+
+[Install]
+WantedBy=multi-user.target

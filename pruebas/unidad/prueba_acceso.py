@@ -7,12 +7,14 @@ consulta. El conteo contra MySQL vive en las pruebas de integración.
 from __future__ import annotations
 
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc
+from app.rutas.auth import _cookie_segura
 from app.rutas.sesion import Actor, actor_establecido
 from app.servicios import limites
 from app.servicios.cuentas import validar_contrasena
@@ -131,3 +133,43 @@ class TestLimitesDeAcceso:
     def test_los_intentos_no_se_guardan_para_siempre(self) -> None:
         """Pasado el bloqueo son ruido, y guardan correos de gente que ni existe."""
         assert limites.RETENCION.days <= 90
+
+
+def _peticion(esquema: str = "http", reenviado: str | None = None) -> Request:
+    cabeceras = [(b"x-forwarded-proto", reenviado.encode())] if reenviado else []
+    return Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/api/auth/login",
+            "scheme": esquema,
+            "headers": cabeceras,
+            "query_string": b"",
+            "server": ("myfittplan.com", 443),
+        }
+    )
+
+
+class TestCookieSegura:
+    """`secure` no puede depender solo de `LM_ENTORNO`: es una línea de un archivo que se
+    edita a mano en el servidor, y ponerla mal no rompe nada visible."""
+
+    def test_sobre_http_local_no_marca_secure(self) -> None:
+        """Marcarla sobre `http://localhost` haría que el navegador tirara la cookie."""
+        assert _cookie_segura(_peticion()) is False
+
+    def test_sobre_https_la_marca(self) -> None:
+        assert _cookie_segura(_peticion(esquema="https")) is True
+
+    def test_el_esquema_reenviado_por_nginx_cuenta(self) -> None:
+        """Uvicorn recibe la petición en claro por loopback: el TLS lo puso nginx delante."""
+        assert _cookie_segura(_peticion(reenviado="https")) is True
+
+    def test_de_una_cadena_de_proxies_manda_el_primero(self) -> None:
+        """Es el que habló con el navegador; los de después son saltos internos."""
+        assert _cookie_segura(_peticion(reenviado="https, http")) is True
+
+    def test_en_produccion_siempre(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Ahí no hay forma legítima de llegar por http, y la cabecera la pone quien sea."""
+        monkeypatch.setattr("app.rutas.auth.ajustes", lambda: SimpleNamespace(es_produccion=True))
+        assert _cookie_segura(_peticion()) is True

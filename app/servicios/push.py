@@ -113,12 +113,32 @@ _emisor: Emisor | None = None
 
 
 def emisor() -> Emisor:
-    """En cualquier entorno que no sea producción, en memoria: un `pytest` que dispare
-    notificaciones a teléfonos reales es un accidente esperando a ocurrir."""
+    """El emisor de la aplicación. Mismo trato que el correo, y por el mismo motivo.
+
+    En producción sale de verdad. Fuera de producción guarda en memoria, salvo que se pida
+    lo contrario con `LM_PUSH_REAL=true`: sin ese permiso explícito no había forma de ver
+    una notificación en el teléfono sin declararse en producción, que marca la cookie de
+    sesión como `secure` y la rompe sobre `http://localhost`.
+
+    **Bajo `pytest` nunca sale nada**, ni con `LM_PUSH_REAL=true`: un `pytest` que dispare
+    notificaciones a teléfonos reales es un accidente esperando a ocurrir.
+    """
     global _emisor
     if _emisor is None:
-        _emisor = EmisorWebPush() if ajustes().es_produccion else EmisorEnMemoria()
+        cfg = ajustes()
+        real = (cfg.es_produccion or cfg.push_real) and cfg.entorno != "pruebas"
+        _emisor = EmisorWebPush() if real else EmisorEnMemoria()
     return _emisor
+
+
+def manda_de_verdad() -> bool:
+    """Si las notificaciones de esta instancia llegan a un teléfono o se quedan en memoria.
+
+    Sin llaves VAPID no sale ninguna aunque el emisor sea el real, así que se comprueban
+    aquí: encender el vaciado de la cola con el emisor real y sin llaves solo serviría para
+    quemar los cinco intentos de cada aviso contra un error de configuración.
+    """
+    return isinstance(emisor(), EmisorWebPush) and bool(ajustes().vapid_privada)
 
 
 def usar_emisor(nuevo: Emisor) -> None:

@@ -40,6 +40,13 @@ class Ajustes(BaseSettings):
     #: `secure` y deja de funcionar sobre http://localhost.
     correo_real: bool = False
 
+    #: Manda las notificaciones push de verdad aunque el entorno no sea produccion.
+    #:
+    #: El gemelo de `correo_real` para el otro canal. Sin esto, fuera de produccion el
+    #: emisor de push solo guarda en memoria y el telefono nunca suena, asi que no habia
+    #: forma de probar una notificacion sin declararse en produccion.
+    push_real: bool = False
+
     smtp_host: str = ""
     smtp_puerto: int = 587
     smtp_usuario: str = ""
