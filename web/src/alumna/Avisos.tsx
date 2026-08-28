@@ -7,35 +7,37 @@ import { CargandoPantalla } from "@/componentes/Estado";
 import { Apoyo, Boton, Etiqueta, Portada, Vacio } from "@/componentes/primitivas";
 import { api, type AvisoDeAlumnaApi } from "@/lib/api";
 import { fecha } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { actorGuardado } from "@/lib/sesion";
 import { usarApi } from "@/lib/usarApi";
 
 export function Avisos() {
+  const { t } = useIdioma();
   const carga = usarApi<AvisoDeAlumnaApi[]>((s) => api.alumna.avisos(s), []);
-  const marca = actorGuardado()?.marca ?? "tu coach";
+  const marca = actorGuardado()?.marca ?? t("tu coach");
   const avisos = carga.datos ?? [];
 
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
-          <Boton asChild tono="discreto" medida="icono" aria-label="Regresar">
+          <Boton asChild tono="discreto" medida="icono" aria-label={t("Regresar")}>
             <Link to="/inicio">
               <ArrowLeft className="size-4" />
             </Link>
           </Boton>
-          <Etiqueta>Avisos</Etiqueta>
+          <Etiqueta>{t("Avisos")}</Etiqueta>
         </div>
-        <Portada>Lo que te manda {marca}</Portada>
+        <Portada>{t("Lo que te manda {marca}", { marca })}</Portada>
         <Apoyo className="medida">
-          Del más reciente al más antiguo. No se guardan: una vez leídos desaparecen.
+          {t("Del más reciente al más antiguo. No se guardan: una vez leídos desaparecen.")}
         </Apoyo>
       </header>
 
       {carga.cargando ? (
-        <CargandoPantalla que="tus avisos" filas={4} portada={false} />
+        <CargandoPantalla que={t("tus avisos")} filas={4} portada={false} />
       ) : avisos.length === 0 ? (
-        <Vacio>Todavía no tienes avisos.</Vacio>
+        <Vacio>{t("Todavía no tienes avisos.")}</Vacio>
       ) : (
         <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
           {avisos.map((a) => (

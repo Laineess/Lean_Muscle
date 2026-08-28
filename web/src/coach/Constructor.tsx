@@ -34,6 +34,11 @@ import {
 } from "@/coach/EditorPlan";
 import { CalendarioDeCobros } from "@/coach/CalendarioDeCobros";
 import { Hoja } from "@/coach/Hoja";
+import { TablaDatosCliente } from "@/coach/TablaDatosCliente";
+import { TablaDistribucionMacros } from "@/coach/TablaDistribucionMacros";
+import { TablaProyeccionGanancia } from "@/coach/TablaProyeccionGanancia";
+import { TablaProyeccionPerdida } from "@/coach/TablaProyeccionPerdida";
+import { TablaRefeeds } from "@/coach/TablaRefeeds";
 import {
   ErrorApi,
   api,
@@ -48,19 +53,16 @@ import {
 } from "@/lib/api";
 import {
   ACTIVIDAD,
-  ROTULO_MACRO,
-  RANGO_GKG,
   calcular,
-  kcalDe,
-  proyectarGanancia,
+  ROTULO_MACRO,
   type BaseProteina,
-  type Composicion,
-  type Energia,
   type IdActividad,
   type Macro,
   type RelacionGanancia,
+  type Sexo,
 } from "@/lib/calculadora";
-import { edadEn, fecha, num, porcentaje } from "@/lib/formato";
+import { edadEn, fecha, num } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
 
@@ -78,6 +80,8 @@ const FRECUENCIAS: [FrecuenciaFotos, string][] = [
 /** Horizonte de la proyección de ganancia, el mismo que trae la hoja en H20. Es una
  *  hipótesis que la coach mueve para ver escenarios, no un dato del plan: no se guarda. */
 const SEMANAS_GANANCIA = 20;
+
+type SeccionExpediente = "expediente" | "calculadora" | "programa";
 
 function contenidoDeNutricion(plan: PlanApi | null) {
   const c = plan?.contenido ?? {};
@@ -100,6 +104,7 @@ function contenidoDeEntrenamiento(plan: PlanApi | null) {
 }
 
 export function Constructor() {
+  const { t } = useIdioma();
   const { alumnaUlid = "" } = useParams();
   const carga = usarApi<ExpedienteDeConstructorApi>(
     (senal) => api.coach.expedienteDePlan(alumnaUlid, senal),
@@ -110,11 +115,11 @@ export function Constructor() {
     [alumnaUlid],
   );
 
-  if (carga.cargando) return <Vacio>Abriendo el expediente…</Vacio>;
+  if (carga.cargando) return <Vacio>{t("Abriendo el expediente…")}</Vacio>;
   if (carga.error || !carga.datos) {
     return (
-      <Aviso tono="error" titulo="No se pudo abrir el plan">
-        {carga.error?.message ?? "Vuelve a intentarlo."}
+      <Aviso tono="error" titulo={t("No se pudo abrir el plan")}>
+        {carga.error?.message ?? t("Vuelve a intentarlo.")}
       </Aviso>
     );
   }
@@ -123,6 +128,7 @@ export function Constructor() {
 }
 
 function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: HistorialApi | null }) {
+  const { t } = useIdioma();
   const p = exp.parametros;
   const chequeo = exp.chequeo;
   const nutricion = contenidoDeNutricion(exp.nutricion);
@@ -139,7 +145,21 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
   const [baseProteina, setBaseProteina] = useState<BaseProteina>(p.baseProteina as BaseProteina);
   const [diasRefeed, setDiasRefeed] = useState(p.diasRefeed);
   const [refeedPct, setRefeedPct] = useState(Math.round(p.porcentajeDiaRefeed * 100));
+  const [pesoKg, setPesoKg] = useState<number>(chequeo?.pesoKg ?? 65);
+  const [grasaPct, setGrasaPct] = useState<number>(chequeo?.porcentajeGrasa ?? 0.26);
+  const [estaturaCm, setEstaturaCm] = useState<number>(exp.estaturaCm ?? 165);
+  const [edadAnios, setEdadAnios] = useState<number>(
+    edadEn(exp.fechaNacimiento, new Date().toISOString().slice(0, 10)) || 30,
+  );
+  const [sexoCliente, setSexoCliente] = useState<Sexo>(
+    exp.sexo === "M" ? "masculino" : "femenino",
+  );
   const [semanasGanancia, setSemanasGanancia] = useState(SEMANAS_GANANCIA);
+  const [grasaObjetivoPct, setGrasaObjetivoPct] = useState<number>(
+    exp.porcentajeGrasaObjetivo ??
+      (chequeo?.porcentajeGrasa ? Math.round(chequeo.porcentajeGrasa * 0.75 * 100) / 100 : 0.15),
+  );
+  const [seccion, setSeccion] = useState<SeccionExpediente>("expediente");
 
   // Contenido editable del plan. Arranca de lo que ya tenía el ciclo anterior.
   const [pestana, setPestana] = useState<"nutricion" | "entrenamiento">("nutricion");
@@ -160,14 +180,13 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
   const chequeoValidado = chequeo?.estado === "validado";
 
   const r = useMemo(() => {
-    if (!repartoCuadra || !chequeo?.pesoKg || chequeo.porcentajeGrasa === null) return null;
-    if (exp.estaturaCm === null) return null;
+    if (!repartoCuadra) return null;
     return calcular({
-      pesoKg: chequeo.pesoKg,
-      porcentajeGrasa: chequeo.porcentajeGrasa,
-      estaturaCm: exp.estaturaCm,
-      edad: edadEn(exp.fechaNacimiento, new Date().toISOString().slice(0, 10)),
-      sexo: exp.sexo === "M" ? "masculino" : "femenino",
+      pesoKg,
+      porcentajeGrasa: grasaPct,
+      estaturaCm,
+      edad: edadAnios,
+      sexo: sexoCliente,
       actividad,
       porcentajeAjuste: ajustePct / 100,
       reparto: {
@@ -178,12 +197,27 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
       baseProteina,
       diasRefeed,
       porcentajeDiaRefeed: refeedPct / 100,
-      // Sin meta de grasa no hay proyección: se pasa la actual y la calculadora la descarta.
-      porcentajeGrasaObjetivo: exp.porcentajeGrasaObjetivo ?? chequeo.porcentajeGrasa,
+      porcentajeGrasaObjetivo: grasaObjetivoPct,
       relacionGanancia: p.relacionGanancia as RelacionGanancia,
       semanasGanancia,
     });
-  }, [repartoCuadra, chequeo, exp, p, actividad, ajustePct, reparto, baseProteina, diasRefeed, refeedPct, semanasGanancia]);
+  }, [
+    repartoCuadra,
+    pesoKg,
+    grasaPct,
+    estaturaCm,
+    edadAnios,
+    sexoCliente,
+    p,
+    actividad,
+    ajustePct,
+    reparto,
+    baseProteina,
+    diasRefeed,
+    refeedPct,
+    grasaObjetivoPct,
+    semanasGanancia,
+  ]);
 
   const comp = r?.composicion;
 
@@ -227,9 +261,9 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
         contenido: { notas: notasEntrenamiento, plantilla, dias },
         publicar,
       });
-      setHecho(publicar ? "Plan publicado. La alumna ya lo ve." : "Borrador guardado.");
+      setHecho(publicar ? t("Plan publicado. La alumna ya lo ve.") : t("Borrador guardado."));
     } catch (causa) {
-      setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo guardar.");
+      setFallo(causa instanceof ErrorApi ? causa.message : t("No se pudo guardar."));
     } finally {
       setGuardando(null);
     }
@@ -242,12 +276,12 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
           to={`/coach/alumnas`}
           className="flex w-fit items-center gap-2 text-menor text-tinta-media hover:text-tinta"
         >
-          <ArrowLeft className="size-4" /> Alumnas
+          <ArrowLeft className="size-4" /> {t("Pacientes")}
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-3">
-            <Etiqueta>Ciclo {exp.ciclo} · borrador</Etiqueta>
-            <Portada>Plan de {exp.alumna}</Portada>
+            <Etiqueta>{t("Ciclo {n} · borrador", { n: String(exp.ciclo) })}</Etiqueta>
+            <Portada>{t("Plan de {alumna}", { alumna: exp.alumna })}</Portada>
           </div>
           <div className="flex flex-wrap gap-2">
             <Boton
@@ -259,7 +293,7 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 ).catch(() => undefined)
               }
             >
-              PDF nutrición
+              {t("PDF nutrición")}
             </Boton>
             <Boton
               tono="discreto"
@@ -270,52 +304,82 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 ).catch(() => undefined)
               }
             >
-              PDF rutina
+              {t("PDF rutina")}
             </Boton>
             <Boton tono="contorno" disabled={guardando !== null} onClick={() => void guardar(false)}>
-              {guardando === "borrador" ? "Guardando…" : "Guardar borrador"}
+              {guardando === "borrador" ? t("Guardando…") : t("Guardar borrador")}
             </Boton>
             <Boton
               disabled={!chequeoValidado || !r || guardando !== null}
               onClick={() => void guardar(true)}
             >
-              {guardando === "publicar" ? "Publicando…" : "Publicar"}
+              {guardando === "publicar" ? t("Publicando…") : t("Publicar")}
             </Boton>
           </div>
         </div>
       </div>
 
-      {fallo ? <Aviso tono="error" titulo="No se pudo guardar">{fallo}</Aviso> : null}
+      {fallo ? <Aviso tono="error" titulo={t("No se pudo guardar")}>{fallo}</Aviso> : null}
       {hecho ? <Aviso tono="exito">{hecho}</Aviso> : null}
 
       {!chequeoValidado ? (
-        <Aviso tono="error" titulo="No se puede publicar todavía">
+        <Aviso tono="error" titulo={t("No se puede publicar todavía")}>
           {chequeo
-            ? `El chequeo de ${fecha(chequeo.fecha)} sigue sin validar.`
-            : "Todavía no hay ningún chequeo en este ciclo."}{" "}
-          Sin chequeo validado no se publica plan nuevo: es la guarda de continuidad del
-          método.{" "}
+            ? t("El chequeo de {fecha} sigue sin validar.", { fecha: fecha(chequeo.fecha) })
+            : t("Todavía no hay ningún chequeo en este ciclo.")}{" "}
+          {t("Sin chequeo validado no se publica plan nuevo: es la guarda de continuidad del método.")}{" "}
           <Link to={`/coach/validar/${exp.alumnaUlid}`} className="underline underline-offset-2">
-            Ir a validarlo
+            {t("Ir a validarlo")}
           </Link>
         </Aviso>
       ) : null}
 
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div role="tablist" aria-label={t("Secciones del expediente")} className="flex gap-6 border-b border-linea">
+        {(
+          [
+            ["expediente", "Expediente"],
+            ["calculadora", "Calculadora"],
+            ["programa", "Programa"],
+          ] as const
+        ).map(([id, rotulo]) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={seccion === id}
+            onClick={() => setSeccion(id)}
+            className={cn(
+              "-mb-px border-b-2 pb-3 text-menor font-medium",
+              "transition-colors duration-[var(--mov-rapido)] ease-suave",
+              seccion === id
+                ? "border-acento text-tinta"
+                : "border-transparent text-tinta-suave hover:text-tinta",
+            )}
+          >
+            {t(rotulo)}
+          </button>
+        ))}
+      </div>
+
+      <div
+        className={cn(
+          "grid gap-10",
+          seccion === "expediente" && "lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]",
+        )}
+      >
         <div className="flex flex-col gap-10">
           {/* ---- Composición: sale del chequeo, no se teclea ---- */}
-          <section className="flex flex-col gap-4">
+          {seccion === "expediente" ? <section className="flex flex-col gap-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div className="flex flex-col gap-1">
-                <Titulo>Composición corporal</Titulo>
+                <Titulo>{t("Composición corporal")}</Titulo>
                 <Apoyo>
                   {chequeo
-                    ? `Del chequeo del ${fecha(chequeo.fecha)}. No se captura aquí.`
-                    : "Sin chequeo en este ciclo todavía."}
+                    ? t("Del chequeo del {fecha}. No se captura aquí.", { fecha: fecha(chequeo.fecha) })
+                    : t("Sin chequeo en este ciclo todavía.")}
                 </Apoyo>
               </div>
               <Boton asChild tono="discreto" medida="chica">
-                <Link to={`/coach/validar/${exp.alumnaUlid}`}>Ver el chequeo</Link>
+                <Link to={`/coach/validar/${exp.alumnaUlid}`}>{t("Ver el chequeo")}</Link>
               </Boton>
             </div>
 
@@ -323,7 +387,7 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
               <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
                 {[
                   ["Peso", `${num(comp.pesoKg)} kg`],
-                  ["% de grasa", porcentaje(comp.porcentajeGrasa)],
+                  ["% de grasa", `${num(comp.porcentajeGrasa * 100, 1)} %`],
                   ["Masa grasa", `${num(comp.masaGrasaKg)} kg`],
                   ["Masa magra", `${num(comp.masaLibreDeGrasaKg)} kg`],
                   ["IMC", num(comp.imc)],
@@ -333,33 +397,40 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 ].map(([k, v]) => (
                   <div key={k} className="flex flex-col gap-0.5">
                     <dt className="text-micro font-semibold uppercase tracking-[0.08em] text-tinta-suave">
-                      {k}
+                      {t(k ?? "")}
                     </dt>
                     <dd className="cifra text-guia font-semibold">{v}</dd>
                   </div>
                 ))}
               </dl>
             ) : (
-              <Aviso tono="atencion" titulo="Falta el porcentaje de grasa">
-                Estímalo al validar el chequeo. Es la entrada que manda toda la cadena de cálculo.
+              <Aviso tono="atencion" titulo={t("Falta el porcentaje de grasa")}>
+                {t("Estímalo al validar el chequeo. Es la entrada que manda toda la cadena de cálculo.")}
               </Aviso>
             )}
-          </section>
+          </section> : null}
 
-          <Regla />
+          {seccion === "expediente" ? <Regla /> : null}
+
+          {seccion === "expediente" ? (
+            <CalendarioDeCobros
+              alumnaUlid={exp.alumnaUlid}
+              precioSugerido={exp.planPrecio}
+              nombreDelPlan={exp.planNombre}
+            />
+          ) : null}
 
           {/* ---- Entradas de la calculadora ---- */}
-          <section className="flex flex-col gap-5">
+          {seccion === "calculadora" ? <section className="flex flex-col gap-5">
             <div className="flex flex-col gap-1">
-              <Titulo>Calculadora</Titulo>
+              <Titulo>{t("Calculadora")}</Titulo>
               <Apoyo>
-                Mueve cualquier campo y todo se recalcula. Estos parámetros quedan guardados en
-                el ciclo, para poder entender después por qué un mes funcionó y otro no.
+                {t("Mueve cualquier campo y todo se recalcula. Estos parámetros quedan guardados en el ciclo, para poder entender después por qué un mes funcionó y otro no.")}
               </Apoyo>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Campo id="c-actividad" etiqueta="Nivel de actividad">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Campo id="c-actividad" etiqueta={t("Nivel de actividad")}>
                 <Selector
                   id="c-actividad"
                   value={actividad}
@@ -367,7 +438,7 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 >
                   {ACTIVIDAD.map((n) => (
                     <option key={n.id} value={n.id}>
-                      {n.rotulo} · ×{n.factor}
+                      {t(n.rotulo)} · ×{n.factor}
                     </option>
                   ))}
                 </Selector>
@@ -375,9 +446,9 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
 
               <Campo
                 id="c-ajuste"
-                etiqueta="Ajuste calórico"
+                etiqueta={t("Ajuste calórico")}
                 sufijo="%"
-                ayuda="Negativo es déficit, positivo es superávit."
+                ayuda={t("Negativo es déficit, positivo es superávit.")}
               >
                 <Entrada
                   id="c-ajuste"
@@ -390,13 +461,31 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                   className="rounded-r-none"
                 />
               </Campo>
+
+              <Campo
+                id="c-grasa-obj"
+                etiqueta={t("% Grasa objetivo")}
+                sufijo="%"
+                ayuda={t("Meta para proyectar la pérdida.")}
+              >
+                <Entrada
+                  id="c-grasa-obj"
+                  type="number"
+                  step={0.5}
+                  min={3}
+                  max={50}
+                  value={Math.round(grasaObjetivoPct * 1000) / 10}
+                  onChange={(e) => setGrasaObjetivoPct(Number(e.target.value) / 100)}
+                  className="rounded-r-none"
+                />
+              </Campo>
             </div>
 
             <div className="flex flex-col gap-2">
-              <Etiqueta>Reparto de macros — tiene que sumar 100 %</Etiqueta>
+              <Etiqueta>{t("Reparto de macros — tiene que sumar 100 %")}</Etiqueta>
               <div className="grid gap-4 sm:grid-cols-3">
                 {MACROS.map((m) => (
-                  <Campo key={m} id={`c-r-${m}`} etiqueta={ROTULO_MACRO[m]} sufijo="%">
+                  <Campo key={m} id={`c-r-${m}`} etiqueta={t(ROTULO_MACRO[m])} sufijo="%">
                     <Entrada
                       id={`c-r-${m}`}
                       type="number"
@@ -411,41 +500,41 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 ))}
               </div>
               {!repartoCuadra ? (
-                <Aviso tono="error" titulo={`El reparto suma ${sumaReparto} %`}>
-                  Tiene que sumar exactamente 100 % para poder calcular los gramos.
+                <Aviso tono="error" titulo={t("El reparto suma {suma} %", { suma: String(sumaReparto) })}>
+                  {t("Tiene que sumar exactamente 100 % para poder calcular los gramos.")}
                 </Aviso>
               ) : null}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
-              <Campo id="c-base" etiqueta="Proteína contra">
+              <Campo id="c-base" etiqueta={t("Proteína contra")}>
                 <Selector
                   id="c-base"
                   value={baseProteina}
                   onChange={(e) => setBaseProteina(e.target.value as BaseProteina)}
                 >
-                  <option value="masa_libre_de_grasa">Masa libre de grasa</option>
-                  <option value="peso_total">Peso total</option>
+                  <option value="masa_libre_de_grasa">{t("Masa libre de grasa")}</option>
+                  <option value="peso_total">{t("Peso total")}</option>
                 </Selector>
               </Campo>
 
-              <Campo id="c-refeed" etiqueta="Días de refeed">
+              <Campo id="c-refeed" etiqueta={t("Días de refeed")}>
                 <Selector
                   id="c-refeed"
                   value={diasRefeed}
                   onChange={(e) => setDiasRefeed(Number(e.target.value))}
                 >
-                  <option value={0}>Ninguno</option>
-                  <option value={1}>1 día por semana</option>
-                  <option value={2}>2 días por semana</option>
+                  <option value={0}>{t("Ninguno")}</option>
+                  <option value={1}>{t("1 día por semana")}</option>
+                  <option value={2}>{t("2 días por semana")}</option>
                 </Selector>
               </Campo>
 
               <Campo
                 id="c-refeed-pct"
-                etiqueta="Déficit del refeed"
+                etiqueta={t("Déficit del refeed")}
                 sufijo="%"
-                ayuda="Cero es mantenimiento, que es lo habitual."
+                ayuda={t("Cero es mantenimiento, que es lo habitual.")}
               >
                 <Entrada
                   id="c-refeed-pct"
@@ -459,116 +548,145 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 />
               </Campo>
             </div>
-          </section>
+          </section> : null}
 
-          <Regla />
+          {seccion === "calculadora" ? <Regla /> : null}
 
           {/* ---- Resultado ---- */}
-          {r ? (
+          {seccion === "calculadora" && r ? (
             <section className="flex flex-col gap-5">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div className="flex flex-col gap-1">
-                  <Titulo>Resultado</Titulo>
+                  <Titulo>{t("Resultado")}</Titulo>
                   <Apoyo>
-                    TMB {num(r.tmbKcal, 0)} kcal · mantenimiento {num(r.energia.mantenimientoKcal, 0)} kcal
+                    {t("TMB {tmb} kcal · mantenimiento {manto} kcal", {
+                      tmb: num(r.tmbKcal, 0),
+                      manto: num(r.energia.mantenimientoKcal, 0),
+                    })}
                   </Apoyo>
                 </div>
                 <Chip tono={r.energia.esDeficit ? "exito" : "espera"}>
-                  {r.energia.esDeficit ? "Déficit" : "Superávit"}
+                  {r.energia.esDeficit ? t("Déficit") : t("Superávit")}
                 </Chip>
               </div>
 
               <div className="grid grid-cols-2 gap-6 sm:grid-cols-3">
                 <div className="flex flex-col gap-0.5">
-                  <Etiqueta>Objetivo diario</Etiqueta>
+                  <Etiqueta>{t("Objetivo diario")}</Etiqueta>
                   <p className="cifra text-portada font-semibold tracking-[-0.03em]">
                     {num(r.energia.ajustadasKcal, 0)}
                     <span className="ml-1.5 text-guia font-medium text-tinta-suave">kcal</span>
                   </p>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <Etiqueta>Ajuste diario</Etiqueta>
+                  <Etiqueta>{t("Ajuste diario")}</Etiqueta>
                   <p className="cifra text-guia font-semibold">{num(r.energia.ajusteDiarioKcal, 0)} kcal</p>
                   {/* Para bajar entre 0.5 % y 1 % del peso por semana, que es el ritmo sano. */}
                   {r.energia.esDeficit ? (
                     <p className="cifra text-micro text-tinta-media">
-                      Recomendado −{num(r.deficitRecomendado.minimoKcal, 0)} a −
-                      {num(r.deficitRecomendado.maximoKcal, 0)}
+                      {t("Recomendado −{min} a −{max}", {
+                        min: num(r.deficitRecomendado.minimoKcal, 0),
+                        max: num(r.deficitRecomendado.maximoKcal, 0),
+                      })}
                     </p>
                   ) : null}
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <Etiqueta>Ajuste semanal</Etiqueta>
+                  <Etiqueta>{t("Ajuste semanal")}</Etiqueta>
                   <p className="cifra text-guia font-semibold">{num(r.energia.ajusteSemanalKcal, 0)} kcal</p>
                 </div>
               </div>
 
-              <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
-                {MACROS.map((m) => {
-                  const fuera = r.avisosDeRango.includes(m);
-                  const [min, max] = RANGO_GKG[m];
-                  return (
-                    <li key={m} className="flex flex-wrap items-baseline justify-between gap-3 py-3">
-                      <span className="text-menor font-medium">{ROTULO_MACRO[m]}</span>
-                      <span className="flex items-baseline gap-5">
-                        <span className="cifra text-guia font-semibold">{num(r.macros[m], 0)} g</span>
-                        <span className="cifra text-menor text-tinta-suave">
-                          {num(kcalDe(m, r.macros[m]), 0)} kcal
-                        </span>
-                        <span className="cifra w-14 text-right text-menor">
-                          {num(r.gramosPorKilo[m], 2)}
-                        </span>
-                        {fuera ? (
-                          <Chip tono="espera">
-                            fuera de {min}–{max}
-                          </Chip>
-                        ) : (
-                          <span className="w-24 text-micro text-tinta-suave">
-                            ref. {min}–{max} g/kg
-                          </span>
-                        )}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-
-              <Apoyo>
-                Proteína expresada contra{" "}
-                {baseProteina === "peso_total" ? "peso total" : "masa libre de grasa"}.
-              </Apoyo>
-
-              {r.avisosDeRango.length ? (
-                <Aviso
-                  tono="atencion"
-                  titulo={`${r.avisosDeRango.map((m) => ROTULO_MACRO[m]).join(" y ")} fuera del rango de referencia`}
-                >
-                  No bloquea la publicación; revisa si es intencional.
-                </Aviso>
-              ) : null}
-
               {r.deficitPromedioSemanal !== null ? (
                 <Aviso
                   tono="info"
-                  titulo={`Con ${diasRefeed} ${diasRefeed === 1 ? "día" : "días"} de refeed, el déficit real de la semana es ${num(r.deficitPromedioSemanal * 100)} %`}
+                  titulo={t("Con {n} {dias} de refeed, el déficit real de la semana es {pct} %", {
+                    n: String(diasRefeed),
+                    dias: diasRefeed === 1 ? t("día") : t("días"),
+                    pct: num(r.deficitPromedioSemanal * 100),
+                  })}
                 >
-                  El día bajo va al {num(Math.abs(ajustePct))} %, pero lo que manda sobre el
-                  resultado es el promedio semanal.
+                  {t("El día bajo va al {pct} %, pero lo que manda sobre el resultado es el promedio semanal.", {
+                    pct: num(Math.abs(ajustePct)),
+                  })}
                 </Aviso>
               ) : null}
             </section>
           ) : null}
 
-          <Regla />
+          {/* ---- Tablas de la Calculadora ---- */}
+          {seccion === "calculadora" && r ? (
+            <TablaDatosCliente
+              comp={r.composicion}
+              onPeso={setPesoKg}
+              onPorcentajeGrasa={setGrasaPct}
+              estaturaCm={estaturaCm}
+              onEstaturaCm={setEstaturaCm}
+              edad={edadAnios}
+              onEdad={setEdadAnios}
+              sexo={sexoCliente}
+              onSexo={setSexoCliente}
+              actividad={actividad}
+              onActividad={setActividad}
+              ajustePct={ajustePct}
+              onAjustePct={setAjustePct}
+              prescripcion={r}
+            />
+          ) : null}
 
-          {/* ---- La misma cuenta, con la forma de su hoja ---- */}
-          <Hoja alumnaUlid={exp.alumnaUlid} />
+          {seccion === "calculadora" && r ? (
+            <TablaDistribucionMacros
+              comp={r.composicion}
+              energia={r.energia}
+              reparto={reparto}
+              onReparto={setReparto}
+              baseProteina={baseProteina}
+              onBaseProteina={setBaseProteina}
+            />
+          ) : null}
 
-          <Regla />
+          {seccion === "calculadora" && r ? (
+            <TablaProyeccionPerdida
+              comp={r.composicion}
+              energia={r.energia}
+              porcentajeGrasaObjetivo={grasaObjetivoPct}
+              onPorcentajeGrasaObjetivo={setGrasaObjetivoPct}
+              ajustePct={ajustePct}
+              onAjustePct={setAjustePct}
+            />
+          ) : null}
+
+          {seccion === "calculadora" && r ? (
+            <TablaProyeccionGanancia
+              comp={r.composicion}
+              energia={r.energia}
+              semanas={semanasGanancia}
+              onSemanas={setSemanasGanancia}
+              ajustePct={ajustePct}
+              onAjustePct={setAjustePct}
+            />
+          ) : null}
+
+          {seccion === "calculadora" && r ? (
+            <TablaRefeeds
+              diaBajoPct={ajustePct}
+              onDiaBajoPct={setAjustePct}
+              diasRefeed={diasRefeed}
+              onDiasRefeed={setDiasRefeed}
+              refeedPct={refeedPct}
+              onRefeedPct={setRefeedPct}
+            />
+          ) : null}
+
+          {seccion === "calculadora" ? <Hoja alumnaUlid={exp.alumnaUlid} soloTablas /> : null}
+
+          {seccion === "calculadora" ? <Regla /> : null}
+
+          {seccion === "calculadora" ? <Regla /> : null}
 
           {/* ---- Contenido del plan: aquí se edita de verdad ---- */}
-          <section className="flex flex-col gap-6">
-            <div role="tablist" aria-label="Tipo de plan" className="flex gap-6 border-b border-linea">
+          {seccion === "programa" ? <section className="flex flex-col gap-6">
+            <div role="tablist" aria-label={t("Tipo de plan")} className="flex gap-6 border-b border-linea">
               {(
                 [
                   ["nutricion", "Nutrición", UtensilsCrossed],
@@ -593,7 +711,7 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                     className="size-4 shrink-0"
                     strokeWidth={pestana === id ? 2.2 : 1.6}
                   />
-                  {rotulo}
+                  {t(rotulo)}
                 </button>
               ))}
             </div>
@@ -616,8 +734,8 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 />
                 <Campo
                   id="c-fotos"
-                  etiqueta="Fotos de sus comidas"
-                  ayuda="Cada foto se borra sola a las 36 horas de que la manda."
+                  etiqueta={t("Fotos de sus comidas")}
+                  ayuda={t("Cada foto se borra sola a las 36 horas de que la manda.")}
                 >
                   <Selector
                     id="c-fotos"
@@ -627,13 +745,13 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                   >
                     {FRECUENCIAS.map(([valor, rotulo]) => (
                       <option key={valor} value={valor}>
-                        {rotulo}
+                        {t(rotulo)}
                       </option>
                     ))}
                   </Selector>
                 </Campo>
 
-                <Campo id="c-notas-n" etiqueta="Notas para la alumna">
+                <Campo id="c-notas-n" etiqueta={t("Notas para la alumna")}>
                   <textarea
                     id="c-notas-n"
                     rows={3}
@@ -652,7 +770,7 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                   onPlantilla={setPlantilla}
                   lesiones={clinico?.lesiones ?? null}
                 />
-                <Campo id="c-notas-e" etiqueta="Notas de ejecución">
+                <Campo id="c-notas-e" etiqueta={t("Notas de ejecución")}>
                   <textarea
                     id="c-notas-e"
                     rows={3}
@@ -663,61 +781,16 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 </Campo>
               </>
             )}
-          </section>
+          </section> : null}
         </div>
 
-        {/* ---- Proyección: solo la coach ---- */}
-        <aside className="flex flex-col gap-8">
-          <section className="filete flex flex-col gap-4">
-            <Etiqueta>Proyección · solo tú la ves</Etiqueta>
-            {r?.proyeccionPerdida ? (
-              <>
-                <Titulo>Al ritmo de este plan</Titulo>
-                <dl className="flex flex-col gap-2 text-menor">
-                  {[
-                    ["Grasa por bajar", `${num(r.proyeccionPerdida.kgGrasaPorBajar)} kg`],
-                    ["Masa magra que se va", `${num(r.proyeccionPerdida.kgMlgQueSePierden)} kg`],
-                    ["Peso total por bajar", `${num(r.proyeccionPerdida.kgTotalesPorBajar)} kg`],
-                    ["Pérdida semanal", `${num(r.proyeccionPerdida.perdidaSemanalKg, 2)} kg`],
-                    ["Días estimados", num(r.proyeccionPerdida.diasEstimados, 0)],
-                  ].map(([k, v]) => (
-                    <div key={k} className="flex items-baseline justify-between gap-3">
-                      <dt className="text-tinta-suave">{k}</dt>
-                      <dd className="cifra font-semibold">{v}</dd>
-                    </div>
-                  ))}
-                </dl>
-
-                <Aviso tono={r.proyeccionPerdida.dentroDeLoRecomendado ? "exito" : "error"}>
-                  {r.proyeccionPerdida.dentroDeLoRecomendado
-                    ? `Dentro del ritmo recomendado (${num(r.proyeccionPerdida.recomendadoMinKg, 2)} a ${num(r.proyeccionPerdida.recomendadoMaxKg, 2)} kg por semana).`
-                    : `Fuera del ritmo recomendado. Lo sano para ella es entre ${num(r.proyeccionPerdida.recomendadoMinKg, 2)} y ${num(r.proyeccionPerdida.recomendadoMaxKg, 2)} kg por semana. Suaviza el déficit.`}
-                </Aviso>
-
-                <Apoyo>
-                  Supone adherencia perfecta. No se le muestra a la alumna: una fecha exacta
-                  convierte una estimación en una promesa.
-                </Apoyo>
-              </>
-            ) : r?.proyeccionGanancia ? (
-              <ProyeccionDeGanancia
-                comp={r.composicion}
-                energia={r.energia}
-                semanas={semanasGanancia}
-                onSemanas={setSemanasGanancia}
-                relacionDelPlan={p.relacionGanancia as RelacionGanancia}
-              />
-            ) : (
-              <Apoyo>Sin ajuste calórico no hay proyección que hacer.</Apoyo>
-            )}
-          </section>
-
+        {seccion === "expediente" ? <aside className="flex flex-col gap-8">
           <section className="flex flex-col gap-2 border-l-2 border-l-peligro pl-4">
-            <Etiqueta>Restricciones de la alumna</Etiqueta>
+            <Etiqueta>{t("Restricciones")}</Etiqueta>
             {clinico?.restricciones ? <Apoyo>{clinico.restricciones}</Apoyo> : null}
             {clinico?.lesiones ? <Apoyo>{clinico.lesiones}</Apoyo> : null}
             {!clinico?.restricciones && !clinico?.lesiones ? (
-              <Apoyo>Sin restricciones registradas en su historial.</Apoyo>
+              <Apoyo>{t("Sin restricciones registradas en su historial.")}</Apoyo>
             ) : null}
           </section>
 
@@ -730,13 +803,7 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
           <RespuestasDelCuestionario alumnaUlid={exp.alumnaUlid} />
 
           <Regla />
-
-          <CalendarioDeCobros
-            alumnaUlid={exp.alumnaUlid}
-            precioSugerido={exp.planPrecio}
-            nombreDelPlan={exp.planNombre}
-          />
-        </aside>
+        </aside> : null}
       </div>
     </div>
   );
@@ -745,6 +812,7 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
 /** Lo que contestó al entrar. Vive junto al plan porque es donde se decide qué comer y qué
  *  entrenar: quien duerme cinco horas no lleva el mismo volumen que quien duerme ocho. */
 function RespuestasDelCuestionario({ alumnaUlid }: { alumnaUlid: string }) {
+  const { t } = useIdioma();
   const carga = usarApi<RespuestaDeAlumnaApi[]>(
     (senal) => api.coach.respuestasDeAlumna(alumnaUlid, senal),
     [alumnaUlid],
@@ -754,7 +822,7 @@ function RespuestasDelCuestionario({ alumnaUlid }: { alumnaUlid: string }) {
 
   return (
     <section className="flex flex-col gap-3">
-      <Etiqueta>Su cuestionario</Etiqueta>
+      <Etiqueta>{t("Su cuestionario")}</Etiqueta>
       <dl className="flex flex-col gap-3">
         {filas.map((r) => (
           <div key={r.pregunta} className="flex flex-col gap-0.5">
@@ -771,6 +839,7 @@ function RespuestasDelCuestionario({ alumnaUlid }: { alumnaUlid: string }) {
  *
  *  Vive junto al plan porque es donde sirve: se mira el plato contra lo que se le pidio. */
 function FotosDeSusComidas({ alumnaUlid }: { alumnaUlid: string }) {
+  const { t } = useIdioma();
   const carga = usarApi<FotoDeComidaApi[]>(
     (senal) => api.coach.fotosDeComida(alumnaUlid, senal),
     [alumnaUlid],
@@ -796,13 +865,13 @@ function FotosDeSusComidas({ alumnaUlid }: { alumnaUlid: string }) {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-2">
-        <Etiqueta>Sus comidas</Etiqueta>
+        <Etiqueta>{t("Sus comidas")}</Etiqueta>
         <Chip>{fotos.length}</Chip>
       </div>
-      <Apoyo>Se borran solas a las 36 horas de que las manda.</Apoyo>
+      <Apoyo>{t("Se borran solas a las 36 horas de que las manda.")}</Apoyo>
 
       {fotos.length === 0 ? (
-        <Apoyo>Ahora mismo no tiene ninguna vigente.</Apoyo>
+        <Apoyo>{t("Ahora mismo no tiene ninguna vigente.")}</Apoyo>
       ) : null}
 
       <ul className="grid grid-cols-2 gap-2">
@@ -810,22 +879,22 @@ function FotosDeSusComidas({ alumnaUlid }: { alumnaUlid: string }) {
           <li key={f.ulid} className="flex flex-col gap-1">
             <img
               src={urlDeFotoDeComida(f.ulid)}
-              alt={f.tiempo ?? "Comida"}
+              alt={f.tiempo ?? t("Comida")}
               className="aspect-square w-full rounded-marco border border-linea object-cover"
             />
-            <span className="text-micro text-tinta-media">{f.tiempo ?? "Sin titulo"}</span>
+            <span className="text-micro text-tinta-media">{f.tiempo ?? t("Sin titulo")}</span>
             {f.nota ? <span className="text-micro text-tinta-suave">{f.nota}</span> : null}
             {comentando === f.ulid ? (
               <div className="flex flex-col gap-1">
                 <Entrada
                   value={texto}
                   onChange={(e) => setTexto(e.target.value)}
-                  placeholder="Buena porcion."
-                  aria-label="Comentario"
+                  placeholder={t("Buena porcion.")}
+                  aria-label={t("Comentario")}
                   className="h-8 text-micro"
                 />
                 <Boton medida="chica" onClick={() => void guardar(f.ulid)}>
-                  Guardar
+                  {t("Guardar")}
                 </Boton>
               </div>
             ) : (
@@ -837,7 +906,7 @@ function FotosDeSusComidas({ alumnaUlid }: { alumnaUlid: string }) {
                 }}
                 className="text-left text-micro text-tinta-suave underline underline-offset-2"
               >
-                {f.comentario ?? "Comentar"}
+                {f.comentario ?? t("Comentar")}
               </button>
             )}
           </li>
@@ -847,125 +916,3 @@ function FotosDeSusComidas({ alumnaUlid }: { alumnaUlid: string }) {
   );
 }
 
-
-/* ------------------------------------------------ Proyección de ganancia --- */
-
-/** La tabla «PROYECCIÓN AUMENTO DE MÚSCULO» de la hoja, tal como está en G16:J23.
- *
- *  La hoja enseña las dos relaciones **en paralelo**, no una a la vez, y es a propósito:
- *  2:1 y 1:1 son dos apuestas sobre cuánto de lo que sube es músculo, y la coach decide
- *  viéndolas juntas. La que quede guardada en el plan va marcada, pero la otra sigue a la
- *  vista para poder compararla.
- *
- *  Las semanas se teclean porque en la hoja también: H20 es una celda de hipótesis, no un
- *  dato de la alumna. Por eso no se guarda con el plan.
- */
-function ProyeccionDeGanancia({
-  comp,
-  energia,
-  semanas,
-  onSemanas,
-  relacionDelPlan,
-}: {
-  comp: Composicion;
-  energia: Energia;
-  semanas: number;
-  onSemanas: (v: number) => void;
-  relacionDelPlan: RelacionGanancia;
-}) {
-  const dos = proyectarGanancia(comp, energia, semanas, "2:1");
-  const uno = proyectarGanancia(comp, energia, semanas, "1:1");
-  if (!dos || !uno) return null;
-
-  // Filas de un solo valor: no dependen de la relación, así que cruzan las dos columnas.
-  const comunes: [string, string][] = [
-    ["Aumento de peso semanal", `${num(dos.aumentoSemanalKg, 2)} kg`],
-    ["Aumento mensual", porcentaje(dos.porcentajeMensual)],
-    [`Peso total en ${semanas} semanas`, `${num(dos.aumentoTotalKg)} kg`],
-  ];
-
-  // Filas que sí cambian según la relación.
-  const porRelacion: [string, string, string][] = [
-    ["Músculo semanal", `${num(dos.musculoSemanalKg, 2)}`, `${num(uno.musculoSemanalKg, 2)}`],
-    ["Músculo en total", `${num(dos.musculoTotalKg)}`, `${num(uno.musculoTotalKg)}`],
-    ["Grasa en total", `${num(dos.grasaTotalKg)}`, `${num(uno.grasaTotalKg)}`],
-  ];
-
-  const columna = (r: RelacionGanancia) =>
-    cn(
-      "py-2 pl-3 text-right",
-      r === relacionDelPlan ? "text-tinta font-semibold" : "text-tinta-media",
-    );
-
-  return (
-    <>
-      <Titulo icono={Dumbbell}>Fase de ganancia</Titulo>
-
-      <Campo
-        id="c-semanas"
-        etiqueta="Semanas de aumento"
-        sufijo="sem"
-        ayuda="Hipótesis para la proyección. No se guarda con el plan."
-      >
-        <Entrada
-          id="c-semanas"
-          type="number"
-          min={1}
-          max={104}
-          step={1}
-          value={semanas}
-          onChange={(e) => onSemanas(Math.min(104, Math.max(1, Number(e.target.value) || 1)))}
-          className="rounded-r-none"
-        />
-      </Campo>
-
-      <table className="w-full text-menor">
-        <caption className="sr-only">
-          Proyección de aumento de músculo, comparando la relación 2 a 1 contra la 1 a 1
-        </caption>
-        <tbody className="divide-y divide-linea border-y border-linea">
-          {comunes.map(([rotulo, valor]) => (
-            <tr key={rotulo}>
-              <th scope="row" className="py-2 text-left font-normal text-tinta-suave">
-                {rotulo}
-              </th>
-              <td colSpan={2} className="cifra py-2 pl-3 text-right font-semibold">
-                {valor}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-
-        <thead>
-          <tr className="text-micro uppercase tracking-[0.08em] text-tinta-suave">
-            <td />
-            <th scope="col" className="py-2 pl-3 text-right font-semibold">
-              2:1
-            </th>
-            <th scope="col" className="py-2 pl-3 text-right font-semibold">
-              1:1
-            </th>
-          </tr>
-        </thead>
-
-        <tbody className="divide-y divide-linea border-y border-linea">
-          {porRelacion.map(([rotulo, a, b]) => (
-            <tr key={rotulo}>
-              <th scope="row" className="py-2 text-left font-normal text-tinta-suave">
-                {rotulo}
-              </th>
-              <td className={cn("cifra", columna("2:1"))}>{a}</td>
-              <td className={cn("cifra", columna("1:1"))}>{b}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <Apoyo>
-        En negrita, la relación {relacionDelPlan} que trae su plan. La otra queda a la vista
-        para comparar: son kilos, y de cuál de las dos se cumpla depende cuánta grasa sube
-        con el músculo.
-      </Apoyo>
-    </>
-  );
-}

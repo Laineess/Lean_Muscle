@@ -13,6 +13,7 @@ import { Apoyo, Aviso, Boton, Chip, Etiqueta, Portada, Regla, Selector, Titulo, 
 import { api, descargarPdf, urlDeFoto, type ChequeoApi, type InicioAlumnaApi } from "@/lib/api";
 import { chequeos as chequeosEjemplo } from "@/lib/datos";
 import { delta, fecha, fechaCorta, num, porcentaje } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApiConRespaldo } from "@/lib/usarApi";
 import {
   ANGULOS,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/tipos";
 
 export function Evolucion() {
+  const { t } = useIdioma();
   const [izquierda, setIzquierda] = useState(0);
   const [derecha, setDerecha] = useState(-1);
   const [angulo, setAngulo] = useState<Angulo>("frontal");
@@ -34,11 +36,11 @@ export function Evolucion() {
     { chequeos: chequeosEjemplo },
   );
 
-  if (cargando) return <CargandoPantalla que="tu evolución" cifras={3} filas={3} />;
+  if (cargando) return <CargandoPantalla que={t("tu evolución")} cifras={3} filas={3} />;
 
   const chequeos = datos.chequeos;
   if (chequeos.length < 2) {
-    return <Vacio>Con un solo chequeo todavía no hay nada que comparar. Vuelve el mes que entra.</Vacio>;
+    return <Vacio>{t("Con un solo chequeo todavía no hay nada que comparar. Vuelve el mes que entra.")}</Vacio>;
   }
 
   const iA = Math.min(izquierda, chequeos.length - 1);
@@ -52,55 +54,58 @@ export function Evolucion() {
 
       <header className="flex flex-col gap-3">
         <Etiqueta>
-          {chequeos.length} chequeos · desde {fecha(chequeos[0]!.fecha)}
+          {t("{n} chequeos · desde {desde}", {
+            n: chequeos.length,
+            desde: fecha(chequeos[0]!.fecha),
+          })}
         </Etiqueta>
-        <Portada>Tu evolución</Portada>
+        <Portada>{t("Tu evolución")}</Portada>
       </header>
 
-      <Aviso tono="atencion" titulo="Tus fotos de abril se borran en 15 días">
-        Tu primera y tu última de cada ángulo se quedan. Las de en medio no.{" "}
+      <Aviso tono="atencion" titulo={t("Tus fotos de abril se borran en 15 días")}>
+        {t("Tu primera y tu última de cada ángulo se quedan. Las de en medio no.")}{" "}
         <a href="/api/documentos/expediente" download className="underline underline-offset-2">
-          Descargar todo
+          {t("Descargar todo")}
         </a>
       </Aviso>
 
       {/* ---- Comparativa ---- */}
       <section className="flex flex-col gap-5">
-        <Titulo icono={Images}>Antes y ahora</Titulo>
+        <Titulo icono={Images}>{t("Antes y ahora")}</Titulo>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="flex flex-col gap-1.5">
             <span className="text-micro font-semibold uppercase tracking-[0.08em] text-tinta-media">
-              Comparar
+              {t("Comparar")}
             </span>
             <Selector value={iA} onChange={(e) => setIzquierda(Number(e.target.value))}>
               {chequeos.map((c, i) => (
                 <option key={c.ulid} value={i}>
-                  #{c.numero} · {fecha(c.fecha)}
+                  {t("#{numero} · {fecha}", { numero: c.numero, fecha: fecha(c.fecha) })}
                 </option>
               ))}
             </Selector>
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-micro font-semibold uppercase tracking-[0.08em] text-tinta-media">
-              Contra
+              {t("Contra")}
             </span>
             <Selector value={iB} onChange={(e) => setDerecha(Number(e.target.value))}>
               {chequeos.map((c, i) => (
                 <option key={c.ulid} value={i}>
-                  #{c.numero} · {fecha(c.fecha)}
+                  {t("#{numero} · {fecha}", { numero: c.numero, fecha: fecha(c.fecha) })}
                 </option>
               ))}
             </Selector>
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-micro font-semibold uppercase tracking-[0.08em] text-tinta-media">
-              Ángulo
+              {t("Ángulo")}
             </span>
             <Selector value={angulo} onChange={(e) => setAngulo(e.target.value as Angulo)}>
               {ANGULOS.map((x) => (
                 <option key={x.id} value={x.id}>
-                  {x.rotulo}
+                  {t(x.rotulo)}
                 </option>
               ))}
             </Selector>
@@ -108,8 +113,8 @@ export function Evolucion() {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Marco chequeo={a} rotulo="Antes" angulo={angulo} />
-          <Marco chequeo={b} rotulo="Ahora" angulo={angulo} />
+          <Marco chequeo={a} rotulo={t("Antes")} angulo={angulo} />
+          <Marco chequeo={b} rotulo={t("Ahora")} angulo={angulo} />
         </div>
 
         <dl className="flex flex-wrap justify-center gap-x-10 gap-y-4">
@@ -127,7 +132,7 @@ export function Evolucion() {
             return (
               <div key={rotulo} className="flex flex-col items-center gap-0.5">
                 <dt className="text-micro font-semibold uppercase tracking-[0.1em] text-tinta-suave">
-                  {rotulo}
+                  {t(rotulo)}
                 </dt>
                 <dd className="cifra text-guia font-semibold">{d?.texto ?? "—"}</dd>
               </div>
@@ -140,7 +145,7 @@ export function Evolucion() {
 
       {/* ---- Gráficas: una serie por gráfica, sin leyendas que descifrar ---- */}
       <section className="flex flex-col gap-8">
-        <Titulo icono={LineChart}>Tus números en el tiempo</Titulo>
+        <Titulo icono={LineChart}>{t("Tus números en el tiempo")}</Titulo>
         <div className="grid gap-10 sm:grid-cols-2">
           {(
             [
@@ -152,7 +157,7 @@ export function Evolucion() {
           ).map(([rotulo, unidad, leer]) => (
             <article key={rotulo} className="flex flex-col gap-2">
               <Etiqueta>
-                {rotulo} ({unidad})
+                {t(rotulo)} ({unidad})
               </Etiqueta>
               <Grafica
                 puntos={chequeos.map((c) => ({ etiqueta: fechaCorta(c.fecha), valor: leer(c) }))}
@@ -162,8 +167,7 @@ export function Evolucion() {
           ))}
         </div>
         <Apoyo className="medida">
-          El brazo subió mientras bajaba la cintura. Eso es recomposición: no es lo mismo que
-          simplemente pesar menos.
+          {t("El brazo subió mientras bajaba la cintura. Eso es recomposición: no es lo mismo que simplemente pesar menos.")}
         </Apoyo>
       </section>
 
@@ -172,13 +176,13 @@ export function Evolucion() {
       {/* ---- Historial ---- */}
       <section className="flex flex-col gap-5">
         <div className="flex items-center justify-between gap-4">
-          <Titulo icono={Table2}>Todos tus registros</Titulo>
+          <Titulo icono={Table2}>{t("Todos tus registros")}</Titulo>
           <Boton
             tono="contorno"
             medida="chica"
             onClick={() => void descargarPdf("/documentos/evolucion", "mi-evolucion.pdf")}
           >
-            Descargar PDF
+            {t("Descargar PDF")}
           </Boton>
         </div>
 
@@ -187,21 +191,21 @@ export function Evolucion() {
             <article key={c.ulid} className="flex flex-col gap-3 border-b border-linea pb-4 last:border-0">
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <h3 className="text-guia font-semibold">
-                  Chequeo #{c.numero}
+                  {t("Chequeo #{numero}", { numero: c.numero })}
                   <span className="ml-2 text-menor font-normal text-tinta-suave">{fecha(c.fecha)}</span>
                 </h3>
                 <Chip tono={c.estado === "validado" ? "exito" : c.estado === "rechazado_calidad" ? "error" : "espera"}>
-                  {ROTULO_ESTADO[c.estado as EstadoChequeo]}
+                  {t(ROTULO_ESTADO[c.estado as EstadoChequeo])}
                 </Chip>
               </div>
 
               <dl className="flex flex-wrap gap-x-8 gap-y-2 text-menor">
-                <Par rotulo="Peso" valor={`${num(c.pesoKg)} kg`} />
+                <Par rotulo={t("Peso")} valor={`${num(c.pesoKg)} kg`} />
                 {c.porcentajeGrasa !== null ? (
-                  <Par rotulo="Grasa" valor={porcentaje(c.porcentajeGrasa)} />
+                  <Par rotulo={t("Grasa")} valor={porcentaje(c.porcentajeGrasa)} />
                 ) : null}
                 {(["cintura", "abdomen", "cadera", "brazo"] as TipoMedida[]).map((m) => (
-                  <Par key={m} rotulo={ROTULO_MEDIDA[m]} valor={`${num(c.medidas[m])} cm`} />
+                  <Par key={m} rotulo={t(ROTULO_MEDIDA[m])} valor={`${num(c.medidas[m])} cm`} />
                 ))}
               </dl>
 
@@ -232,11 +236,13 @@ function Marco({
   rotulo: string;
   angulo: Angulo;
 }) {
+  const { t } = useIdioma();
   // Lo dice el expediente, no el calendario. Con la retención nueva la primera y la última
   // de cada ángulo se quedan, así que deducirlo de la fecha marcaba como purgadas fotos que
   // siguen ahí.
   const hay = chequeo.fotos[angulo] === true;
   const [rota, setRota] = useState(false);
+  const etiquetaAngulo = t(ANGULOS.find((x) => x.id === angulo)?.rotulo ?? angulo);
 
   return (
     <figure className="overflow-hidden rounded-marco border border-linea">
@@ -244,16 +250,16 @@ function Marco({
         {hay && !rota ? (
           <img
             src={urlDeFoto(chequeo.ulid, angulo)}
-            alt={`${rotulo}, ${angulo}, ${fechaCorta(chequeo.fecha)}`}
+            alt={`${rotulo}, ${etiquetaAngulo}, ${fechaCorta(chequeo.fecha)}`}
             loading="lazy"
             onError={() => setRota(true)}
             className="size-full object-cover"
           />
         ) : (
           <div className="flex flex-col gap-1.5 p-4">
-            <strong className="text-menor font-semibold">Foto purgada</strong>
+            <strong className="text-menor font-semibold">{t("Foto purgada")}</strong>
             <span className="text-micro text-tinta-suave">
-              Se borró a los 4 meses. Tus medidas y tu peso siguen aquí.
+              {t("Se borró a los 4 meses. Tus medidas y tu peso siguen aquí.")}
             </span>
           </div>
         )}

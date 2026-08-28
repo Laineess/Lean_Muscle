@@ -26,6 +26,7 @@ import { ErrorApi, api, type AgendaApi, type CitaApi, type FilaCarteraApi } from
 import { cartera as carteraDeEjemplo } from "@/lib/datos";
 import { usarApiConRespaldo } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
+import { useIdioma } from "@/lib/idioma";
 
 /* ------------------------------------------------------------------ Tipos --- */
 
@@ -152,6 +153,7 @@ const VACIA: Cita = {
 /* ------------------------------------------------------------------ Vista --- */
 
 export function Agenda() {
+  const { t } = useIdioma();
   // En teléfono se abre en día: siete columnas en una pantalla de 6 pulgadas no se leen.
   const [vista, setVista] = useState<Vista>(() =>
     typeof window !== "undefined" && window.innerWidth < 640 ? "dia" : "semana",
@@ -257,7 +259,7 @@ export function Agenda() {
       await enApi();
       carga.recargar();
     } catch (causa) {
-      setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo guardar.");
+      setFallo(causa instanceof ErrorApi ? causa.message : t("No se pudo guardar."));
     }
   }
 
@@ -301,13 +303,13 @@ export function Agenda() {
     setEditando({ ...VACIA, iniciaEn: iso, terminaEn: sumarMinutos(iso, 60) });
   }
 
-  if (carga.cargando) return <CargandoPantalla que="tu agenda" cifras={2} columnas={2} filas={4} />;
+  if (carga.cargando) return <CargandoPantalla que={t("tu agenda")} cifras={2} columnas={2} filas={4} />;
 
   return (
     <div className="flex flex-col gap-6">
       {carga.sinServidor ? <AvisoSinServidor mensaje={carga.mensaje} /> : null}
       {fallo ? (
-        <Aviso tono="error" titulo="No se pudo guardar">
+        <Aviso tono="error" titulo={t("No se pudo guardar")}>
           {fallo}
         </Aviso>
       ) : null}
@@ -315,25 +317,25 @@ export function Agenda() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-3">
           <Etiqueta>
-            {consultas} {consultas === 1 ? "consulta agendada" : "consultas agendadas"}
+            {consultas} {consultas === 1 ? t("consulta agendada") : t("consultas agendadas")}
           </Etiqueta>
-          <Portada>Agenda</Portada>
+          <Portada>{t("Agenda")}</Portada>
         </div>
         <Boton onClick={() => abrirEn(`${dias[0] ?? claveDe(ancla)}T09:00`)}>
-          <CalendarPlus className="size-4" /> Agendar
+          <CalendarPlus className="size-4" /> {t("Agendar")}
         </Boton>
       </header>
 
       {/* ---- Barra de navegación: hoy, flechas, rango y cambio de vista ---- */}
       <div className="flex flex-wrap items-center gap-2">
         <Boton tono="contorno" medida="chica" onClick={() => setAncla(new Date())}>
-          Hoy
+          {t("Hoy")}
         </Boton>
         <div className="flex items-center">
-          <Boton tono="discreto" medida="icono" onClick={() => mover(-1)} aria-label="Anterior">
+          <Boton tono="discreto" medida="icono" onClick={() => mover(-1)} aria-label={t("Anterior")}>
             <ChevronLeft className="size-4" />
           </Boton>
-          <Boton tono="discreto" medida="icono" onClick={() => mover(1)} aria-label="Siguiente">
+          <Boton tono="discreto" medida="icono" onClick={() => mover(1)} aria-label={t("Siguiente")}>
             <ChevronRight className="size-4" />
           </Boton>
         </div>
@@ -342,7 +344,7 @@ export function Agenda() {
 
         <div
           role="tablist"
-          aria-label="Vista del calendario"
+          aria-label={t("Vista del calendario")}
           className="ml-auto flex overflow-hidden rounded-marco border border-linea-fuerte"
         >
           {(["dia", "semana", "mes"] as const).map((v) => (
@@ -356,7 +358,7 @@ export function Agenda() {
                 vista === v ? "bg-tinta text-fondo" : "text-tinta-media hover:bg-fondo-sutil",
               )}
             >
-              {v === "dia" ? "Día" : v === "semana" ? "Semana" : "Mes"}
+              {v === "dia" ? t("Día") : v === "semana" ? t("Semana") : t("Mes")}
             </button>
           ))}
         </div>
@@ -393,9 +395,9 @@ export function Agenda() {
       )}
 
       <div className="flex flex-wrap items-center gap-4">
-        <Leyenda tono="bg-acento">Consulta</Leyenda>
-        <Leyenda tono="bg-tinta-suave">Bloque de trabajo</Leyenda>
-        <Apoyo>Toca un hueco para agendar ahí.</Apoyo>
+        <Leyenda tono="bg-acento">{t("Consulta")}</Leyenda>
+        <Leyenda tono="bg-tinta-suave">{t("Bloque de trabajo")}</Leyenda>
+        <Apoyo>{t("Toca un hueco para agendar ahí.")}</Apoyo>
       </div>
 
       {editando ? (
@@ -453,6 +455,7 @@ function FormularioCita({
   onEliminar: (id: string) => void;
   onCerrar: () => void;
 }) {
+  const { t } = useIdioma();
   const [borrador, setBorrador] = useState<Cita>(cita);
   const esNueva = !cita.id;
 
@@ -465,59 +468,59 @@ function FormularioCita({
 
   const problema =
     !borrador.titulo.trim()
-      ? "Ponle un título: es lo que ve la alumna en su recordatorio."
+      ? t("Ponle un título: es lo que ve la paciente en su recordatorio.")
       : borrador.terminaEn <= borrador.iniciaEn
-        ? "La hora de fin tiene que ser posterior a la de inicio."
+        ? t("La hora de fin tiene que ser posterior a la de inicio.")
         : duracion < DURACION_MINIMA_MIN
-          ? `Muy corta. El mínimo son ${DURACION_MINIMA_MIN} minutos.`
+          ? t("Muy corta. El mínimo son {min} minutos.", { min: DURACION_MINIMA_MIN })
           : duracion > DURACION_MAXIMA_MIN
-            ? "Más de 8 horas: revisa que la fecha de fin sea la correcta."
+            ? t("Más de 8 horas: revisa que la fecha de fin sea la correcta.")
             : !borrador.alumnaUlid
-              ? "Elige de quién es: toda cita va también al expediente de su alumna."
+              ? t("Elige de quién es: toda cita va también al expediente de la paciente.")
               : null;
 
   return (
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta={esNueva ? "Nueva cita" : "Editar cita"}
-      titulo={esNueva ? "Agendar" : borrador.titulo || "Sin título"}
+      etiqueta={esNueva ? t("Nueva cita") : t("Editar cita")}
+      titulo={esNueva ? t("Agendar") : borrador.titulo || t("Sin título")}
       pie={
         <>
           {!esNueva && borrador.estado !== "cancelada" ? (
             <Boton tono="peligro" medida="chica" onClick={() => onCancelarCita(borrador)}>
-              Cancelar cita
+              {t("Cancelar cita")}
             </Boton>
           ) : null}
           {!esNueva ? (
             <Boton tono="discreto" medida="chica" onClick={() => onEliminar(borrador.id)}>
-              Eliminar
+              {t("Eliminar")}
             </Boton>
           ) : null}
           <Boton tono="contorno" medida="chica" onClick={onCerrar}>
-            Cerrar
+            {t("Cerrar")}
           </Boton>
           <Boton
             medida="chica"
             disabled={problema !== null || choque !== undefined}
             onClick={() => onGuardar(borrador)}
           >
-            {esNueva ? "Agendar" : "Guardar"}
+            {esNueva ? t("Agendar") : t("Guardar")}
           </Boton>
         </>
       }
     >
-      <Campo id="cita-titulo" etiqueta="Título">
+      <Campo id="cita-titulo" etiqueta={t("Título")}>
         <Entrada
           id="cita-titulo"
           value={borrador.titulo}
           onChange={(e) => cambiar("titulo", e.target.value)}
-          placeholder="Consulta de seguimiento"
+          placeholder={t("Consulta de seguimiento")}
         />
       </Campo>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo id="cita-tipo" etiqueta="Tipo">
+        <Campo id="cita-tipo" etiqueta={t("Tipo")}>
           <Selector
             id="cita-tipo"
             value={borrador.tipo}
@@ -527,12 +530,12 @@ function FormularioCita({
               setBorrador((b) => ({ ...b, tipo: e.target.value as TipoCita }));
             }}
           >
-            <option value="consulta">Consulta con alumna</option>
-            <option value="bloqueo">Bloque de trabajo</option>
+            <option value="consulta">{t("Consulta con paciente")}</option>
+            <option value="bloqueo">{t("Bloque de trabajo")}</option>
           </Selector>
         </Campo>
 
-        <Campo id="cita-modalidad" etiqueta="Modalidad">
+        <Campo id="cita-modalidad" etiqueta={t("Modalidad")}>
           <Selector
             id="cita-modalidad"
             value={borrador.modalidad}
@@ -540,20 +543,20 @@ function FormularioCita({
           >
             {(Object.keys(ROTULO_MODALIDAD) as Modalidad[]).map((m) => (
               <option key={m} value={m}>
-                {ROTULO_MODALIDAD[m]}
+                {t(ROTULO_MODALIDAD[m])}
               </option>
             ))}
           </Selector>
         </Campo>
       </div>
 
-      <Campo id="cita-alumna" etiqueta="Alumna">
+      <Campo id="cita-alumna" etiqueta={t("Paciente")}>
           <Selector
             id="cita-alumna"
             value={borrador.alumnaUlid ?? ""}
             onChange={(e) => cambiar("alumnaUlid", e.target.value || null)}
           >
-            <option value="">Elige una…</option>
+            <option value="">{t("Elige una…")}</option>
             {alumnas.map((a) => (
               <option key={a.ulid} value={a.ulid}>
                 {a.nombre}
@@ -563,7 +566,7 @@ function FormularioCita({
       </Campo>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo id="cita-inicia" etiqueta="Empieza">
+        <Campo id="cita-inicia" etiqueta={t("Empieza")}>
           <Entrada
             id="cita-inicia"
             type="datetime-local"
@@ -582,8 +585,8 @@ function FormularioCita({
         </Campo>
         <Campo
           id="cita-termina"
-          etiqueta="Termina"
-          ayuda={duracion > 0 ? `${duracion} minutos` : undefined}
+          etiqueta={t("Termina")}
+          ayuda={duracion > 0 ? t("{min} minutos", { min: duracion }) : undefined}
         >
           <Entrada
             id="cita-termina"
@@ -607,27 +610,31 @@ function FormularioCita({
         ))}
       </div>
 
-      <Campo id="cita-notas" etiqueta="Notas">
+      <Campo id="cita-notas" etiqueta={t("Notas")}>
         <textarea
           id="cita-notas"
           value={borrador.notas}
           onChange={(e) => cambiar("notas", e.target.value)}
           rows={3}
           className="w-full rounded-marco border border-linea bg-fondo px-3 py-2 text-cuerpo leading-relaxed focus:border-tinta focus:outline-none"
-          placeholder="Qué quieres cubrir en esta cita"
+          placeholder={t("Qué quieres cubrir en esta cita")}
         />
       </Campo>
 
       {choque ? (
-        <Aviso tono="error" titulo="Ya tienes algo a esa hora">
-          «{choque.titulo}», de {hora(choque.iniciaEn)} a {hora(choque.terminaEn)}. Mueve una de las dos.
+        <Aviso tono="error" titulo={t("Ya tienes algo a esa hora")}>
+          {t("«{titulo}», de {inicio} a {fin}. Mueve una de las dos.", {
+            titulo: choque.titulo,
+            inicio: hora(choque.iniciaEn),
+            fin: hora(choque.terminaEn),
+          })}
         </Aviso>
       ) : problema ? (
         <Aviso tono="atencion">{problema}</Aviso>
       ) : null}
 
       {borrador.estado === "cancelada" && borrador.motivoCancelacion ? (
-        <Aviso tono="info" titulo="Cita cancelada">
+        <Aviso tono="info" titulo={t("Cita cancelada")}>
           {borrador.motivoCancelacion}
         </Aviso>
       ) : null}
@@ -646,19 +653,20 @@ function FormularioCancelacion({
   onConfirmar: (c: Cita, motivo: string) => void;
   onCerrar: () => void;
 }) {
+  const { t } = useIdioma();
   const [motivo, setMotivo] = useState("");
 
   return (
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta="Cancelar cita"
+      etiqueta={t("Cancelar cita")}
       titulo={cita.titulo}
       descripcion={`${hora(cita.iniciaEn)}–${hora(cita.terminaEn)}`}
       pie={
         <>
           <Boton tono="contorno" medida="chica" onClick={onCerrar}>
-            Mejor no
+            {t("Mejor no")}
           </Boton>
           <Boton
             tono="peligro"
@@ -666,25 +674,27 @@ function FormularioCancelacion({
             disabled={!motivo.trim()}
             onClick={() => onConfirmar(cita, motivo.trim())}
           >
-            Cancelar y avisar
+            {t("Cancelar y avisar")}
           </Boton>
         </>
       }
     >
       <Apoyo>
         {nombreAlumna
-          ? `${nombreAlumna} recibirá un aviso con el motivo tal como lo escribas.`
-          : "El bloque se libera y la hora vuelve a quedar disponible."}
+          ? t("«{nombre}» recibirá un aviso con el motivo tal como lo escribas.", {
+              nombre: nombreAlumna,
+            })
+          : t("El bloque se libera y la hora vuelve a quedar disponible.")}
       </Apoyo>
 
-      <Campo id="motivo-cancelacion" etiqueta="Motivo">
+      <Campo id="motivo-cancelacion" etiqueta={t("Motivo")}>
         <textarea
           id="motivo-cancelacion"
           value={motivo}
           onChange={(e) => setMotivo(e.target.value)}
           rows={3}
           className="w-full rounded-marco border border-linea bg-fondo px-3 py-2 text-cuerpo leading-relaxed focus:border-tinta focus:outline-none"
-          placeholder="Se me empalmó una urgencia, te reagendo el jueves."
+          placeholder={t("Se me empalmó una urgencia, te reagendo el jueves.")}
         />
       </Campo>
     </Dialogo>

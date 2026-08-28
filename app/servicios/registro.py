@@ -134,7 +134,36 @@ def crear(
         select(Usuario).where(Usuario.email == correo).execution_options(sin_alcance=True)
     ).first()
     if ya_existe is not None:
-        raise ErrorDeDominio(Codigo.CORREO_YA_REGISTRADO, correo=correo)
+        if ya_existe.coach_id == coach.id:
+            alumna_existente = s.scalars(
+                select(Alumna).where(Alumna.usuario_id == ya_existe.id)
+            ).first()
+            solicitud_existente = (
+                s.scalars(
+                    select(SolicitudDeRegistro).where(
+                        SolicitudDeRegistro.alumna_id == alumna_existente.id
+                    )
+                ).first()
+                if alumna_existente is not None
+                else None
+            )
+            if solicitud_existente is not None and dom.esta_vencida(
+                dom.Estado(solicitud_existente.estado),
+                solicitud_existente.creado_en,
+                ahora_utc(),
+                solicitud_existente.decidida_en,
+            ):
+                borrar(s, solicitud_existente)
+                ya_existe = None
+            elif solicitud_existente is not None and solicitud_existente.estado == dom.Estado.SIN_VERIFICAR:
+                codigo = reemitir_codigo(s, solicitud_existente)
+                return SolicitudNueva(
+                    solicitud_ulid=solicitud_existente.ulid,
+                    correo=correo,
+                    codigo=codigo,
+                )
+        if ya_existe is not None:
+            raise ErrorDeDominio(Codigo.CORREO_YA_REGISTRADO, correo=correo)
 
     usuario = Usuario(
         coach_id=coach.id,

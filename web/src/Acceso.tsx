@@ -7,21 +7,15 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { Apoyo, Aviso, Boton, Campo, Casilla, Entrada, Etiqueta, Portada, Regla } from "@/componentes/primitivas";
+import { Apoyo, Aviso, Boton, Campo, Casilla, Entrada, Etiqueta, Portada } from "@/componentes/primitivas";
 import { ErrorApi, api, type ActorPublico } from "@/lib/api";
-import { correoRecordado, guardarActor, recordarCorreo } from "@/lib/sesion";
-
-//: Cuentas que crea `app.semilla`. Solo se usan en desarrollo.
-const CLAVE_DEMO = "Demo1234!";
-const CUENTAS_DEMO: [string, string][] = [
-  ["Alumna", "andrea.saenz@ejemplo.mx"],
-  ["Coach", "mariana@leanmuscle.mx"],
-  ["Superadmin", "admin@myfittplan.com"],
-];
+import { useIdioma } from "@/lib/idioma";
+import { cerrarSesion, correoRecordado, guardarActor, recordarCorreo } from "@/lib/sesion";
 
 export function Acceso() {
   const navegar = useNavigate();
   const guardado = correoRecordado();
+  const { t } = useIdioma();
 
   const [correo, setCorreo] = useState(guardado);
   const [clave, setClave] = useState("");
@@ -29,47 +23,38 @@ export function Acceso() {
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
-  function abrir(actor: ActorPublico) {
+  async function abrir(actor: ActorPublico) {
     recordarCorreo(correo, recordar);
     guardarActor(actor);
-    void navegar(
-      actor.rol === "coach" ? "/coach" : actor.rol === "admin_plataforma" ? "/plataforma" : "/inicio",
-      { replace: true },
-    );
-  }
+    if (actor.rol !== "alumna") {
+      void navegar(actor.rol === "coach" ? "/coach" : "/plataforma", { replace: true });
+      return;
+    }
 
-  /** Entra con una cuenta de la semilla, con login de verdad. Solo en desarrollo. */
-  async function entrarDemostracion(cuenta: string) {
-    setError(null);
-    setEnviando(true);
     try {
-      abrir(await api.acceso.entrar(cuenta, CLAVE_DEMO, false));
-    } catch (causa) {
-      setError(
-        causa instanceof ErrorApi
-          ? `${causa.message} ¿Sembraste la base con \`app.semilla\`?`
-          : "No se pudo entrar con la cuenta de ejemplo.",
-      );
-    } finally {
-      setEnviando(false);
+      const solicitud = await api.alumna.solicitud();
+      void navegar(solicitud.esSolicitud ? "/solicitud" : "/inicio", { replace: true });
+    } catch {
+      void navegar("/inicio", { replace: true });
     }
   }
 
   async function enviar(e: FormEvent) {
     e.preventDefault();
     if (!correo.trim() || !clave) {
-      setError("Faltan tu correo o tu contraseña.");
+      setError(t("Faltan tu correo o tu contraseña."));
       return;
     }
 
     setError(null);
     setEnviando(true);
+    cerrarSesion();
     try {
-      abrir(await api.acceso.entrar(correo.trim(), clave, recordar));
+      await abrir(await api.acceso.entrar(correo.trim(), clave, recordar));
     } catch (causa) {
       // El servidor ya redacta el mensaje para la usuaria; aquí no se inventa texto.
       setError(
-        causa instanceof ErrorApi ? causa.message : "Algo salió mal. Vuelve a intentarlo.",
+        causa instanceof ErrorApi ? causa.message : t("Algo salió mal. Vuelve a intentarlo."),
       );
     } finally {
       setEnviando(false);
@@ -77,23 +62,37 @@ export function Acceso() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full w-full max-w-sm flex-col justify-center gap-10 px-5 py-16">
-      <header className="flex flex-col gap-3">
-        <Etiqueta>MyFittPlan</Etiqueta>
-        <Portada>Entra a tu cuenta</Portada>
-        <Apoyo>Con el correo que le diste a tu coach.</Apoyo>
-      </header>
+    <div className="relative isolate min-h-full overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-1/2 z-[-1] h-[min(110vh,64rem)] w-[min(82vw,30rem)] -translate-x-1/2 -translate-y-1/2 rounded-[3rem] bg-white/70 blur-3xl dark:bg-white/20"
+      />
+
+      <main className="relative mx-auto flex min-h-full w-full max-w-md flex-col justify-center gap-10 px-5 py-16">
+        <header className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <img
+              src="/icono-192.png"
+              alt=""
+              aria-hidden="true"
+              className="size-8 shrink-0 rounded-marco border border-linea object-cover"
+            />
+            <Etiqueta>MYFITTPLAN</Etiqueta>
+          </div>
+          <Portada>{t("Entra a tu cuenta")}</Portada>
+          <Apoyo>{t("Con el correo que le diste a tu coach.")}</Apoyo>
+        </header>
 
       {/* Se llega aquí con `?caducada=1` cuando una petición devolvió 401. Decirlo evita que
           parezca que la contraseña dejó de servir. */}
       {new URLSearchParams(window.location.search).has("caducada") ? (
-        <Aviso tono="atencion" titulo="Tu sesión expiró">
-          Vuelve a entrar. Es por seguridad: las sesiones no duran para siempre.
+        <Aviso tono="atencion" titulo={t("Tu sesión expiró")}>
+          {t("Vuelve a entrar. Es por seguridad: las sesiones no duran para siempre.")}
         </Aviso>
       ) : null}
 
       <form onSubmit={enviar} className="flex flex-col gap-5">
-        <Campo id="correo" etiqueta="Correo">
+        <Campo id="correo" etiqueta={t("Correo")}>
           <Entrada
             id="correo"
             type="email"
@@ -105,7 +104,7 @@ export function Acceso() {
           />
         </Campo>
 
-        <Campo id="clave" etiqueta="Contraseña" {...(error ? { error } : {})}>
+        <Campo id="clave" etiqueta={t("Contraseña")} {...(error ? { error } : {})}>
           <Entrada
             id="clave"
             type="password"
@@ -118,58 +117,42 @@ export function Acceso() {
 
         <Casilla
           id="recordar"
-          titulo="Recordar mis datos"
+          titulo={t("Recordar mis datos")}
           checked={recordar}
           onChange={(e) => setRecordar(e.target.checked)}
         >
-          Guardamos tu correo y mantenemos la sesión abierta 30 días en este dispositivo. Tu
-          contraseña nunca se guarda aquí.
+          {recordar ? (
+            <>
+              {t(
+                "Guardamos tu correo y mantenemos la sesión abierta 30 días en este dispositivo. Tu contraseña nunca se guarda aquí.",
+              )}
+            </>
+          ) : null}
         </Casilla>
 
         <Boton type="submit" medida="grande" ancho="completo" disabled={enviando}>
-          {enviando ? "Entrando…" : "Entrar"}
+          {enviando ? t("Entrando…") : t("Entrar")}
         </Boton>
       </form>
 
-      <Aviso tono="info" titulo="¿Olvidaste tu contraseña?">
-        En esta versión no hay recuperación automática. Escríbele a tu coach y ella te genera
-        una clave temporal desde su panel, después de verificar que eres tú.
+      <Aviso tono="info" titulo={t("¿Olvidaste tu contraseña?")}>
+        {t(
+          "En esta versión no hay recuperación automática. Escríbele a tu coach y ella te genera una clave temporal desde su panel, después de verificar que eres tú.",
+        )}
       </Aviso>
 
-      {/* Solo en desarrollo: `import.meta.env.DEV` es falso al compilar, así que este bloque
-          ni siquiera llega al paquete que se despliega. */}
-      {import.meta.env.DEV ? (
-        <div className="flex flex-col gap-3">
-          <Regla />
-          <Etiqueta>Cuentas de la semilla</Etiqueta>
-          <Apoyo>Entra con un toque. Solo aparece en desarrollo.</Apoyo>
-          <div className="flex flex-wrap gap-2">
-            {CUENTAS_DEMO.map(([rotulo, cuenta]) => (
-              <Boton
-                key={cuenta}
-                tono="contorno"
-                medida="chica"
-                disabled={enviando}
-                onClick={() => void entrarDemostracion(cuenta)}
-              >
-                {rotulo}
-              </Boton>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
       <p className="text-micro text-tinta-suave">
-        Al entrar aceptas los{" "}
+        {t("Al entrar aceptas los")}{" "}
         <Link to="/legal/terminos" className="underline underline-offset-2">
-          Términos y Condiciones
+          {t("Términos y Condiciones")}
         </Link>{" "}
-        y el{" "}
+        {t("y el")}{" "}
         <Link to="/legal/privacidad" className="underline underline-offset-2">
-          Aviso de Privacidad
+          {t("Aviso de Privacidad")}
         </Link>
         .
       </p>
-    </main>
+      </main>
+    </div>
   );
 }

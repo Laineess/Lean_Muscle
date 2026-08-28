@@ -7,6 +7,7 @@
 import { useEffect, useRef } from "react";
 
 import { cn } from "@/lib/utils";
+import { useIdioma } from "@/lib/idioma";
 
 export interface CitaEnRejilla {
   id: string;
@@ -96,6 +97,7 @@ export function Calendario({
   onTocarHueco,
   onTocarCita,
 }: Props) {
+  const { t } = useIdioma();
   const horas = Array.from({ length: hastaHora - desdeHora }, (_, i) => desdeHora + i);
   const cuerpo = useRef<HTMLDivElement>(null);
   const hoy = new Date().toISOString().slice(0, 10);
@@ -142,7 +144,7 @@ export function Calendario({
               )}
             >
               <span className="text-micro font-medium tracking-[0.06em] text-tinta-suave uppercase">
-                {DIAS_CORTOS[d.getDay()]}
+                {t(DIAS_CORTOS[d.getDay()] ?? "")}
               </span>
               <span
                 className={cn(
@@ -189,7 +191,7 @@ export function Calendario({
                   <button
                     key={h}
                     type="button"
-                    aria-label={`Agendar el ${dia} a las ${h}:00`}
+                    aria-label={t("Agendar el {dia} a las {hora}:00", { dia, hora: h })}
                     onClick={(e) => {
                       // Dónde se tocó dentro de la hora, redondeado al cuarto más cercano.
                       const caja = e.currentTarget.getBoundingClientRect();
@@ -294,6 +296,7 @@ export function CalendarioMes({
   onTocarCita: (id: string) => void;
   onTocarCobro?: (ulid: string) => void;
 }) {
+  const { t } = useIdioma();
   const hoy = new Date().toISOString().slice(0, 10);
   const primero = new Date(ancla.getFullYear(), ancla.getMonth(), 1);
   const desplazamiento = (primero.getDay() + 6) % 7; // la semana empieza en lunes
@@ -317,7 +320,7 @@ export function CalendarioMes({
             key={d}
             className="py-2 text-center text-micro font-medium tracking-[0.06em] text-tinta-suave uppercase"
           >
-            {d}
+            {t(d)}
           </div>
         ))}
       </div>
@@ -395,7 +398,7 @@ export function CalendarioMes({
                   onClick={() => onTocarDia(celda.clave)}
                   className="px-1 text-left text-micro text-tinta-suave hover:text-tinta"
                 >
-                  +{delDia.length - 3} más
+                  +{delDia.length - 3} {t("más")}
                 </button>
               ) : null}
             </div>

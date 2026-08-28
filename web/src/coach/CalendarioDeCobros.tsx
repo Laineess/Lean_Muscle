@@ -30,6 +30,7 @@ import {
 import { fecha, horaLocal, num } from "@/lib/formato";
 import { usarApi } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
+import { useIdioma } from "@/lib/idioma";
 
 const MOTIVOS: [MotivoDeCobro, string][] = [
   ["mensualidad", "Mensualidad del plan"],
@@ -53,6 +54,7 @@ export function CalendarioDeCobros({
   /** Su nombre, para explicar de dónde salió el importe. */
   nombreDelPlan?: string | null;
 }) {
+  const { t } = useIdioma();
   const carga = usarApi<CobroApi2[]>((senal) => api.coach.cobros(alumnaUlid, senal), [alumnaUlid]);
   // Las consultas que su coach le agendó. Es la misma cita que sale en la agenda, vista
   // desde su expediente: sin esto, la coach tendría que recordar de memoria qué agendó.
@@ -95,22 +97,21 @@ export function CalendarioDeCobros({
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <Titulo>Cobros</Titulo>
-        {adeudo > 0 ? <Chip tono="error">debe ${num(adeudo)}</Chip> : null}
+        <Titulo>{t("Cobros")}</Titulo>
+        {adeudo > 0 ? <Chip tono="error">{t("debe {monto}", { monto: num(adeudo) })}</Chip> : null}
       </div>
       <Apoyo>
-        Toca un día para programar un cobro. Uno vencido le pausa el plan. El cuadrito marca
-        una consulta agendada.
+        {t("Toca un día para programar un cobro. Uno vencido le pausa el plan. El cuadrito marca una consulta agendada.")}
       </Apoyo>
 
       <div className="flex items-center justify-between gap-2">
-        <Boton tono="discreto" medida="icono" onClick={() => mover(-1)} aria-label="Mes anterior">
+        <Boton tono="discreto" medida="icono" onClick={() => mover(-1)} aria-label={t("Mes anterior")}>
           <ChevronLeft className="size-4" />
         </Boton>
         <span className="text-menor font-medium first-letter:uppercase">
           {ancla.toLocaleDateString("es-MX", { month: "long", year: "numeric" })}
         </span>
-        <Boton tono="discreto" medida="icono" onClick={() => mover(1)} aria-label="Mes siguiente">
+        <Boton tono="discreto" medida="icono" onClick={() => mover(1)} aria-label={t("Mes siguiente")}>
           <ChevronRight className="size-4" />
         </Boton>
       </div>
@@ -119,7 +120,7 @@ export function CalendarioDeCobros({
         <div className="grid grid-cols-7 border-b border-linea">
           {["L", "M", "X", "J", "V", "S", "D"].map((d, i) => (
             <div key={i} className="py-1 text-center text-micro text-tinta-suave">
-              {d}
+              {t(d)}
             </div>
           ))}
         </div>
@@ -162,7 +163,7 @@ export function CalendarioDeCobros({
 
       {proximasConsultas.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <Etiqueta>Consultas agendadas</Etiqueta>
+          <Etiqueta>{t("Consultas agendadas")}</Etiqueta>
           <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
             {proximasConsultas.map((c) => (
               <li key={c.ulid} className="flex items-baseline justify-between gap-2 py-2">
@@ -174,13 +175,12 @@ export function CalendarioDeCobros({
             ))}
           </ul>
           <Apoyo>
-            Su chequeo se abre tres días antes de cada una y se cierra tres después.
+            {t("Su chequeo se abre tres días antes de cada una y se cierra tres después.")}
           </Apoyo>
         </div>
       ) : (
         <Apoyo>
-          Sin consultas agendadas. Hasta que le agendes una desde tu agenda, no puede
-          capturar su chequeo.
+          {t("Sin consultas agendadas. Hasta que le agendes una desde tu agenda, no puede capturar su chequeo.")}
         </Apoyo>
       )}
 
@@ -195,9 +195,9 @@ export function CalendarioDeCobros({
               <span className="flex items-baseline gap-2">
                 <span className="cifra text-micro font-semibold">${num(c.monto)}</span>
                 {c.estado === "pagado" ? (
-                  <Chip tono="exito">pagado</Chip>
+                  <Chip tono="exito">{t("pagado")}</Chip>
                 ) : c.vencido ? (
-                  <Chip tono="error">vencido</Chip>
+                  <Chip tono="error">{t("vencido")}</Chip>
                 ) : null}
               </span>
             </li>
@@ -240,6 +240,7 @@ function FormularioDeCobro({
   onCerrar: () => void;
   onCambio: () => void;
 }) {
+  const { t } = useIdioma();
   const [motivo, setMotivo] = useState<MotivoDeCobro>("mensualidad");
   const [monto, setMonto] = useState(precioSugerido ?? 0);
   const [concepto, setConcepto] = useState("");
@@ -283,7 +284,7 @@ function FormularioDeCobro({
       });
       onCambio();
     } catch (causa) {
-      setError(causa instanceof ErrorApi ? causa.message : "No se pudo programar el cobro.");
+      setError(causa instanceof ErrorApi ? causa.message : t("No se pudo programar el cobro."));
     } finally {
       setEnviando(false);
     }
@@ -295,7 +296,7 @@ function FormularioDeCobro({
       await api.coach.cancelarCobro(ulid);
       onCambio();
     } catch (causa) {
-      setError(causa instanceof ErrorApi ? causa.message : "No se pudo cancelar.");
+      setError(causa instanceof ErrorApi ? causa.message : t("No se pudo cancelar."));
     }
   }
 
@@ -303,22 +304,22 @@ function FormularioDeCobro({
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta="Programar cobro"
+      etiqueta={t("Programar cobro")}
       titulo={fecha(dia)}
       pie={
         <>
           <Boton tono="contorno" medida="chica" onClick={onCerrar}>
-            Cerrar
+            {t("Cerrar")}
           </Boton>
           <Boton medida="chica" disabled={enviando || monto <= 0} onClick={() => void programar()}>
-            Programar
+            {t("Programar")}
           </Boton>
         </>
       }
     >
       {existentes.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <Etiqueta>Ya programado ese día</Etiqueta>
+          <Etiqueta>{t("Ya programado ese día")}</Etiqueta>
           <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
             {existentes.map((c) => (
               <li key={c.ulid} className="flex items-center justify-between gap-3 py-2">
@@ -326,10 +327,10 @@ function FormularioDeCobro({
                 <span className="flex items-center gap-3">
                   <span className="cifra font-semibold">${num(c.monto)}</span>
                   {c.estado === "pagado" ? (
-                    <Chip tono="exito">pagado</Chip>
+                    <Chip tono="exito">{t("pagado")}</Chip>
                   ) : (
                     <Boton tono="discreto" medida="chica" onClick={() => void cancelar(c.ulid)}>
-                      Quitar
+                      {t("Quitar")}
                     </Boton>
                   )}
                 </span>
@@ -339,7 +340,7 @@ function FormularioDeCobro({
         </div>
       ) : null}
 
-      <Campo id="cb-motivo" etiqueta="Motivo">
+      <Campo id="cb-motivo" etiqueta={t("Motivo")}>
         <Selector
           id="cb-motivo"
           value={motivo}
@@ -347,7 +348,7 @@ function FormularioDeCobro({
         >
           {MOTIVOS.map(([valor, rotulo]) => (
             <option key={valor} value={valor}>
-              {rotulo}
+              {t(rotulo)}
             </option>
           ))}
         </Selector>
@@ -356,8 +357,8 @@ function FormularioDeCobro({
       {delMotivo.length > 1 ? (
         <Campo
           id="cb-servicio"
-          etiqueta="De tu lista de precios"
-          ayuda="Al elegir uno se llenan el importe y el concepto. Puedes cambiarlos después."
+          etiqueta={t("De tu lista de precios")}
+          ayuda={t("Al elegir uno se llenan el importe y el concepto. Puedes cambiarlos después.")}
         >
           <Selector
             id="cb-servicio"
@@ -369,7 +370,7 @@ function FormularioDeCobro({
               setConcepto(elegido.nombre);
             }}
           >
-            <option value="">Elige uno…</option>
+            <option value="">{t("Elige uno…")}</option>
             {delMotivo.map((x) => (
               <option key={x.ulid} value={x.ulid}>
                 {x.nombre} · ${num(x.precio)}
@@ -379,14 +380,15 @@ function FormularioDeCobro({
         </Campo>
       ) : unico ? (
         <Apoyo>
-          Importe tomado de {motivo === "mensualidad" ? "su plan" : "tu lista de precios"}:{" "}
-          <strong className="font-semibold">{unico.nombre}</strong>. Cámbialo si esta vez es
-          distinto.
+          {t("Importe tomado de {origen}: «{nombre}». Cámbialo si esta vez es distinto.", {
+            origen: motivo === "mensualidad" ? t("su plan") : t("tu lista de precios"),
+            nombre: unico.nombre,
+          })}
         </Apoyo>
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo id="cb-monto" etiqueta="Monto" sufijo="MXN">
+        <Campo id="cb-monto" etiqueta={t("Monto")} sufijo="MXN">
           <Entrada
             id="cb-monto"
             type="number"
@@ -398,21 +400,20 @@ function FormularioDeCobro({
         </Campo>
         <Campo
           id="cb-concepto"
-          etiqueta="Concepto (opcional)"
-          ayuda="Si lo dejas vacío se usa el motivo."
+          etiqueta={t("Concepto (opcional)")}
+          ayuda={t("Si lo dejas vacío se usa el motivo.")}
         >
           <Entrada
             id="cb-concepto"
             value={concepto}
             onChange={(e) => setConcepto(e.target.value)}
-            placeholder="Mensualidad de septiembre"
+            placeholder={t("Mensualidad de septiembre")}
           />
         </Campo>
       </div>
 
       <Apoyo>
-        La alumna lo ve en sus próximas fechas. Si llega el día y no ha pagado, su plan se
-        pausa hasta que registres el ingreso.
+        {t("La alumna lo ve en sus próximas fechas. Si llega el día y no ha pagado, su plan se pausa hasta que registres el ingreso.")}
       </Apoyo>
 
       {error ? <Aviso tono="error">{error}</Aviso> : null}

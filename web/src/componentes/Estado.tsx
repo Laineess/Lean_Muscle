@@ -16,6 +16,7 @@ import { CloudOff, Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Aviso, Etiqueta, Vacio } from "@/componentes/primitivas";
+import { useIdioma } from "@/lib/idioma";
 import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------ Esqueletos --- */
@@ -132,14 +133,15 @@ export function Cargando({
   que?: string;
   esqueleto?: ReactNode;
 }) {
+  const { t } = useIdioma();
   return (
     <div role="status" aria-live="polite" className="animate-aparece">
-      <span className="sr-only">Cargando {que}…</span>
+      <span className="sr-only">{t("Cargando {que}…", { que })}</span>
       {esqueleto ?? (
         <Vacio>
           <span className="inline-flex items-center gap-2">
             <Rueda className="text-acento" />
-            Cargando {que}…
+            {t("Cargando {que}…", { que })}
           </span>
         </Vacio>
       )}
@@ -173,19 +175,20 @@ export function CargandoPantalla({
    *  como que la pantalla se duplicó. */
   portada?: boolean;
 }) {
+  const { t } = useIdioma();
   return (
     <div
       role="status"
       aria-live="polite"
       className={cn("flex flex-col animate-aparece", portada ? "gap-12" : "gap-6")}
     >
-      <span className="sr-only">Cargando {que}…</span>
+      <span className="sr-only">{t("Cargando {que}…", { que })}</span>
       {portada ? (
         <div className="flex flex-col gap-3">
           <Etiqueta>
             <span className="inline-flex items-center gap-2">
               <Rueda className="size-3 text-acento" />
-              Cargando
+              {t("Cargando")}
             </span>
           </Etiqueta>
           <Esqueleto className="h-9 w-64 max-w-full" />
@@ -201,9 +204,10 @@ export function CargandoPantalla({
 /* ------------------------------------------------------------- Sin señal --- */
 
 export function AvisoSinServidor({ mensaje }: { mensaje: string | null }) {
+  const { t } = useIdioma();
   return (
-    <Aviso tono="atencion" titulo="Sin conexión con el servidor" icono={CloudOff}>
-      {mensaje ?? "No se pudo contactar la API."} Estás viendo datos de ejemplo.
+    <Aviso tono="atencion" titulo={t("Sin conexión con el servidor")} icono={CloudOff}>
+      {mensaje ?? t("No se pudo contactar la API.")} {t("Estás viendo datos de ejemplo.")}
     </Aviso>
   );
 }

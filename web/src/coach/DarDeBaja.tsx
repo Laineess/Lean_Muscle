@@ -12,6 +12,7 @@ import { Dialogo } from "@/componentes/Dialogo";
 import { Apoyo, Aviso, Boton, Campo, Entrada } from "@/componentes/primitivas";
 import { ErrorApi, api, type AvisoDeBajaApi, type FilaCarteraApi } from "@/lib/api";
 import { fecha, num } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 
 export function DarDeBaja({
@@ -23,6 +24,7 @@ export function DarDeBaja({
   onCerrar: () => void;
   onHecho: () => void;
 }) {
+  const { t } = useIdioma();
   const carga = usarApi<AvisoDeBajaApi>(
     (s) => api.coach.revisarBaja(alumna.ulid, s),
     [alumna.ulid],
@@ -40,7 +42,7 @@ export function DarDeBaja({
       await api.coach.darDeBaja(alumna.ulid, escrito.trim());
       onHecho();
     } catch (causa) {
-      setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo dar de baja.");
+      setFallo(causa instanceof ErrorApi ? causa.message : t("No se pudo dar de baja."));
     } finally {
       setOcupado(false);
     }
@@ -50,12 +52,12 @@ export function DarDeBaja({
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta="No se puede deshacer"
-      titulo={`Dar de baja a ${alumna.nombre}`}
+      etiqueta={t("No se puede deshacer")}
+      titulo={t("Dar de baja a {nombre}", { nombre: alumna.nombre })}
       pie={
         <>
           <Boton tono="contorno" medida="chica" onClick={onCerrar}>
-            Cancelar
+            {t("Cancelar")}
           </Boton>
           <Boton
             tono="peligro"
@@ -64,42 +66,49 @@ export function DarDeBaja({
             disabled={ocupado || !escrito.trim() || carga.cargando}
             onClick={() => void confirmar()}
           >
-            Dar de baja
+            {t("Dar de baja")}
           </Boton>
         </>
       }
     >
-      {carga.cargando ? <Apoyo>Un momento…</Apoyo> : null}
+      {carga.cargando ? <Apoyo>{t("Un momento…")}</Apoyo> : null}
       {carga.error ? <Aviso tono="error">{carga.error.message}</Aviso> : null}
 
       {aviso ? (
         <>
           {aviso.cobrosVencidos > 0 ? (
-            <Aviso tono="atencion" titulo={`Te debe $${num(aviso.adeudo)}`}>
-              Son {aviso.cobrosVencidos}{" "}
-              {aviso.cobrosVencidos === 1 ? "cobro vencido" : "cobros vencidos"}. Darla de
-              baja no los cobra ni los cancela: decídelo tú antes de seguir.
+            <Aviso tono="atencion" titulo={t("Te debe {monto}", { monto: `$${num(aviso.adeudo)}` })}>
+              {aviso.cobrosVencidos === 1
+                ? t("Son {n} cobro vencido. Darla de baja no los cobra ni los cancela: decídelo tú antes de seguir.", {
+                    n: 1,
+                  })
+                : t("Son {n} cobros vencidos. Darla de baja no los cobra ni los cancela: decídelo tú antes de seguir.", {
+                    n: aviso.cobrosVencidos,
+                  })}
             </Aviso>
           ) : null}
 
           <Apoyo>
-            Sale de tu cartera hoy y deja de tener servicio. Conserva {""}
-            <strong className="font-medium">quince días de solo lectura</strong> para
-            descargar lo suyo, y le mandamos su expediente en PDF.
+            {t("Sale de tu cartera hoy y deja de tener servicio. Conserva")}{" "}
+            <strong className="font-medium">{t("quince días de solo lectura")}</strong>{" "}
+            {t("para descargar lo suyo, y le mandamos su expediente en PDF.")}
           </Apoyo>
 
-          <Aviso tono="error" titulo={`El ${fecha(aviso.borrariaEl)} se borra todo`}>
-            {aviso.chequeos > 0
-              ? `Sus ${aviso.chequeos} chequeos con sus fotos y medidas, `
-              : ""}
-            su historial clínico, sus respuestas, sus mensajes y su cuenta con su correo. Lo
-            único que se queda es el dinero, sin su nombre, para que tu contabilidad cuadre.
+          <Aviso tono="error" titulo={t("El {fecha} se borra todo", { fecha: fecha(aviso.borrariaEl) })}>
+            {aviso.chequeos > 0 ? (
+              <>
+                {t("Sus {n} chequeos con sus fotos y medidas,", { n: aviso.chequeos })}{" "}
+              </>
+            ) : null}
+            {t(
+              "su historial clínico, sus respuestas, sus mensajes y su cuenta con su correo. Lo único que se queda es el dinero, sin su nombre, para que tu contabilidad cuadre.",
+            )}
           </Aviso>
 
           <Campo
             id="ba-nombre"
-            etiqueta="Escribe su nombre para confirmar"
-            ayuda={`Tal como aparece: ${aviso.nombre}`}
+            etiqueta={t("Escribe su nombre para confirmar")}
+            ayuda={t("Tal como aparece: {nombre}", { nombre: aviso.nombre })}
           >
             <Entrada
               id="ba-nombre"

@@ -23,6 +23,7 @@ import {
 } from "@/lib/api";
 import { num } from "@/lib/formato";
 import { usarApi } from "@/lib/usarApi";
+import { useIdioma } from "@/lib/idioma";
 
 const NIVELES = ["principiante", "intermedio", "avanzado"] as const;
 
@@ -92,6 +93,7 @@ export function FormAlumna({
   onCerrar: () => void;
   onGuardada: () => void;
 }) {
+  const { t } = useIdioma();
   const planes = usarApi<PlanComercialApi[]>((senal) => api.coach.planes(senal)).datos ?? [];
   const editando = alumna !== null;
 
@@ -117,11 +119,11 @@ export function FormAlumna({
       })
       .catch((causa: unknown) => {
         if (control.signal.aborted) return;
-        setError(causa instanceof ErrorApi ? causa.message : "No se pudieron cargar sus datos.");
+        setError(causa instanceof ErrorApi ? causa.message : t("No se pudieron cargar sus datos."));
         setCargando(false);
       });
     return () => control.abort();
-  }, [ulid]);
+  }, [ulid, t]);
 
   const cambiar = <K extends keyof Borrador>(campo: K, valor: Borrador[K]) =>
     setB((v) => ({ ...v, [campo]: valor }));
@@ -133,11 +135,11 @@ export function FormAlumna({
 
   // Las mismas guardas que el servidor, para avisar antes de enviar.
   const problema = !b.nombre.trim()
-    ? "Falta el nombre."
+    ? t("Falta el nombre.")
     : !editando && !/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(b.correo.trim())
-      ? "Ese correo no parece válido."
+      ? t("Ese correo no parece válido.")
       : !editando && !b.fechaNacimiento
-        ? "Falta la fecha de nacimiento. El servicio es solo para mayores de 18 años."
+        ? t("Falta la fecha de nacimiento. El servicio es solo para mayores de 18 años.")
         : null;
 
   async function guardar() {
@@ -180,7 +182,7 @@ export function FormAlumna({
         onGuardada();
       }
     } catch (causa) {
-      setError(causa instanceof ErrorApi ? causa.message : "No se pudo guardar.");
+      setError(causa instanceof ErrorApi ? causa.message : t("No se pudo guardar."));
     } finally {
       setEnviando(false);
     }
@@ -192,17 +194,16 @@ export function FormAlumna({
       <Dialogo
         abierto
         onCambio={(v) => !v && onCerrar()}
-        etiqueta="Alumna dada de alta"
+        etiqueta={t("Alumna dada de alta")}
         titulo={b.nombre}
         pie={
           <Boton medida="chica" onClick={onCerrar}>
-            Listo
+            {t("Listo")}
           </Boton>
         }
       >
         <Apoyo>
-          Le mandamos la invitación a <strong>{claveEmitida.correo}</strong> con esta
-          contraseña. Es la misma para todas: díctasela sin problema.
+          {t("Le mandamos la invitación a «{correo}» con esta contraseña. Es la misma para todas: díctasela sin problema.", { correo: claveEmitida.correo })}
         </Apoyo>
 
         <div className="flex items-center gap-3 rounded-marco border border-linea-fuerte px-4 py-3">
@@ -218,18 +219,16 @@ export function FormAlumna({
             }}
           >
             {copiada ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-            {copiada ? "Copiada" : "Copiar"}
+            {copiada ? t("Copiada") : t("Copiar")}
           </Boton>
         </div>
 
-        <Aviso tono="atencion" titulo="Solo le sirve para entrar una vez">
-          Al entrar, lo primero que ve es la pantalla para ponerse la suya. Hasta que lo
-          haga, el sistema no le abre nada más.
+        <Aviso tono="atencion" titulo={t("Solo le sirve para entrar una vez")}>
+          {t("Al entrar, lo primero que ve es la pantalla para ponerse la suya. Hasta que lo haga, el sistema no le abre nada más.")}
         </Aviso>
 
         <Apoyo>
-          Vence en 24 horas. Al entrar se le pedirá cambiarla, y después completará su
-          cuestionario y sus consentimientos ella misma.
+          {t("Vence en 24 horas. Al entrar se le pedirá cambiarla, y después completará su cuestionario y sus consentimientos ella misma.")}
         </Apoyo>
       </Dialogo>
     );
@@ -239,35 +238,35 @@ export function FormAlumna({
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta={editando ? "Editar alumna" : "Alta de alumna"}
-      titulo={editando ? alumna.nombre : "Nueva alumna"}
+      etiqueta={editando ? t("Editar alumna") : t("Alta de alumna")}
+      titulo={editando ? alumna.nombre : t("Nueva alumna")}
       pie={
         <>
           <Boton tono="contorno" medida="chica" onClick={onCerrar}>
-            Cancelar
+            {t("Cancelar")}
           </Boton>
           <Boton medida="chica" disabled={enviando || cargando} onClick={() => void guardar()}>
-            {enviando ? "Guardando…" : editando ? "Guardar" : "Dar de alta"}
+            {enviando ? t("Guardando…") : editando ? t("Guardar") : t("Dar de alta")}
           </Boton>
         </>
       }
     >
       {cargando ? (
-        <CargandoPantalla que="sus datos" texto={2} filas={3} portada={false} />
+        <CargandoPantalla que={t("sus datos")} texto={2} filas={3} portada={false} />
       ) : (
         <>
-      <Campo id="a-nombre" etiqueta="Nombre completo">
+      <Campo id="a-nombre" etiqueta={t("Nombre completo")}>
         <Entrada
           id="a-nombre"
           value={b.nombre}
           onChange={(e) => cambiar("nombre", e.target.value)}
-          placeholder="Andrea Sáenz"
+          placeholder={t("Andrea Sáenz")}
         />
       </Campo>
 
       {!editando ? (
         <div className="grid gap-4 sm:grid-cols-2">
-          <Campo id="a-correo" etiqueta="Correo" ayuda="Ahí le llega su invitación.">
+          <Campo id="a-correo" etiqueta={t("Correo")} ayuda={t("Ahí le llega su invitación.")}>
             <Entrada
               id="a-correo"
               type="email"
@@ -277,8 +276,8 @@ export function FormAlumna({
           </Campo>
           <Campo
             id="a-nac"
-            etiqueta="Fecha de nacimiento"
-            ayuda="Solo mayores de 18 años."
+            etiqueta={t("Fecha de nacimiento")}
+            ayuda={t("Solo mayores de 18 años.")}
           >
             <Entrada
               id="a-nac"
@@ -291,10 +290,10 @@ export function FormAlumna({
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo id="a-wa" etiqueta="WhatsApp">
+        <Campo id="a-wa" etiqueta={t("WhatsApp")}>
           <Entrada id="a-wa" type="tel" value={b.whatsapp} onChange={(e) => cambiar("whatsapp", e.target.value)} />
         </Campo>
-        <Campo id="a-estatura" etiqueta="Estatura" sufijo="cm" ayuda="Se registra una sola vez.">
+        <Campo id="a-estatura" etiqueta={t("Estatura")} sufijo="cm" ayuda={t("Se registra una sola vez.")}>
           <Entrada
             id="a-estatura"
             type="number"
@@ -310,11 +309,11 @@ export function FormAlumna({
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo
           id="a-plan"
-          etiqueta="Plan"
-          ayuda="De aquí sale cuánto se le cobra. Los planes se crean en tus ajustes."
+          etiqueta={t("Plan")}
+          ayuda={t("De aquí sale cuánto se le cobra. Los planes se crean en tus ajustes.")}
         >
           <Selector id="a-plan" value={b.tarifaUlid} onChange={(e) => cambiar("tarifaUlid", e.target.value)}>
-            <option value="">Sin plan asignado</option>
+            <option value="">{t("Sin plan asignado")}</option>
             {planes
               .filter((p) => p.activa)
               .map((p) => (
@@ -324,7 +323,7 @@ export function FormAlumna({
               ))}
           </Selector>
         </Campo>
-        <Campo id="a-nivel" etiqueta="Nivel de experiencia">
+        <Campo id="a-nivel" etiqueta={t("Nivel de experiencia")}>
           <Selector
             id="a-nivel"
             value={b.nivelExperiencia}
@@ -332,7 +331,7 @@ export function FormAlumna({
           >
             {NIVELES.map((n) => (
               <option key={n} value={n}>
-                {n[0]!.toUpperCase() + n.slice(1)}
+                {t(n[0]!.toUpperCase() + n.slice(1))}
               </option>
             ))}
           </Selector>
@@ -342,21 +341,21 @@ export function FormAlumna({
       {editando ? (
         <>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Campo id="a-bascula" etiqueta="Báscula">
+            <Campo id="a-bascula" etiqueta={t("Báscula")}>
               <Entrada id="a-bascula" value={b.basculaRef} onChange={(e) => cambiar("basculaRef", e.target.value)} />
             </Campo>
-            <Campo id="a-lugar" etiqueta="Lugar de fotos">
+            <Campo id="a-lugar" etiqueta={t("Lugar de fotos")}>
               <Entrada id="a-lugar" value={b.lugarRef} onChange={(e) => cambiar("lugarRef", e.target.value)} />
             </Campo>
-            <Campo id="a-hora" etiqueta="Hora">
+            <Campo id="a-hora" etiqueta={t("Hora")}>
               <Entrada id="a-hora" value={b.horaRef} onChange={(e) => cambiar("horaRef", e.target.value)} />
             </Campo>
           </div>
           <Campo
             id="a-grasa"
-            etiqueta="Grasa objetivo"
+            etiqueta={t("Grasa objetivo")}
             sufijo="%"
-            ayuda="Con esto la calculadora proyecta cuánto le falta. Solo lo ves tú."
+            ayuda={t("Con esto la calculadora proyecta cuánto le falta. Solo lo ves tú.")}
           >
             <Entrada
               id="a-grasa"
@@ -368,18 +367,16 @@ export function FormAlumna({
               className="rounded-r-none"
             />
           </Campo>
-          <Campo id="a-estado" etiqueta="Estado">
+          <Campo id="a-estado" etiqueta={t("Estado")}>
             <Selector id="a-estado" value={b.estado} onChange={(e) => cambiar("estado", e.target.value)}>
-              <option value="activa">Activa</option>
-              <option value="pausa">En pausa</option>
+              <option value="activa">{t("Activa")}</option>
+              <option value="pausa">{t("En pausa")}</option>
             </Selector>
           </Campo>
         </>
       ) : (
-        <Aviso tono="info" titulo="No captures datos de salud aquí">
-          Su historial clínico y sus consentimientos los llena ella al entrar. La ley exige que
-          el consentimiento para datos sensibles sea personal, así que capturarlo tú lo
-          invalidaría.
+        <Aviso tono="info" titulo={t("No captures datos de salud aquí")}>
+          {t("Su historial clínico y sus consentimientos los llena ella al entrar. La ley exige que el consentimiento para datos sensibles sea personal, así que capturarlo tú lo invalidaría.")}
         </Aviso>
       )}
         </>
@@ -398,6 +395,7 @@ export function FormClaveTemporal({
   alumna: FilaCarteraApi;
   onCerrar: () => void;
 }) {
+  const { t } = useIdioma();
   const [motivo, setMotivo] = useState("");
   const [clave, setClave] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -408,7 +406,7 @@ export function FormClaveTemporal({
       const r = await api.coach.claveTemporal(alumna.ulid, motivo.trim());
       setClave(r.clave);
     } catch (causa) {
-      setError(causa instanceof ErrorApi ? causa.message : "No se pudo generar.");
+      setError(causa instanceof ErrorApi ? causa.message : t("No se pudo generar."));
     }
   }
 
@@ -416,20 +414,20 @@ export function FormClaveTemporal({
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta="Recuperación de acceso"
+      etiqueta={t("Recuperación de acceso")}
       titulo={alumna.nombre}
       pie={
         clave ? (
           <Boton medida="chica" onClick={onCerrar}>
-            Listo
+            {t("Listo")}
           </Boton>
         ) : (
           <>
             <Boton tono="contorno" medida="chica" onClick={onCerrar}>
-              Cancelar
+              {t("Cancelar")}
             </Boton>
             <Boton medida="chica" disabled={!motivo.trim()} onClick={() => void emitir()}>
-              Generar clave
+              {t("Generar clave")}
             </Boton>
           </>
         )
@@ -440,29 +438,28 @@ export function FormClaveTemporal({
           <div className="rounded-marco border border-linea-fuerte px-4 py-3 text-center">
             <span className="cifra text-titulo font-semibold tracking-[0.1em]">{clave}</span>
           </div>
-          <Apoyo>Vence en 24 horas. Al entrar se le pedirá cambiarla.</Apoyo>
+          <Apoyo>{t("Vence en 24 horas. Al entrar se le pedirá cambiarla.")}</Apoyo>
         </>
       ) : (
         <>
           <Apoyo>
-            En esta versión no hay recuperación automática por correo. Verifica que es ella
-            antes de generar la clave.
+            {t("En esta versión no hay recuperación automática por correo. Verifica que es ella antes de generar la clave.")}
           </Apoyo>
 
           <Campo
             id="ct-motivo"
-            etiqueta="¿Cómo verificaste su identidad?"
-            ayuda="Queda registrado. Sin esto, entregar una clave por WhatsApp es indistinguible de dársela a quien se hizo pasar por ella."
+            etiqueta={t("¿Cómo verificaste su identidad?")}
+            ayuda={t("Queda registrado. Sin esto, entregar una clave por WhatsApp es indistinguible de dársela a quien se hizo pasar por ella.")}
           >
             <Entrada
               id="ct-motivo"
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
-              placeholder="Videollamada · audio de WhatsApp · la conozco en persona"
+              placeholder={t("Videollamada · audio de WhatsApp · la conozco en persona")}
             />
           </Campo>
 
-          <Etiqueta>Se le enviará también por correo</Etiqueta>
+          <Etiqueta>{t("Se le enviará también por correo")}</Etiqueta>
         </>
       )}
 

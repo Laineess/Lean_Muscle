@@ -30,6 +30,7 @@ import {
   type SuscripcionApi,
 } from "@/lib/api";
 import { fecha, num } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
 
@@ -47,15 +48,16 @@ export function Coaches() {
   const { datos, cargando, error, recargar } = usarApi<FilaDeCoachApi[]>((senal) =>
     api.plataforma.coaches(senal),
   );
+  const { t } = useIdioma();
 
   const [dandoDeAlta, setDandoDeAlta] = useState(false);
   const [editando, setEditando] = useState<FilaDeCoachApi | null>(null);
   const [cobrando, setCobrando] = useState<FilaDeCoachApi | null>(null);
 
-  if (cargando) return <CargandoPantalla que="las coaches" filas={5} />;
+  if (cargando) return <CargandoPantalla que={t("las coaches")} filas={5} />;
   if (error) {
     return (
-      <Aviso tono="error" titulo="No se pudo cargar el panel">
+      <Aviso tono="error" titulo={t("No se pudo cargar el panel")}>
         {error.message}
       </Aviso>
     );
@@ -68,18 +70,18 @@ export function Coaches() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-3">
           <Etiqueta>
-            {filas.length} {filas.length === 1 ? "coach" : "coaches"} ·{" "}
-            {filas.reduce((s, f) => s + f.alumnasActivas, 0)} alumnas activas
+            {filas.length} {filas.length === 1 ? t("coach") : t("coaches")} ·{" "}
+            {filas.reduce((s, f) => s + f.alumnasActivas, 0)} {t("alumnas activas")}
           </Etiqueta>
-          <Portada>Coaches</Portada>
+          <Portada>{t("Coaches")}</Portada>
         </div>
         <Boton onClick={() => setDandoDeAlta(true)}>
-          <Plus className="size-4" /> Dar de alta
+          <Plus className="size-4" /> {t("Dar de alta")}
         </Boton>
       </header>
 
       {filas.length === 0 ? (
-        <Vacio>Todavía no hay ninguna coach dada de alta.</Vacio>
+        <Vacio>{t("Todavía no hay ninguna coach dada de alta.")}</Vacio>
       ) : (
         <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
           {filas.map((f) => {
@@ -93,7 +95,7 @@ export function Coaches() {
                   </span>
 
                   {f.estado !== "activa" ? (
-                    <Chip tono="error">{f.estado === "pausa" ? "En pausa" : "Baja"}</Chip>
+                    <Chip tono="error">{f.estado === "pausa" ? t("En pausa") : t("Baja")}</Chip>
                   ) : null}
                   {f.suscripcion ? (
                     <Chip
@@ -105,43 +107,46 @@ export function Coaches() {
                             : "espera"
                       }
                     >
-                      {ROTULO_SUSCRIPCION[f.suscripcion.estado]}
+                      {t(ROTULO_SUSCRIPCION[f.suscripcion.estado])}
                     </Chip>
                   ) : null}
                   {f.diasInactiva === null || f.diasInactiva >= 30 ? (
                     <Chip tono="espera">
-                      {f.diasInactiva === null ? "Nunca entró" : `${f.diasInactiva} días sin entrar`}
+                      {f.diasInactiva === null
+                        ? t("Nunca entró")
+                        : t("{n} días sin entrar", { n: f.diasInactiva })}
                     </Chip>
                   ) : null}
 
                   <div className="ml-auto flex gap-1">
                     <Boton tono="discreto" medida="chica" onClick={() => setCobrando(f)}>
-                      Cobros
+                      {t("Cobros")}
                     </Boton>
                     <Boton tono="contorno" medida="chica" onClick={() => setEditando(f)}>
-                      Editar
+                      {t("Editar")}
                     </Boton>
                   </div>
                 </div>
 
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-5">
                   <Cifra
-                    rotulo="Alumnas"
+                    rotulo={t("Alumnas")}
                     valor={`${f.alumnasActivas} / ${f.limiteAlumnas}`}
                     alerta={cerca}
                   />
-                  <Cifra rotulo="Por validar" valor={String(f.chequeosPorValidar)} />
-                  <Cifra rotulo="Chequeos del mes" valor={String(f.chequeosDelMes)} />
-                  <Cifra rotulo="Fotos" valor={`${f.fotos} · ${f.mbFotos} MB`} />
-                  <Cifra rotulo="Plan" valor={f.plan} />
+                  <Cifra rotulo={t("Por validar")} valor={String(f.chequeosPorValidar)} />
+                  <Cifra rotulo={t("Chequeos del mes")} valor={String(f.chequeosDelMes)} />
+                  <Cifra rotulo={t("Fotos")} valor={`${f.fotos} · ${f.mbFotos} MB`} />
+                  <Cifra rotulo={t("Plan")} valor={f.plan} />
                 </dl>
 
                 {cerca ? (
                   <Aviso tono="atencion">
                     <span className="flex items-center gap-2">
                       <AlertTriangle className="size-3.5 shrink-0" />
-                      Está por llegar a su límite de alumnas. Súbelo antes de que un alta le
-                      falle.
+                      {t(
+                        "Está por llegar a su límite de alumnas. Súbelo antes de que un alta le falle.",
+                      )}
                     </span>
                   </Aviso>
                 ) : null}
@@ -210,6 +215,7 @@ function FormularioAlta({
   const [error, setError] = useState<string | null>(null);
   const [clave, setClave] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const { t } = useIdioma();
 
   async function crear() {
     setError(null);
@@ -228,7 +234,7 @@ function FormularioAlta({
       });
       setClave(hecha.claveTemporal);
     } catch (causa) {
-      setError(causa instanceof ErrorApi ? causa.message : "No se pudo dar de alta.");
+      setError(causa instanceof ErrorApi ? causa.message : t("No se pudo dar de alta."));
     } finally {
       setEnviando(false);
     }
@@ -239,20 +245,21 @@ function FormularioAlta({
       <Dialogo
         abierto
         onCambio={(v) => !v && onCreada()}
-        etiqueta="Coach creada"
+        etiqueta={t("Coach creada")}
         titulo={nombre}
         pie={
           <Boton medida="chica" onClick={onCreada}>
-            Listo
+            {t("Listo")}
           </Boton>
         }
       >
-        <Aviso tono="atencion" titulo="Apúntala ahora: no se vuelve a mostrar">
+        <Aviso tono="atencion" titulo={t("Apúntala ahora: no se vuelve a mostrar")}>
           <p className="cifra mt-2 text-titulo font-semibold tracking-[0.08em]">{clave}</p>
         </Aviso>
         <Apoyo>
-          Es temporal y se le pide cambiarla al entrar. Después de cerrar esto solo queda su
-          hash, así que ni tú ni nadie puede volver a leerla.
+          {t(
+            "Es temporal y se le pide cambiarla al entrar. Después de cerrar esto solo queda su hash, así que ni tú ni nadie puede volver a leerla.",
+          )}
         </Apoyo>
       </Dialogo>
     );
@@ -262,30 +269,30 @@ function FormularioAlta({
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta="Nueva coach"
-      titulo="Dar de alta"
+      etiqueta={t("Nueva coach")}
+      titulo={t("Dar de alta")}
       pie={
         <>
           <Boton tono="contorno" medida="chica" onClick={onCerrar}>
-            Cerrar
+            {t("Cerrar")}
           </Boton>
           <Boton
             medida="chica"
             disabled={enviando || !nombre.trim() || !email.includes("@")}
             onClick={() => void crear()}
           >
-            Crear
+            {t("Crear")}
           </Boton>
         </>
       }
     >
-      <Campo id="c-nombre" etiqueta="Nombre de la persona">
+      <Campo id="c-nombre" etiqueta={t("Nombre de la persona")}>
         <Entrada id="c-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
       </Campo>
       <Campo
         id="c-marca"
-        etiqueta="Nombre de la marca"
-        ayuda="Lo que ven sus alumnas en la app y en los correos. Vacío = se usa su nombre."
+        etiqueta={t("Nombre de la marca")}
+        ayuda={t("Lo que ven sus alumnas en la app y en los correos. Vacío = se usa su nombre.")}
       >
         <Entrada
           id="c-marca"
@@ -294,12 +301,16 @@ function FormularioAlta({
           placeholder={nombre || "LeanMuscle"}
         />
       </Campo>
-      <Campo id="c-email" etiqueta="Correo" ayuda="Es su usuario para entrar. Único en toda la plataforma.">
+      <Campo
+        id="c-email"
+        etiqueta={t("Correo")}
+        ayuda={t("Es su usuario para entrar. Único en toda la plataforma.")}
+      >
         <Entrada id="c-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       </Campo>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Campo id="c-plan" etiqueta="Plan">
+        <Campo id="c-plan" etiqueta={t("Plan")}>
           <Selector id="c-plan" value={plan} onChange={(e) => setPlan(e.target.value)}>
             {PLANES.map((p) => (
               <option key={p} value={p}>
@@ -308,7 +319,7 @@ function FormularioAlta({
             ))}
           </Selector>
         </Campo>
-        <Campo id="c-limite" etiqueta="Límite de alumnas">
+        <Campo id="c-limite" etiqueta={t("Límite de alumnas")}>
           <Entrada
             id="c-limite"
             type="number"
@@ -317,7 +328,11 @@ function FormularioAlta({
             onChange={(e) => setLimite(Number(e.target.value))}
           />
         </Campo>
-        <Campo id="c-precio" etiqueta="Precio de su ciclo" ayuda="Lo que ella le cobra a sus alumnas.">
+        <Campo
+          id="c-precio"
+          etiqueta={t("Precio de su ciclo")}
+          ayuda={t("Lo que ella le cobra a sus alumnas.")}
+        >
           <Entrada
             id="c-precio"
             type="number"
@@ -329,8 +344,9 @@ function FormularioAlta({
       </div>
 
       <Apoyo>
-        Nace en cortesía: cobrarle desde el primer día a quien todavía no ha subido una sola
-        alumna genera una factura que nadie va a pagar. La suscripción se ajusta después.
+        {t(
+          "Nace en cortesía: cobrarle desde el primer día a quien todavía no ha subido una sola alumna genera una factura que nadie va a pagar. La suscripción se ajusta después.",
+        )}
       </Apoyo>
 
       {error ? <Aviso tono="error">{error}</Aviso> : null}
@@ -364,6 +380,7 @@ function FormularioEdicion({
 
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const { t } = useIdioma();
 
   async function guardar() {
     setError(null);
@@ -389,7 +406,7 @@ function FormularioEdicion({
       });
       onGuardada();
     } catch (causa) {
-      setError(causa instanceof ErrorApi ? causa.message : "No se pudo guardar.");
+      setError(causa instanceof ErrorApi ? causa.message : t("No se pudo guardar."));
     } finally {
       setEnviando(false);
     }
@@ -399,30 +416,30 @@ function FormularioEdicion({
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta="Editar"
+      etiqueta={t("Editar")}
       titulo={coach.nombre}
       pie={
         <>
           <Boton tono="contorno" medida="chica" onClick={onCerrar}>
-            Cerrar
+            {t("Cerrar")}
           </Boton>
           <Boton medida="chica" disabled={enviando} onClick={() => void guardar()}>
-            Guardar
+            {t("Guardar")}
           </Boton>
         </>
       }
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo id="e-nombre" etiqueta="Nombre de la persona">
+        <Campo id="e-nombre" etiqueta={t("Nombre de la persona")}>
           <Entrada id="e-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
         </Campo>
-        <Campo id="e-marca" etiqueta="Nombre de la marca" ayuda="Lo que ven sus alumnas.">
+        <Campo id="e-marca" etiqueta={t("Nombre de la marca")} ayuda={t("Lo que ven sus alumnas.")}>
           <Entrada id="e-marca" value={marca} onChange={(e) => setMarca(e.target.value)} />
         </Campo>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Campo id="e-plan" etiqueta="Plan">
+        <Campo id="e-plan" etiqueta={t("Plan")}>
           <Selector id="e-plan" value={plan} onChange={(e) => setPlan(e.target.value)}>
             {PLANES.map((p) => (
               <option key={p} value={p}>
@@ -433,8 +450,8 @@ function FormularioEdicion({
         </Campo>
         <Campo
           id="e-limite"
-          etiqueta="Límite de alumnas"
-          ayuda={`Tiene ${coach.alumnasActivas} activas.`}
+          etiqueta={t("Límite de alumnas")}
+          ayuda={t("Tiene {n} activas.", { n: coach.alumnasActivas })}
         >
           <Entrada
             id="e-limite"
@@ -444,7 +461,7 @@ function FormularioEdicion({
             onChange={(e) => setLimite(Number(e.target.value))}
           />
         </Campo>
-        <Campo id="e-precio" etiqueta="Precio de su ciclo">
+        <Campo id="e-precio" etiqueta={t("Precio de su ciclo")}>
           <Entrada
             id="e-precio"
             type="number"
@@ -455,24 +472,25 @@ function FormularioEdicion({
         </Campo>
       </div>
 
-      <Campo id="e-estado" etiqueta="Estado de la cuenta">
+      <Campo id="e-estado" etiqueta={t("Estado de la cuenta")}>
         <Selector id="e-estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
-          <option value="activa">Activa</option>
-          <option value="pausa">En pausa</option>
-          <option value="baja">Baja</option>
+          <option value="activa">{t("Activa")}</option>
+          <option value="pausa">{t("En pausa")}</option>
+          <option value="baja">{t("Baja")}</option>
         </Selector>
       </Campo>
 
       <Aviso tono="info">
-        Poner una cuenta en baja <strong>no borra nada</strong>. Sus alumnas y sus expedientes
-        siguen ahí: eliminar datos personales es otro flujo, con sus propios plazos, y no puede
-        dispararse desde un selector.
+        {t("Poner una cuenta en baja")} <strong>{t("no borra nada")}</strong>.{" "}
+        {t(
+          "Sus alumnas y sus expedientes siguen ahí: eliminar datos personales es otro flujo, con sus propios plazos, y no puede dispararse desde un selector.",
+        )}
       </Aviso>
 
-      <Titulo>Suscripción</Titulo>
+      <Titulo>{t("Suscripción")}</Titulo>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo id="s-precio" etiqueta="Precio">
+        <Campo id="s-precio" etiqueta={t("Precio")}>
           <Entrada
             id="s-precio"
             type="number"
@@ -481,26 +499,26 @@ function FormularioEdicion({
             onChange={(e) => setSubPrecio(Number(e.target.value))}
           />
         </Campo>
-        <Campo id="s-periodicidad" etiqueta="Periodicidad">
+        <Campo id="s-periodicidad" etiqueta={t("Periodicidad")}>
           <Selector
             id="s-periodicidad"
             value={periodicidad}
             onChange={(e) => setPeriodicidad(e.target.value as "mensual" | "anual")}
           >
-            <option value="mensual">Mensual</option>
-            <option value="anual">Anual</option>
+            <option value="mensual">{t("Mensual")}</option>
+            <option value="anual">{t("Anual")}</option>
           </Selector>
         </Campo>
-        <Campo id="s-estado" etiqueta="Estado">
+        <Campo id="s-estado" etiqueta={t("Estado")}>
           <Selector id="s-estado" value={subEstado} onChange={(e) => setSubEstado(e.target.value)}>
             {Object.entries(ROTULO_SUSCRIPCION).map(([valor, rotulo]) => (
               <option key={valor} value={valor}>
-                {rotulo}
+                {t(rotulo)}
               </option>
             ))}
           </Selector>
         </Campo>
-        <Campo id="s-vigente" etiqueta="Pagado hasta">
+        <Campo id="s-vigente" etiqueta={t("Pagado hasta")}>
           <Entrada
             id="s-vigente"
             type="date"
@@ -536,6 +554,7 @@ function PanelDeCobros({
   const [hasta, setHasta] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const { t } = useIdioma();
 
   async function registrar() {
     setError(null);
@@ -552,7 +571,7 @@ function PanelDeCobros({
       carga.recargar();
       onCambio();
     } catch (causa) {
-      setError(causa instanceof ErrorApi ? causa.message : "No se pudo registrar el cobro.");
+      setError(causa instanceof ErrorApi ? causa.message : t("No se pudo registrar el cobro."));
     } finally {
       setEnviando(false);
     }
@@ -562,21 +581,21 @@ function PanelDeCobros({
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta="Cobros"
+      etiqueta={t("Cobros")}
       titulo={coach.nombre}
       descripcion={
         coach.suscripcion?.vigenteHasta
-          ? `Pagada hasta el ${fecha(coach.suscripcion.vigenteHasta)}`
-          : "Sin periodo pagado registrado"
+          ? t("Pagada hasta el {fecha}", { fecha: fecha(coach.suscripcion.vigenteHasta) })
+          : t("Sin periodo pagado registrado")
       }
       pie={
         <Boton tono="contorno" medida="chica" onClick={onCerrar}>
-          Cerrar
+          {t("Cerrar")}
         </Boton>
       }
     >
       <div className="grid gap-4 sm:grid-cols-3">
-        <Campo id="k-monto" etiqueta="Monto">
+        <Campo id="k-monto" etiqueta={t("Monto")}>
           <Entrada
             id="k-monto"
             type="number"
@@ -584,7 +603,7 @@ function PanelDeCobros({
             onChange={(e) => setMonto(Number(e.target.value))}
           />
         </Campo>
-        <Campo id="k-fecha" etiqueta="Fecha">
+        <Campo id="k-fecha" etiqueta={t("Fecha")}>
           <Entrada
             id="k-fecha"
             type="date"
@@ -592,21 +611,25 @@ function PanelDeCobros({
             onChange={(e) => setCuando(e.target.value)}
           />
         </Campo>
-        <Campo id="k-hasta" etiqueta="Cubre hasta" ayuda="Mueve la suscripción a «al corriente».">
+        <Campo
+          id="k-hasta"
+          etiqueta={t("Cubre hasta")}
+          ayuda={t("Mueve la suscripción a «al corriente».")}
+        >
           <Entrada id="k-hasta" type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} />
         </Campo>
       </div>
 
       <div>
         <Boton medida="chica" disabled={enviando || monto === 0} onClick={() => void registrar()}>
-          Registrar cobro
+          {t("Registrar cobro")}
         </Boton>
       </div>
 
       <Apoyo>
-        Solo se agrega. Para corregir un cobro mal capturado se registra otro en negativo: lo
-        que se cobró es un hecho, y un historial que se puede reescribir no sirve para cuadrar
-        cuentas.
+        {t(
+          "Solo se agrega. Para corregir un cobro mal capturado se registra otro en negativo: lo que se cobró es un hecho, y un historial que se puede reescribir no sirve para cuadrar cuentas.",
+        )}
       </Apoyo>
 
       {error ? <Aviso tono="error">{error}</Aviso> : null}
@@ -619,7 +642,7 @@ function PanelDeCobros({
               <span className="flex items-baseline gap-3">
                 {c.periodoTermina ? (
                   <span className="text-micro text-tinta-suave">
-                    hasta {fecha(c.periodoTermina)}
+                    {t("hasta {fecha}", { fecha: fecha(c.periodoTermina) })}
                   </span>
                 ) : null}
                 <span className="cifra font-semibold">${num(c.monto)}</span>
@@ -628,7 +651,7 @@ function PanelDeCobros({
           ))}
         </ul>
       ) : (
-        <Vacio>Todavía no le has registrado ningún cobro.</Vacio>
+        <Vacio>{t("Todavía no le has registrado ningún cobro.")}</Vacio>
       )}
     </Dialogo>
   );

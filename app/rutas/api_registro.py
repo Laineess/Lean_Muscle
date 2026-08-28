@@ -208,6 +208,9 @@ def verificar_codigo(
 
     with sesion_con_alcance(coach_id) as s:
         solicitud = _solicitud_por_correo(s, coach_id, cuerpo.correo)
+        if dom.esta_vencida(dom.Estado(solicitud.estado), solicitud.creado_en, ahora_utc(), solicitud.decidida_en):
+            registro.borrar(s, solicitud)
+            raise HTTPException(404, "Ese registro venció. Empieza de nuevo.")
         registro.verificar(s, solicitud, cuerpo.codigo)
         alumna = s.get(Alumna, solicitud.alumna_id)
         if alumna is None or alumna.usuario_id is None:  # pragma: no cover - defensivo
@@ -218,17 +221,23 @@ def verificar_codigo(
     return actor_publico(coach_id, usuario_id, "alumna")
 
 
-@ruteador.post("/registro/{slug}/codigo/reenviar", status_code=204)
-def reenviar_codigo(slug: str, cuerpo: CorreoDeRegistro) -> None:
+@ruteador.post("/registro/{slug}/codigo/reenviar", response_model=RegistroAceptado)
+def reenviar_codigo(slug: str, cuerpo: CorreoDeRegistro) -> RegistroAceptado:
     with Session(motor()) as s:
         coach = _coach_de_la_liga(s, slug)
         coach_id, marca = coach.id, coach.marca or coach.nombre
 
     with sesion_con_alcance(coach_id) as s:
         solicitud = _solicitud_por_correo(s, coach_id, cuerpo.correo)
+        if dom.esta_vencida(dom.Estado(solicitud.estado), solicitud.creado_en, ahora_utc(), solicitud.decidida_en):
+            registro.borrar(s, solicitud)
+            raise HTTPException(404, "Ese registro venció. Empieza de nuevo.")
         dom.exigir_espera_entre_codigos(solicitud.codigo_vence_en, ahora_utc())
         codigo = registro.reemitir_codigo(s, solicitud)
         registro.mandar_codigo(marca, cuerpo.correo.strip().lower(), codigo)
+        correo = cuerpo.correo.strip().lower()
+
+    return RegistroAceptado(correo=correo, codigo=None if manda_de_verdad() else codigo)
 
 
 # ---------------------------------------------------------------------------

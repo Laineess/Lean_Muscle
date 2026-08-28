@@ -25,6 +25,7 @@ import {
   Vacio,
 } from "@/componentes/primitivas";
 import { num } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 
 export interface TiempoDeComida {
   nombre: string;
@@ -66,6 +67,7 @@ function Cantidad({
   unidad: string;
   onCambio: (cantidad: number) => void;
 }) {
+  const { t } = useIdioma();
   const [texto, setTexto] = useState(String(cantidad));
   useEffect(() => setTexto(String(cantidad)), [cantidad]);
 
@@ -77,7 +79,7 @@ function Cantidad({
         min={0}
         step="any"
         inputMode="decimal"
-        aria-label="Cantidad"
+        aria-label={t("Cantidad")}
         value={texto}
         onChange={(e) => {
           setTexto(e.target.value);
@@ -105,6 +107,7 @@ export function EditorNutricion({
   objetivoKcal: number;
   objetivoMacros: { proteina: number; carbohidrato: number; grasa: number } | null;
 }) {
+  const { t } = useIdioma();
   const [agregandoEn, setAgregandoEn] = useState<number | null>(null);
 
   const capturado = sumar(tiempos.flatMap((t) => t.alimentos));
@@ -136,8 +139,8 @@ export function EditorNutricion({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <Titulo>Tiempos de comida</Titulo>
-          <Apoyo>Los macros salen del catálogo: tú eliges el alimento y la cantidad.</Apoyo>
+          <Titulo>{t("Tiempos de comida")}</Titulo>
+          <Apoyo>{t("Los macros salen del catálogo: tú eliges el alimento y la cantidad.")}</Apoyo>
         </div>
         <Boton
           tono="contorno"
@@ -145,11 +148,16 @@ export function EditorNutricion({
           onClick={() =>
             onCambio([
               ...tiempos,
-              { nombre: `Tiempo ${tiempos.length + 1}`, hora: "12:00", kcal: 0, alimentos: [] },
+              {
+                nombre: t("Tiempo {n}", { n: String(tiempos.length + 1) }),
+                hora: "12:00",
+                kcal: 0,
+                alimentos: [],
+              },
             ])
           }
         >
-          <Plus className="size-3.5" /> Tiempo
+          <Plus className="size-3.5" /> {t("Tiempo")}
         </Boton>
       </div>
 
@@ -157,48 +165,62 @@ export function EditorNutricion({
       {objetivoKcal > 0 ? (
         <Aviso tono={cuadra ? "exito" : capturado.kcal === 0 ? "info" : "atencion"}>
           <strong className="block font-semibold">
-            {capturado.kcal} de {objetivoKcal} kcal capturadas
+            {t("{capturado} de {objetivo} kcal capturadas", {
+              capturado: num(capturado.kcal, 0),
+              objetivo: num(objetivoKcal, 0),
+            })}
           </strong>
           {capturado.kcal === 0
-            ? "Agrega alimentos y verás cómo se acerca al objetivo."
+            ? t("Agrega alimentos y verás cómo se acerca al objetivo.")
             : cuadra
-              ? "Cuadra con el objetivo."
-              : `Faltan ${objetivoKcal - capturado.kcal > 0 ? objetivoKcal - capturado.kcal : 0} kcal${
-                  capturado.kcal > objetivoKcal
-                    ? ` — te pasaste por ${capturado.kcal - objetivoKcal}`
-                    : ""
-                }.`}
+              ? t("Cuadra con el objetivo.")
+              : t("Faltan {faltan} kcal{exceso}.", {
+                  faltan: String(
+                    objetivoKcal - capturado.kcal > 0 ? objetivoKcal - capturado.kcal : 0,
+                  ),
+                  exceso:
+                    capturado.kcal > objetivoKcal
+                      ? t(" — te pasaste por {extra}", {
+                          extra: String(capturado.kcal - objetivoKcal),
+                        })
+                      : "",
+                })}
           {objetivoMacros ? (
             <span className="mt-1 block text-micro">
-              Proteína {num(capturado.p, 0)} / {objetivoMacros.proteina} g · Carbos{" "}
-              {num(capturado.c, 0)} / {objetivoMacros.carbohidrato} g · Grasa {num(capturado.g, 0)} /{" "}
-              {objetivoMacros.grasa} g
+              {t("Proteína {capturada} / {objetivo} g · Carbos {carbo} / {carboObjetivo} g · Grasa {grasa} / {grasaObjetivo} g", {
+                capturada: num(capturado.p, 0),
+                objetivo: String(objetivoMacros.proteina),
+                carbo: num(capturado.c, 0),
+                carboObjetivo: String(objetivoMacros.carbohidrato),
+                grasa: num(capturado.g, 0),
+                grasaObjetivo: String(objetivoMacros.grasa),
+              })}
             </span>
           ) : null}
         </Aviso>
       ) : null}
 
       {tiempos.length === 0 ? (
-        <Vacio>Todavía no hay tiempos de comida. Agrega el primero.</Vacio>
+        <Vacio>{t("Todavía no hay tiempos de comida. Agrega el primero.")}</Vacio>
       ) : (
-        tiempos.map((t, i) => {
-          const total = sumar(t.alimentos);
+        tiempos.map((td, i) => {
+          const total = sumar(td.alimentos);
           return (
             <article key={i} className="flex flex-col gap-3 rounded-marco border border-linea p-4">
               <div className="flex flex-wrap items-end gap-3">
-                <Campo id={`t-nombre-${i}`} etiqueta="Tiempo">
+                <Campo id={`t-nombre-${i}`} etiqueta={t("Tiempo")}>
                   <Entrada
                     id={`t-nombre-${i}`}
-                    value={t.nombre}
+                    value={td.nombre}
                     onChange={(e) => actualizar(i, { nombre: e.target.value })}
                     className="max-w-48"
                   />
                 </Campo>
-                <Campo id={`t-hora-${i}`} etiqueta="Hora">
+                <Campo id={`t-hora-${i}`} etiqueta={t("Hora")}>
                   <Entrada
                     id={`t-hora-${i}`}
                     type="time"
-                    value={t.hora}
+                    value={td.hora}
                     onChange={(e) => actualizar(i, { hora: e.target.value })}
                     className="max-w-32"
                   />
@@ -210,15 +232,15 @@ export function EditorNutricion({
                   className="mb-1.5 ml-auto"
                   onClick={() => onCambio(tiempos.filter((_, j) => j !== i))}
                 >
-                  Quitar tiempo
+                  {t("Quitar tiempo")}
                 </Boton>
               </div>
 
-              {t.alimentos.length === 0 ? (
-                <Apoyo>Sin alimentos todavía.</Apoyo>
+              {td.alimentos.length === 0 ? (
+                <Apoyo>{t("Sin alimentos todavía.")}</Apoyo>
               ) : (
                 <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
-                  {t.alimentos.map((a, k) => (
+                  {td.alimentos.map((a, k) => (
                     <FilaEditable
                       key={`${a.nombre}-${k}`}
                       className="items-center"
@@ -243,7 +265,7 @@ export function EditorNutricion({
 
               <div>
                 <Boton tono="contorno" medida="chica" onClick={() => setAgregandoEn(i)}>
-                  <Plus className="size-3.5" /> Alimento
+                  <Plus className="size-3.5" /> {t("Alimento")}
                 </Boton>
               </div>
             </article>
@@ -276,6 +298,7 @@ export function EditorEntrenamiento({
   onPlantilla: (v: string) => void;
   lesiones: string | null;
 }) {
+  const { t } = useIdioma();
   const [agregandoEn, setAgregandoEn] = useState<number | null>(null);
 
   function actualizar(i: number, cambio: Partial<DiaDeEntrenamiento>) {
@@ -294,44 +317,54 @@ export function EditorEntrenamiento({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <Titulo>Estructura de la semana</Titulo>
+          <Titulo>{t("Estructura de la semana")}</Titulo>
           <Apoyo>
-            {dias.length} días · {totalEjercicios} ejercicios
+            {t("{dias} días · {ejercicios} ejercicios", {
+              dias: String(dias.length),
+              ejercicios: String(totalEjercicios),
+            })}
           </Apoyo>
         </div>
         <Boton
           tono="contorno"
           medida="chica"
           onClick={() =>
-            onCambio([...dias, { nombre: `Día ${dias.length + 1}`, ejercicios: [] }])
+            onCambio([
+              ...dias,
+              { nombre: t("Día {n}", { n: String(dias.length + 1) }), ejercicios: [] },
+            ])
           }
         >
-          <Plus className="size-3.5" /> Día
+          <Plus className="size-3.5" /> {t("Día")}
         </Boton>
       </div>
 
-      <Campo id="e-plantilla" etiqueta="Plantilla base" ayuda="Aparece en el PDF de la alumna.">
+      <Campo
+        id="e-plantilla"
+        etiqueta={t("Plantilla base")}
+        ayuda={t("Aparece en el PDF de la alumna.")}
+      >
         <Entrada
           id="e-plantilla"
           value={plantilla}
           onChange={(e) => onPlantilla(e.target.value)}
-          placeholder="Fuerza superior/inferior — 4 días"
+          placeholder={t("Fuerza superior/inferior — 4 días")}
         />
       </Campo>
 
       {lesiones ? (
-        <Aviso tono="error" titulo="Cuidado con su historial">
+        <Aviso tono="error" titulo={t("Cuidado con su historial")}>
           {lesiones}
         </Aviso>
       ) : null}
 
       {dias.length === 0 ? (
-        <Vacio>Todavía no hay días. Agrega el primero.</Vacio>
+        <Vacio>{t("Todavía no hay días. Agrega el primero.")}</Vacio>
       ) : (
         dias.map((d, i) => (
           <article key={i} className="flex flex-col gap-3 rounded-marco border border-linea p-4">
             <div className="flex flex-wrap items-end gap-3">
-              <Campo id={`d-nombre-${i}`} etiqueta="Día">
+              <Campo id={`d-nombre-${i}`} etiqueta={t("Día")}>
                 <Entrada
                   id={`d-nombre-${i}`}
                   value={d.nombre}
@@ -345,12 +378,12 @@ export function EditorEntrenamiento({
                 className="mb-1.5 ml-auto"
                 onClick={() => onCambio(dias.filter((_, j) => j !== i))}
               >
-                Quitar día
+                {t("Quitar día")}
               </Boton>
             </div>
 
             {d.ejercicios.length === 0 ? (
-              <Apoyo>Sin ejercicios todavía.</Apoyo>
+              <Apoyo>{t("Sin ejercicios todavía.")}</Apoyo>
             ) : (
               <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
                 {d.ejercicios.map((e, k) => (
@@ -366,7 +399,7 @@ export function EditorEntrenamiento({
                           })
                         }
                       >
-                        Quitar
+                        {t("Quitar")}
                       </Boton>
                     </div>
 
@@ -379,27 +412,27 @@ export function EditorEntrenamiento({
                         onChange={(ev) =>
                           actualizarEjercicio(i, k, { series: Number(ev.target.value) })
                         }
-                        aria-label="Series"
+                        aria-label={t("Series")}
                         className="h-9"
                       />
                       <Entrada
                         value={e.reps}
                         onChange={(ev) => actualizarEjercicio(i, k, { reps: ev.target.value })}
-                        aria-label="Repeticiones"
+                        aria-label={t("Repeticiones")}
                         className="h-9"
                       />
                       <Entrada
                         value={e.carga}
                         onChange={(ev) => actualizarEjercicio(i, k, { carga: ev.target.value })}
-                        aria-label="Carga"
-                        placeholder="Carga"
+                        aria-label={t("Carga")}
+                        placeholder={t("Carga")}
                         className="h-9"
                       />
                       <Entrada
                         value={e.nota}
                         onChange={(ev) => actualizarEjercicio(i, k, { nota: ev.target.value })}
-                        aria-label="Nota"
-                        placeholder="Nota"
+                        aria-label={t("Nota")}
+                        placeholder={t("Nota")}
                         className="h-9"
                       />
                     </div>
@@ -410,7 +443,7 @@ export function EditorEntrenamiento({
 
             <div>
               <Boton tono="contorno" medida="chica" onClick={() => setAgregandoEn(i)}>
-                <Plus className="size-3.5" /> Ejercicio
+                <Plus className="size-3.5" /> {t("Ejercicio")}
               </Boton>
             </div>
           </article>

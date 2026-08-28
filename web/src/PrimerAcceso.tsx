@@ -13,10 +13,12 @@ import { Navigate } from "react-router-dom";
 import { BotonSalir } from "@/componentes/Seguridad";
 import { CambiarContrasena } from "@/componentes/Seguridad";
 import { Apoyo, Aviso, Etiqueta, Portada } from "@/componentes/primitivas";
+import { useIdioma } from "@/lib/idioma";
 import { actorGuardado } from "@/lib/sesion";
 
 export function PrimerAcceso() {
   const actor = actorGuardado();
+  const { t } = useIdioma();
   if (!actor) return <Navigate to="/acceso" replace />;
   // Quien ya la cambió no tiene nada que hacer aquí.
   if (!actor.debeCambiarContrasena) return <Navigate to="/" replace />;
@@ -25,16 +27,18 @@ export function PrimerAcceso() {
     <div className="mx-auto flex min-h-full max-w-lg flex-col justify-center gap-8 px-6 py-12">
       <header className="flex flex-col gap-3">
         <Etiqueta>{actor.marca}</Etiqueta>
-        <Portada>Ponle tu contraseña</Portada>
+        <Portada>{t("Ponle tu contraseña")}</Portada>
         <Apoyo>
-          Entraste con la que te dieron de alta, y esa la conoce alguien más. Cámbiala ahora
-          y lo demás se abre.
+          {t(
+            "Entraste con la que te dieron de alta, y esa la conoce alguien más. Cámbiala ahora y lo demás se abre.",
+          )}
         </Apoyo>
       </header>
 
-      <Aviso tono="atencion" titulo="Es la única pantalla disponible hasta que la cambies">
-        No es una recomendación: mientras no lo hagas, el servidor no abre tu expediente ni
-        tu plan.
+      <Aviso tono="atencion" titulo={t("Es la única pantalla disponible hasta que la cambies")}>
+        {t(
+          "No es una recomendación: mientras no lo hagas, el servidor no abre tu expediente ni tu plan.",
+        )}
       </Aviso>
 
       <CambiarContrasena />

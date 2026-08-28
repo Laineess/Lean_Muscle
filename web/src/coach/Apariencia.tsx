@@ -27,8 +27,10 @@ import { ErrorApi, api, urlDeLogo, type MarcaApi } from "@/lib/api";
 import { marcaCambiada } from "@/lib/marca";
 import { actorGuardado, guardarActor } from "@/lib/sesion";
 import { usarApi } from "@/lib/usarApi";
+import { useIdioma } from "@/lib/idioma";
 
 export function Apariencia() {
+  const { t } = useIdioma();
   const actor = actorGuardado();
   const carga = usarApi<MarcaApi>((senal) => api.coach.marca(senal));
 
@@ -43,6 +45,8 @@ export function Apariencia() {
   const [ocupado, setOcupado] = useState(false);
   const entradaLogo = useRef<HTMLInputElement>(null);
 
+  usarPaleta(acento, secundario);
+
   // Los campos se rellenan cuando llega la marca del servidor, no antes: escribirlos con la
   // copia de `sessionStorage` haría que un guardado pisara lo que hubiera en la base.
   useEffect(() => {
@@ -53,9 +57,6 @@ export function Apariencia() {
     setSecundario(carga.datos.colorSecundario);
     setTieneLogo(carga.datos.tieneLogo);
   }, [carga.datos]);
-
-  // Se aplica en vivo mientras elige: descubrir el resultado al guardar es peor que verlo.
-  usarPaleta(acento, secundario);
 
   function probar(color: string) {
     setAcento(color);
@@ -85,7 +86,7 @@ export function Apariencia() {
       } as never);
       setGuardado(true);
     } catch (causa) {
-      setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo guardar la marca.");
+      setFallo(causa instanceof ErrorApi ? causa.message : t("No se pudo guardar la marca."));
     } finally {
       setOcupado(false);
     }
@@ -102,7 +103,7 @@ export function Apariencia() {
       setVersionLogo((v) => v + 1);
       marcaCambiada();
     } catch (causa) {
-      setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo subir el logo.");
+      setFallo(causa instanceof ErrorApi ? causa.message : t("No se pudo subir el logo."));
     } finally {
       setOcupado(false);
       if (entradaLogo.current) entradaLogo.current.value = "";
@@ -112,22 +113,22 @@ export function Apariencia() {
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-3">
-        <Etiqueta>Cómo se ve tu plataforma</Etiqueta>
-        <Portada>Apariencia</Portada>
+        <Etiqueta>{t("Cómo se ve tu plataforma")}</Etiqueta>
+        <Portada>{t("Apariencia")}</Portada>
       </header>
 
       {/* ---- Marca ---- */}
       <section className="flex flex-col gap-5">
         <div className="flex flex-col gap-1">
-          <Titulo icono={Palette}>Tu marca</Titulo>
-          <Apoyo>Tus alumnas ven tu logo y tu color dentro de la plataforma.</Apoyo>
+          <Titulo icono={Palette}>{t("Tu marca")}</Titulo>
+          <Apoyo>{t("Tus alumnas ven tu logo y tu color dentro de la plataforma.")}</Apoyo>
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
           {tieneLogo ? (
             <img
               src={urlDeLogo(versionLogo)}
-              alt="Tu logo"
+              alt={t("Tu logo")}
               className="size-14 rounded-marco border border-linea object-cover"
             />
           ) : (
@@ -151,19 +152,19 @@ export function Apariencia() {
             disabled={ocupado}
             onClick={() => entradaLogo.current?.click()}
           >
-            {tieneLogo ? "Cambiar logo" : "Subir logo"}
+            {tieneLogo ? t("Cambiar logo") : t("Subir logo")}
           </Boton>
-          <Apoyo>Se recorta al centro en un cuadrado. Sin logo se usan tus iniciales.</Apoyo>
+          <Apoyo>{t("Se recorta al centro en un cuadrado. Sin logo se usan tus iniciales.")}</Apoyo>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Campo id="aj-nombre" etiqueta="Tu nombre">
+          <Campo id="aj-nombre" etiqueta={t("Tu nombre")}>
             <Entrada id="aj-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
           </Campo>
           <Campo
             id="aj-marca"
-            etiqueta="Nombre de tu marca"
-            ayuda="Es lo que ven tus alumnas. Puede no ser tu nombre."
+            etiqueta={t("Nombre de tu marca")}
+            ayuda={t("Es lo que ven tus alumnas. Puede no ser tu nombre.")}
           >
             <Entrada id="aj-marca" value={marca} onChange={(e) => setMarca(e.target.value)} />
           </Campo>
@@ -172,15 +173,15 @@ export function Apariencia() {
         <div className="grid gap-5 sm:grid-cols-2">
           <SelectorDeColor
             id="aj-acento"
-            etiqueta="Color de acento"
-            ayuda="Filetes, bordes, iconos y estados activos."
+            etiqueta={t("Color de acento")}
+            ayuda={t("Filetes, bordes, iconos y estados activos.")}
             color={acento}
             onCambio={probar}
           />
           <SelectorDeColor
             id="aj-secundario"
-            etiqueta="Color secundario"
-            ayuda="Acompaña al acento. Sirve para separar dos bloques hermanos."
+            etiqueta={t("Color secundario")}
+            ayuda={t("Acompaña al acento. Sirve para separar dos bloques hermanos.")}
             color={secundario}
             onCambio={probarSecundario}
           />
@@ -190,9 +191,9 @@ export function Apariencia() {
 
         <div>
           <Boton disabled={ocupado || !nombre.trim() || !marca.trim()} onClick={() => void guardarMarca()}>
-            Guardar marca
+            {t("Guardar marca")}
           </Boton>
-          {guardado ? <Apoyo className="mt-2">Marca actualizada.</Apoyo> : null}
+          {guardado ? <Apoyo className="mt-2">{t("Marca actualizada.")}</Apoyo> : null}
           {fallo ? (
             <Aviso tono="error" className="mt-3">
               {fallo}
@@ -206,8 +207,8 @@ export function Apariencia() {
       {/* ---- Tema ---- */}
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <Titulo icono={Contrast}>Claro y oscuro</Titulo>
-          <Apoyo>Solo cambia cómo lo ves tú. Cada alumna elige el suyo.</Apoyo>
+          <Titulo icono={Contrast}>{t("Claro y oscuro")}</Titulo>
+          <Apoyo>{t("Solo cambia cómo lo ves tú. Cada alumna elige el suyo.")}</Apoyo>
         </div>
         <InterruptorDeTema className="w-fit" />
       </section>
@@ -231,6 +232,7 @@ function SelectorDeColor({
   color: string;
   onCambio: (v: string) => void;
 }) {
+  const { t } = useIdioma();
   return (
     <Campo id={id} etiqueta={etiqueta} ayuda={ayuda}>
       <div className="flex items-center gap-3">
@@ -245,7 +247,7 @@ function SelectorDeColor({
           value={color}
           onChange={(e) => onCambio(e.target.value)}
           className="font-mono"
-          aria-label={`${etiqueta} en hexadecimal`}
+          aria-label={t("{etiqueta} en hexadecimal", { etiqueta })}
         />
       </div>
     </Campo>
@@ -261,25 +263,26 @@ function SelectorDeColor({
  *  que el sistema lo aclara en vez de descubrirlo con la app puesta en oscuro.
  */
 function VistaPreviaDeColores({ acento, secundario }: { acento: string; secundario: string }) {
+  const { t } = useIdioma();
   const temas = [
     { rotulo: "Claro", fondo: "#ffffff", tinta: "#0c0c0c", linea: "#e4e4e7" },
     { rotulo: "Oscuro", fondo: "#0c0c0c", tinta: "#fafafa", linea: "#27272a" },
   ];
   return (
     <div className="flex flex-col gap-2">
-      <Etiqueta>Cómo se ven en cada tema</Etiqueta>
+      <Etiqueta>{t("Cómo se ven en cada tema")}</Etiqueta>
       <div className="grid gap-3 sm:grid-cols-2">
-        {temas.map((t) => {
-          const a = paletaDe(acento, t.fondo);
-          const b = paletaDe(secundario, t.fondo);
+        {temas.map((tema) => {
+          const a = paletaDe(acento, tema.fondo);
+          const b = paletaDe(secundario, tema.fondo);
           return (
             <div
-              key={t.rotulo}
+              key={tema.rotulo}
               className="flex flex-col gap-3 rounded-marco border p-4"
-              style={{ background: t.fondo, borderColor: t.linea, color: t.tinta }}
+              style={{ background: tema.fondo, borderColor: tema.linea, color: tema.tinta }}
             >
               <span className="text-micro font-semibold uppercase tracking-[0.12em] opacity-60">
-                {t.rotulo}
+                {t(tema.rotulo)}
               </span>
               {[
                 { p: a, rotulo: "Acento" },
@@ -290,16 +293,16 @@ function VistaPreviaDeColores({ acento, secundario }: { acento: string; secundar
                     className="border-l-[3px] pl-3 text-menor"
                     style={{ borderColor: p.base }}
                   >
-                    {rotulo} en filete
+                    {t(rotulo)} {t("en filete")}
                   </span>
                   <span className="pl-3 text-menor font-semibold" style={{ color: p.texto }}>
-                    {rotulo} en texto
+                    {t(rotulo)} {t("en texto")}
                   </span>
                   <span
                     className="rounded-marco px-3 py-1 text-micro"
                     style={{ background: p.sutil, color: p.texto }}
                   >
-                    Fondo teñido
+                    {t("Fondo teñido")}
                   </span>
                 </div>
               ))}
@@ -308,8 +311,7 @@ function VistaPreviaDeColores({ acento, secundario }: { acento: string; secundar
         })}
       </div>
       <Apoyo>
-        Elige el color que quieras: el sistema lo aclara u oscurece lo justo para que se lea
-        en cada tema, sin cambiarle el tono.
+        {t("Elige el color que quieras: el sistema lo aclara u oscurece lo justo para que se lea en cada tema, sin cambiarle el tono.")}
       </Apoyo>
     </div>
   );

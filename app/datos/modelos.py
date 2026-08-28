@@ -81,6 +81,7 @@ class Usuario(BaseMultiInquilino):
     __tablename__ = "usuario"
     __table_args__ = (
         CheckConstraint("rol in ('coach','alumna','admin_plataforma')", name="rol_valido"),
+        CheckConstraint("idioma in ('es','en')", name="idioma_valido"),
         ARGS_DE_TABLA,
     )
 
@@ -90,6 +91,9 @@ class Usuario(BaseMultiInquilino):
     estado: Mapped[str] = mapped_column(String(20), default="activo", nullable=False)
     ultimo_acceso_en: Mapped[datetime | None] = mapped_column(MARCA_DE_TIEMPO)
     debe_cambiar_contrasena: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    #: Preferencia de idioma de la cuenta, no del dispositivo: cada usuario ve la app en el
+    #: suyo aunque comparta navegador con otra cuenta.
+    idioma: Mapped[str] = mapped_column(String(2), default="es", nullable=False)
 
 
 class Sesion(BaseMultiInquilino):

@@ -26,6 +26,7 @@ import {
 } from "@/componentes/primitivas";
 import { ErrorApi, api, type MotivoDeCobro, type ServicioApi } from "@/lib/api";
 import { num } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 
 /** Los mismos motivos del calendario de cobros: lo que se elige aquí es lo que aparece
@@ -42,6 +43,7 @@ const ROTULO = Object.fromEntries(MOTIVOS) as Record<MotivoDeCobro, string>;
 const VACIO = { nombre: "", descripcion: "", motivo: "cita" as MotivoDeCobro, precio: 0 };
 
 export function Servicios() {
+  const { t } = useIdioma();
   const carga = usarApi<ServicioApi[]>((s) => api.coach.servicios(s));
   const [editando, setEditando] = useState<ServicioApi | null>(null);
   const [creando, setCreando] = useState(false);
@@ -55,7 +57,7 @@ export function Servicios() {
       await api.coach.borrarServicio(ulid);
       carga.recargar();
     } catch (causa) {
-      setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo borrar.");
+      setFallo(causa instanceof ErrorApi ? causa.message : t("No se pudo borrar."));
     }
   }
 
@@ -63,14 +65,15 @@ export function Servicios() {
     <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <Titulo>Tus precios</Titulo>
+          <Titulo>{t("Tus precios")}</Titulo>
           <Apoyo>
-            Consultas, inscripciones y todo lo que cobras suelto. Al programar un cobro los
-            eliges de aquí en vez de teclear el importe.
+            {t(
+              "Consultas, inscripciones y todo lo que cobras suelto. Al programar un cobro los eliges de aquí en vez de teclear el importe.",
+            )}
           </Apoyo>
         </div>
         <Boton tono="contorno" medida="chica" onClick={() => setCreando(true)}>
-          <Plus className="size-3.5" /> Precio
+          <Plus className="size-3.5" /> {t("Precio")}
         </Boton>
       </div>
 
@@ -78,8 +81,9 @@ export function Servicios() {
 
       {carga.cargando ? null : servicios.length === 0 ? (
         <Vacio>
-          Todavía no tienes precios sueltos. Agrega el de una consulta y aparecerá al
-          programar cobros.
+          {t(
+            "Todavía no tienes precios sueltos. Agrega el de una consulta y aparecerá al programar cobros.",
+          )}
         </Vacio>
       ) : (
         <ul className="flex flex-col divide-y divide-linea border-y border-linea">
@@ -88,8 +92,8 @@ export function Servicios() {
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="text-menor font-medium">{x.nombre}</span>
-                  <Chip>{ROTULO[x.motivo] ?? x.motivo}</Chip>
-                  {!x.activo ? <Chip tono="espera">Apagado</Chip> : null}
+                  <Chip>{ROTULO[x.motivo] ? t(ROTULO[x.motivo]) : x.motivo}</Chip>
+                  {!x.activo ? <Chip tono="espera">{t("Apagado")}</Chip> : null}
                 </span>
                 {x.descripcion ? (
                   <span className="text-micro text-tinta-suave">{x.descripcion}</span>
@@ -97,12 +101,12 @@ export function Servicios() {
               </span>
               <span className="cifra font-semibold">${num(x.precio)}</span>
               <Boton tono="contorno" medida="chica" onClick={() => setEditando(x)}>
-                Editar
+                {t("Editar")}
               </Boton>
               <Boton
                 tono="discreto"
                 medida="icono"
-                aria-label={`Borrar ${x.nombre}`}
+                aria-label={t("Borrar {nombre}", { nombre: x.nombre })}
                 onClick={() => void borrar(x.ulid)}
               >
                 <Trash2 className="size-3.5" />
@@ -139,6 +143,7 @@ function Formulario({
   onCerrar: () => void;
   onGuardado: () => void;
 }) {
+  const { t } = useIdioma();
   const [borrador, setBorrador] = useState(
     servicio
       ? {
@@ -154,9 +159,9 @@ function Formulario({
   const [fallo, setFallo] = useState<string | null>(null);
 
   const problema = !borrador.nombre.trim()
-    ? "Ponle nombre: es lo que la alumna ve en su cobro."
+    ? t("Ponle nombre: es lo que la alumna ve en su cobro.")
     : borrador.precio <= 0
-      ? "El precio tiene que ser mayor que cero."
+      ? t("El precio tiene que ser mayor que cero.")
       : null;
 
   async function guardar() {
@@ -178,7 +183,7 @@ function Formulario({
       else await api.coach.crearServicio(cuerpo);
       onGuardado();
     } catch (causa) {
-      setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo guardar.");
+      setFallo(causa instanceof ErrorApi ? causa.message : t("No se pudo guardar."));
     } finally {
       setOcupado(false);
     }
@@ -188,30 +193,30 @@ function Formulario({
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta={servicio ? "Editar precio" : "Precio nuevo"}
-      titulo={servicio?.nombre || "Algo que cobras aparte"}
+      etiqueta={servicio ? t("Editar precio") : t("Precio nuevo")}
+      titulo={servicio?.nombre || t("Algo que cobras aparte")}
       pie={
         <>
           <Boton tono="contorno" medida="chica" onClick={onCerrar}>
-            Cancelar
+            {t("Cancelar")}
           </Boton>
           <Boton medida="chica" disabled={ocupado || problema !== null} onClick={() => void guardar()}>
-            Guardar
+            {t("Guardar")}
           </Boton>
         </>
       }
     >
-      <Campo id="sv-nombre" etiqueta="Nombre">
+      <Campo id="sv-nombre" etiqueta={t("Nombre")}>
         <Entrada
           id="sv-nombre"
           value={borrador.nombre}
           onChange={(e) => setBorrador((b) => ({ ...b, nombre: e.target.value }))}
-          placeholder="Consulta de seguimiento"
+          placeholder={t("Consulta de seguimiento")}
         />
       </Campo>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo id="sv-motivo" etiqueta="Se cobra como" ayuda="Decide dónde aparece al programar.">
+        <Campo id="sv-motivo" etiqueta={t("Se cobra como")} ayuda={t("Decide dónde aparece al programar.")}>
           <Selector
             id="sv-motivo"
             value={borrador.motivo}
@@ -221,12 +226,12 @@ function Formulario({
           >
             {MOTIVOS.map(([valor, rotulo]) => (
               <option key={valor} value={valor}>
-                {rotulo}
+                {t(rotulo)}
               </option>
             ))}
           </Selector>
         </Campo>
-        <Campo id="sv-precio" etiqueta="Precio" sufijo="MXN">
+        <Campo id="sv-precio" etiqueta={t("Precio")} sufijo="MXN">
           <Entrada
             id="sv-precio"
             type="number"
@@ -239,12 +244,12 @@ function Formulario({
         </Campo>
       </div>
 
-      <Campo id="sv-desc" etiqueta="Descripción (opcional)">
+      <Campo id="sv-desc" etiqueta={t("Descripción (opcional)")}>
         <Entrada
           id="sv-desc"
           value={borrador.descripcion}
           onChange={(e) => setBorrador((b) => ({ ...b, descripcion: e.target.value }))}
-          placeholder="45 minutos por video."
+          placeholder={t("45 minutos por video.")}
         />
       </Campo>
 
@@ -255,11 +260,11 @@ function Formulario({
           onChange={(e) => setActivo(e.target.checked)}
           className="size-4 accent-[var(--acento-texto)]"
         />
-        Ofrecerlo al programar cobros
+        {t("Ofrecerlo al programar cobros")}
       </label>
 
       <Etiqueta>
-        Cambiar el precio no toca los cobros ya programados: ahí el importe quedó copiado.
+        {t("Cambiar el precio no toca los cobros ya programados: ahí el importe quedó copiado.")}
       </Etiqueta>
 
       {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}

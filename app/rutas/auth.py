@@ -18,7 +18,7 @@ from app.datos.alcance import motor, sesion_con_alcance
 from app.datos.modelos import Alumna, ClaveTemporal, Coach, Usuario
 from app.datos.modelos import Sesion as FilaSesion
 from app.dominio.avisos import Aviso as AvisoDominio
-from app.rutas.esquemas import ActorPublico, CambioDeContrasena, Credenciales
+from app.rutas.esquemas import ActorPublico, CambioDeContrasena, Credenciales, IdiomaPreferido
 from app.rutas.sesion import NOMBRE_COOKIE, Actor, RutaQueConfirma, actor_actual
 from app.servicios import avisos as cola
 from app.servicios import cuentas, limites
@@ -228,6 +228,22 @@ def yo(actor: Annotated[Actor, Depends(actor_actual)]) -> ActorPublico:
     return actor_publico(actor.coach_id, actor.usuario_id, actor.rol, actor.debe_cambiar_contrasena)
 
 
+@ruteador.put("/idioma", response_model=ActorPublico)
+def cambiar_idioma(
+    cuerpo: IdiomaPreferido, actor: Annotated[Actor, Depends(actor_actual)]
+) -> ActorPublico:
+    """Guarda el idioma de la cuenta, no del dispositivo: otra sesión en el mismo navegador
+    conserva el suyo. Devuelve el actor fresco para que el cliente actualice su copia."""
+    with sesion_con_alcance(actor.coach_id) as s:
+        usuario = s.get(Usuario, actor.usuario_id)
+        if usuario is None:
+            raise ErrorDeDominio(Codigo.SIN_PERMISO)
+        usuario.idioma = cuerpo.idioma
+        s.commit()
+
+    return actor_publico(actor.coach_id, actor.usuario_id, actor.rol, actor.debe_cambiar_contrasena)
+
+
 def actor_publico(
     coach_id: int, usuario_id: int, rol: str, debe_cambiar: bool = False
 ) -> ActorPublico:
@@ -250,4 +266,5 @@ def actor_publico(
             color_secundario=coach.color_secundario if coach else "#0e3b2b",
             marca=(coach.marca or coach.nombre) if coach else "MyFittPlan",
             debe_cambiar_contrasena=debe_cambiar,
+            idioma=usuario.idioma if usuario else "es",
         )

@@ -25,6 +25,7 @@ import {
 } from "@/componentes/primitivas";
 import { ErrorApi, api, urlDeFoto, type Angulo, type BorradorApi } from "@/lib/api";
 import { delta, fecha, num } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { ANGULOS, MEDIDAS, type TipoMedida } from "@/lib/tipos";
 import { cn } from "@/lib/utils";
 
@@ -74,16 +75,29 @@ function guardarCondiciones(ulid: string, ids: Set<string>): void {
  *  campos en dos columnas, «revisa Pantorrilla» obliga a buscar cuál es. El aviso tiene que
  *  estar donde está el número que hay que corregir.
  */
+interface ProblemaDeMedida {
+  texto: string;
+  valores: Record<string, string | number>;
+}
+
 function problemaDeMedida(
   m: { rotulo: string; min: number; max: number },
   crudo: string | undefined,
-): string | null {
+): ProblemaDeMedida | null {
   const texto = (crudo ?? "").trim();
   if (!texto) return null;
   const v = Number.parseFloat(texto);
-  if (Number.isNaN(v)) return "Escribe solo el número.";
-  if (v < m.min) return `Muy poco. ${m.rotulo} va de ${m.min} a ${m.max} cm.`;
-  if (v > m.max) return `Muy alto. ${m.rotulo} va de ${m.min} a ${m.max} cm.`;
+  if (Number.isNaN(v)) return { texto: "Escribe solo el número.", valores: {} };
+  if (v < m.min)
+    return {
+      texto: "Muy poco. {rotulo} va de {min} a {max} cm.",
+      valores: { rotulo: m.rotulo, min: m.min, max: m.max },
+    };
+  if (v > m.max)
+    return {
+      texto: "Muy alto. {rotulo} va de {min} a {max} cm.",
+      valores: { rotulo: m.rotulo, min: m.min, max: m.max },
+    };
   return null;
 }
 
@@ -109,6 +123,7 @@ interface CausaDeRechazo {
 }
 
 export function Chequeo() {
+  const { t } = useIdioma();
   const navegar = useNavigate();
 
   const [borrador, setBorrador] = useState<BorradorApi | null>(null);
@@ -267,11 +282,11 @@ export function Chequeo() {
   if (errorDeCarga !== null) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-5 pt-10 sm:px-6">
-        <Aviso tono="error" titulo="No se pudo abrir tu chequeo">
-          {errorDeCarga}
+        <Aviso tono="error" titulo={t("No se pudo abrir tu chequeo")}>
+          {t(errorDeCarga)}
         </Aviso>
         <Boton tono="contorno" onClick={() => navegar("/inicio")}>
-          Volver al inicio
+          {t("Volver al inicio")}
         </Boton>
       </div>
     );
@@ -280,31 +295,36 @@ export function Chequeo() {
   if (borrador === null) {
     return (
       <div className="mx-auto w-full max-w-2xl px-5 pt-10 sm:px-6">
-        <CargandoPantalla que="tu chequeo" texto={2} filas={4} />
+        <CargandoPantalla que={t("tu chequeo")} texto={2} filas={4} />
       </div>
     );
   }
+
+  const medidaAyuda = MEDIDAS.find((m) => m.tipo === ayudaDe) ?? null;
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-8 px-5 pt-6 pb-32 sm:px-6">
       {/* ---- Progreso ---- */}
       <header className="flex flex-col gap-5">
         <div className="flex items-center gap-3">
-          <Boton tono="discreto" medida="icono" onClick={retroceder} aria-label="Regresar">
+          <Boton tono="discreto" medida="icono" onClick={retroceder} aria-label={t("Regresar")}>
             <ArrowLeft className="size-4" />
           </Boton>
           <Etiqueta>
-            Chequeo #{borrador.numero} · {fecha(borrador.fecha)}
+            {t("Chequeo #{numero} · {fecha}", {
+              numero: borrador.numero,
+              fecha: fecha(borrador.fecha),
+            })}
           </Etiqueta>
         </div>
 
         {borrador.estado === "rechazado_calidad" ? (
-          <Aviso tono="atencion" titulo="Tu coach pidió repetir una toma">
-            Este es el mismo chequeo, no uno nuevo. Corrige lo que te señaló y vuelve a enviarlo.
+          <Aviso tono="atencion" titulo={t("Tu coach pidió repetir una toma")}>
+            {t("Este es el mismo chequeo, no uno nuevo. Corrige lo que te señaló y vuelve a enviarlo.")}
           </Aviso>
         ) : null}
 
-        <ol className="flex gap-1.5" aria-label="Progreso del chequeo">
+        <ol className="flex gap-1.5" aria-label={t("Progreso del chequeo")}>
           {PASOS.map((rotulo, i) => (
             <li key={rotulo} className="flex flex-1 flex-col gap-1.5">
               <span
@@ -319,7 +339,7 @@ export function Chequeo() {
                   i === paso ? "text-tinta" : "text-tinta-suave",
                 )}
               >
-                {rotulo}
+                {t(rotulo)}
               </span>
             </li>
           ))}
@@ -330,10 +350,9 @@ export function Chequeo() {
       {paso === 0 ? (
         <section className="flex flex-col gap-6">
           <div className="flex flex-col gap-3">
-            <Portada>Antes de empezar, confirma cómo estás</Portada>
+            <Portada>{t("Antes de empezar, confirma cómo estás")}</Portada>
             <Apoyo className="medida">
-              Estas condiciones no son burocracia: son lo que hace que tu peso de este mes sea
-              comparable con el del mes pasado.
+              {t("Estas condiciones no son burocracia: son lo que hace que tu peso de este mes sea comparable con el del mes pasado.")}
             </Apoyo>
           </div>
 
@@ -342,7 +361,7 @@ export function Chequeo() {
               <Casilla
                 key={c.id}
                 id={`cond-${c.id}`}
-                titulo={c.titulo}
+                titulo={t(c.titulo)}
                 checked={condiciones.has(c.id)}
                 onChange={(e) =>
                   setCondiciones((s) => {
@@ -356,15 +375,15 @@ export function Chequeo() {
                   })
                 }
               >
-                {c.detalle}
+                {t(c.detalle)}
               </Casilla>
             ))}
           </div>
 
           <Aviso tono={puedeAvanzar[0] ? "exito" : "info"}>
             {puedeAvanzar[0]
-              ? "Estás en condiciones de chequeo. Vamos por el peso."
-              : "Si algo de esto no se cumple, mejor mañana. Un chequeo hecho después de desayunar mide otra cosa; no pasa nada por posponerlo un día."}
+              ? t("Estás en condiciones de chequeo. Vamos por el peso.")
+              : t("Si algo de esto no se cumple, mejor mañana. Un chequeo hecho después de desayunar mide otra cosa; no pasa nada por posponerlo un día.")}
           </Aviso>
         </section>
       ) : null}
@@ -373,18 +392,18 @@ export function Chequeo() {
       {paso === 1 ? (
         <section className="flex flex-col gap-8">
           <div className="flex flex-col gap-3">
-            <Portada>Tu peso de hoy</Portada>
-            <Apoyo>Sin ropa o con ropa ligera, con la misma báscula de siempre.</Apoyo>
+            <Portada>{t("Tu peso de hoy")}</Portada>
+            <Apoyo>{t("Sin ropa o con ropa ligera, con la misma báscula de siempre.")}</Apoyo>
           </div>
 
           <Campo
             id="peso"
-            etiqueta="Peso en ayunas"
+            etiqueta={t("Peso en ayunas")}
             sufijo="kg"
             ayuda={
               previoPeso !== null
-                ? `Tu peso del mes pasado fue ${num(previoPeso)} kg.`
-                : "Es tu primer pesaje: no hay con qué compararlo todavía."
+                ? t("Tu peso del mes pasado fue {peso} kg.", { peso: num(previoPeso) })
+                : t("Es tu primer pesaje: no hay con qué compararlo todavía.")
             }
           >
             <Entrada
@@ -405,29 +424,31 @@ export function Chequeo() {
           </Campo>
 
           {pesoNum && (pesoNum < 30 || pesoNum > 250) ? (
-            <Aviso tono="error" titulo="Ese peso está fuera de rango">
-              Aceptamos entre 30.0 y 250.0 kg. Revisa que no se te haya ido un dígito.
+            <Aviso tono="error" titulo={t("Ese peso está fuera de rango")}>
+              {t("Aceptamos entre 30.0 y 250.0 kg. Revisa que no se te haya ido un dígito.")}
             </Aviso>
           ) : magnitud > 0.03 ? (
             <Aviso
               tono={magnitud > 0.1 ? "error" : "atencion"}
-              titulo={`Cambio de ${num(magnitud * 100)} %`}
+              titulo={t("Cambio de {porcentaje} %", { porcentaje: num(magnitud * 100) })}
             >
               {magnitud > 0.1
-                ? "Es un salto grande para un mes. Tu coach verá una alerta y te va a preguntar."
-                : "Es más de lo habitual en un mes. Confirma el dato o vuelve a pesarte."}
+                ? t("Es un salto grande para un mes. Tu coach verá una alerta y te va a preguntar.")
+                : t("Es más de lo habitual en un mes. Confirma el dato o vuelve a pesarte.")}
               <div className="mt-3">
                 <Casilla
                   id="confirmar-varianza"
-                  titulo="Confirmo que el dato es correcto"
+                  titulo={t("Confirmo que el dato es correcto")}
                   checked={varianzaConfirmada}
                   onChange={(e) => setVarianzaConfirmada(e.target.checked)}
                 />
               </div>
             </Aviso>
           ) : pesoNum ? (
-            <Aviso tono="exito" titulo="Anotado">
-              Cambio de {num(magnitud * 100)} % respecto al mes pasado. Dentro de lo esperado.
+            <Aviso tono="exito" titulo={t("Anotado")}>
+              {t("Cambio de {porcentaje} % respecto al mes pasado. Dentro de lo esperado.", {
+                porcentaje: num(magnitud * 100),
+              })}
             </Aviso>
           ) : null}
 
@@ -436,14 +457,15 @@ export function Chequeo() {
           {/* Hasta 3 pesajes por ciclo: el promedio quita el ruido de un día de retención. */}
           <div className="flex flex-col gap-3">
             <div className="flex items-baseline justify-between gap-3">
-              <Titulo>Tus pesajes de este ciclo</Titulo>
+              <Titulo>{t("Tus pesajes de este ciclo")}</Titulo>
               <Chip>
-                {pesajes.length} de {borrador.maxPesajes}
+                {pesajes.length} {t("de")} {borrador.maxPesajes}
               </Chip>
             </div>
             <Apoyo>
-              Puedes pesarte hasta en {borrador.maxPesajes} días distintos. Se promedian para
-              quitar el ruido de un día raro.
+              {t("Puedes pesarte hasta en {n} días distintos. Se promedian para quitar el ruido de un día raro.", {
+                n: borrador.maxPesajes,
+              })}
             </Apoyo>
 
             {pesajes.length ? (
@@ -458,50 +480,52 @@ export function Chequeo() {
             ) : null}
 
             {promedio !== null && pesajes.length > 1 ? (
-              <Aviso tono="exito" titulo={`Promedio: ${num(promedio)} kg`}>
-                Sale de tus {pesajes.length} pesajes. Es el número que tu coach usará para
-                ajustar tu plan.
+              <Aviso tono="exito" titulo={t("Promedio: {promedio} kg", { promedio: num(promedio) })}>
+                {t("Sale de tus {n} pesajes. Es el número que tu coach usará para ajustar tu plan.", {
+                  n: pesajes.length,
+                })}
               </Aviso>
             ) : (
-              <Apoyo>Con un solo pesaje usamos ese. Si te pesas otro día del ciclo, promediamos.</Apoyo>
+              <Apoyo>{t("Con un solo pesaje usamos ese. Si te pesas otro día del ciclo, promediamos.")}</Apoyo>
             )}
           </div>
 
           <Regla />
 
           <div className="flex flex-col gap-3">
-            <Titulo>¿Todo igual que el mes pasado?</Titulo>
-            <Apoyo>Si cambia el lugar o la hora el dato sigue sirviendo; solo se lo anotamos a tu coach.</Apoyo>
+            <Titulo>{t("¿Todo igual que el mes pasado?")}</Titulo>
+            <Apoyo>{t("Si cambia el lugar o la hora el dato sigue sirviendo; solo se lo anotamos a tu coach.")}</Apoyo>
             <div className="flex flex-col gap-2">
               <Casilla
                 id="e-bascula"
-                titulo="Misma báscula"
+                titulo={t("Misma báscula")}
                 checked={entorno.bascula}
                 onChange={(e) => setEntorno((v) => ({ ...v, bascula: e.target.checked }))}
               >
-                {borrador.basculaRef ?? "La que usaste la vez pasada"}
+                {borrador.basculaRef ?? t("La que usaste la vez pasada")}
               </Casilla>
               <Casilla
                 id="e-lugar"
-                titulo="Mismo lugar"
+                titulo={t("Mismo lugar")}
                 checked={entorno.lugar}
                 onChange={(e) => setEntorno((v) => ({ ...v, lugar: e.target.checked }))}
               >
-                {borrador.lugarRef ?? "Donde te pesaste la vez pasada"}
+                {borrador.lugarRef ?? t("Donde te pesaste la vez pasada")}
               </Casilla>
               <Casilla
                 id="e-hora"
-                titulo="Misma hora"
+                titulo={t("Misma hora")}
                 checked={entorno.hora}
                 onChange={(e) => setEntorno((v) => ({ ...v, hora: e.target.checked }))}
               >
-                {borrador.horaRef ? `Alrededor de las ${borrador.horaRef}` : "A la hora de siempre"}
+                {borrador.horaRef
+                  ? t("Alrededor de las {hora}", { hora: borrador.horaRef })
+                  : t("A la hora de siempre")}
               </Casilla>
             </div>
             {!entorno.bascula || !entorno.lugar || !entorno.hora ? (
-              <Aviso tono="atencion" titulo="Cambió algo del entorno">
-                No bloquea tu chequeo. Se lo anotamos a tu coach para que lo tome en cuenta al
-                comparar.
+              <Aviso tono="atencion" titulo={t("Cambió algo del entorno")}>
+                {t("No bloquea tu chequeo. Se lo anotamos a tu coach para que lo tome en cuenta al comparar.")}
               </Aviso>
             ) : null}
           </div>
@@ -512,9 +536,9 @@ export function Chequeo() {
       {paso === 2 ? (
         <section className="flex flex-col gap-6">
           <div className="flex flex-col gap-3">
-            <Portada>Las ocho medidas</Portada>
+            <Portada>{t("Las ocho medidas")}</Portada>
             <Apoyo className="medida">
-              Cinta paralela al piso, apretada sin marcar la piel. Toca «¿dónde?» si dudas.
+              {t("Cinta paralela al piso, apretada sin marcar la piel. Toca «¿dónde?» si dudas.")}
             </Apoyo>
           </div>
 
@@ -528,19 +552,30 @@ export function Chequeo() {
                 <Campo
                   key={m.tipo}
                   id={`m-${m.tipo}`}
-                  etiqueta={m.rotulo}
+                  etiqueta={t(m.rotulo)}
                   sufijo="cm"
-                  {...(problema ? { error: problema } : {})}
+                  {...(problema
+                    ? {
+                        error: t(problema.texto, {
+                          ...problema.valores,
+                          rotulo: t(m.rotulo),
+                        }),
+                      }
+                    : {})}
                   ayuda={
                     <span className="flex items-center gap-2">
-                      <span>{anterior ? `Mes pasado: ${num(anterior)} cm` : "Sin referencia previa"}</span>
+                      <span>
+                        {anterior
+                          ? t("Mes pasado: {valor} cm", { valor: num(anterior) })
+                          : t("Sin referencia previa")}
+                      </span>
                       {d ? <strong className="font-semibold">{d.texto}</strong> : null}
                       <button
                         type="button"
                         onClick={() => setAyudaDe(m.tipo)}
                         className="ml-auto underline underline-offset-2"
                       >
-                        ¿Dónde?
+                        {t("¿Dónde?")}
                       </button>
                     </span>
                   }
@@ -569,15 +604,15 @@ export function Chequeo() {
           </div>
 
           {fueraDeRango.length > 0 ? (
-            <Aviso tono="error" titulo="Revisa estas medidas">
-              {fueraDeRango.join(", ")}: el valor está fuera de lo que aceptamos. Casi
-              siempre es un dígito de más o de menos.
+            <Aviso tono="error" titulo={t("Revisa estas medidas")}>
+              {fueraDeRango.map((r) => t(r)).join(", ")}:{" "}
+              {t("el valor está fuera de lo que aceptamos. Casi siempre es un dígito de más o de menos.")}
             </Aviso>
           ) : null}
 
           <Apoyo>
-            <strong className="cifra font-semibold text-tinta">{medidasListas}</strong> de{" "}
-            {MEDIDAS.length} capturadas
+            <strong className="cifra font-semibold text-tinta">{medidasListas}</strong>{" "}
+            {t("de")} {MEDIDAS.length} {t("capturadas")}
           </Apoyo>
         </section>
       ) : null}
@@ -586,16 +621,14 @@ export function Chequeo() {
       {paso === 3 ? (
         <section className="flex flex-col gap-6">
           <div className="flex flex-col gap-3">
-            <Portada>Tus tres fotos</Portada>
+            <Portada>{t("Tus tres fotos")}</Portada>
             <Apoyo className="medida">
-              Del cuello para abajo. El servidor recorta la cabeza antes de guardar nada: esa
-              parte de la imagen no llega a existir en el disco.
+              {t("Del cuello para abajo. El servidor recorta la cabeza antes de guardar nada: esa parte de la imagen no llega a existir en el disco.")}
             </Apoyo>
           </div>
 
-          <Aviso tono="info" titulo="Cómo salen bien a la primera">
-            Luz natural de frente, nunca a tus espaldas. Pared clara y lisa. Brazos colgando,
-            abdomen relajado — sin meterlo. Short y top de color liso.
+          <Aviso tono="info" titulo={t("Cómo salen bien a la primera")}>
+            {t("Luz natural de frente, nunca a tus espaldas. Pared clara y lisa. Brazos colgando, abdomen relajado — sin meterlo. Short y top de color liso.")}
           </Aviso>
 
           <div className="grid gap-4 sm:grid-cols-3">
@@ -613,8 +646,8 @@ export function Chequeo() {
           </div>
 
           <Apoyo>
-            <strong className="cifra font-semibold text-tinta">{fotosListas}</strong> de{" "}
-            {ANGULOS.length} capturadas
+            <strong className="cifra font-semibold text-tinta">{fotosListas}</strong>{" "}
+            {t("de")} {ANGULOS.length} {t("capturadas")}
           </Apoyo>
         </section>
       ) : null}
@@ -623,13 +656,13 @@ export function Chequeo() {
       {paso === 4 ? (
         <section className="flex flex-col gap-8">
           <div className="flex flex-col gap-3">
-            <Portada>Revisa antes de enviar</Portada>
-            <Apoyo>Después de enviarlo ya no se puede editar: tu coach lo revisa tal cual.</Apoyo>
+            <Portada>{t("Revisa antes de enviar")}</Portada>
+            <Apoyo>{t("Después de enviarlo ya no se puede editar: tu coach lo revisa tal cual.")}</Apoyo>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <Etiqueta>Peso</Etiqueta>
+              <Etiqueta>{t("Peso")}</Etiqueta>
               <p className="cifra text-portada font-semibold tracking-[-0.03em]">
                 {num(pesoNum)} <span className="text-guia font-medium text-tinta-suave">kg</span>
               </p>
@@ -638,15 +671,15 @@ export function Chequeo() {
               ) : null}
             </div>
             <div className="flex flex-col gap-1">
-              <Etiqueta>Fotos</Etiqueta>
+              <Etiqueta>{t("Fotos")}</Etiqueta>
               <p className="cifra text-portada font-semibold tracking-[-0.03em]">
-                {fotosListas} <span className="text-guia font-medium text-tinta-suave">de 3</span>
+                {fotosListas} <span className="text-guia font-medium text-tinta-suave">{t("de 3")}</span>
               </p>
             </div>
           </div>
 
           <div className="flex flex-col gap-3">
-            <Titulo>Las ocho medidas</Titulo>
+            <Titulo>{t("Las ocho medidas")}</Titulo>
             <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
               {MEDIDAS.map((m) => {
                 const valor = medidas[m.tipo];
@@ -654,7 +687,7 @@ export function Chequeo() {
                 const d = valor && anterior ? delta(valor, anterior, "cm") : null;
                 return (
                   <li key={m.tipo} className="flex items-baseline justify-between gap-3 py-2.5">
-                    <span className="text-menor">{m.rotulo}</span>
+                    <span className="text-menor">{t(m.rotulo)}</span>
                     <span className="flex items-baseline gap-3">
                       <span className="cifra text-menor text-tinta-suave">
                         {anterior ? num(anterior) : "—"}
@@ -672,19 +705,19 @@ export function Chequeo() {
             </ul>
           </div>
 
-          <Campo id="nota" etiqueta="¿Algo que tu coach deba saber? (opcional)">
+          <Campo id="nota" etiqueta={t("¿Algo que tu coach deba saber? (opcional)")}>
             <textarea
               id="nota"
               value={nota}
               onChange={(e) => setNota(e.target.value)}
               rows={3}
               className="w-full rounded-marco border border-linea bg-fondo px-3 py-2 text-cuerpo leading-relaxed focus:border-tinta focus:outline-none"
-              placeholder="Por ejemplo: dormí mal toda la semana, o me lastimé la rodilla el martes."
+              placeholder={t("Por ejemplo: dormí mal toda la semana, o me lastimé la rodilla el martes.")}
             />
           </Campo>
 
           {causas.length ? (
-            <Aviso tono="error" titulo="Falta algo para poder enviarlo">
+            <Aviso tono="error" titulo={t("Falta algo para poder enviarlo")}>
               <ul className="flex list-disc flex-col gap-1 pl-4">
                 {causas.map((c) => (
                   <li key={c.codigo}>{c.mensaje}</li>
@@ -696,8 +729,8 @@ export function Chequeo() {
       ) : null}
 
       {errorAlGuardar ? (
-        <Aviso tono="error" titulo="No se pudo guardar">
-          {errorAlGuardar}
+        <Aviso tono="error" titulo={t("No se pudo guardar")}>
+          {t(errorAlGuardar)}
         </Aviso>
       ) : null}
 
@@ -708,7 +741,7 @@ export function Chequeo() {
       >
         <div className="mx-auto flex max-w-2xl gap-3">
           <Boton tono="contorno" onClick={retroceder} disabled={guardando}>
-            {paso === 0 ? "Lo hago mañana" : "Atrás"}
+            {paso === 0 ? t("Lo hago mañana") : t("Atrás")}
           </Boton>
           <Boton
             className="flex-1"
@@ -717,7 +750,7 @@ export function Chequeo() {
             disabled={!puedeAvanzar[paso] || guardando}
             onClick={paso === 4 ? enviar : avanzar}
           >
-            {paso === 4 ? "Enviar a mi coach" : "Continuar"}
+            {paso === 4 ? t("Enviar a mi coach") : t("Continuar")}
           </Boton>
         </div>
       </div>
@@ -726,19 +759,22 @@ export function Chequeo() {
       <Dialogo
         abierto={ayudaDe !== null}
         onCambio={(v) => !v && setAyudaDe(null)}
-        etiqueta="Dónde medir"
-        titulo={MEDIDAS.find((m) => m.tipo === ayudaDe)?.rotulo ?? ""}
+        etiqueta={t("Dónde medir")}
+        titulo={medidaAyuda ? t(medidaAyuda.rotulo) : ""}
         pie={
           <Boton medida="chica" onClick={() => setAyudaDe(null)}>
-            Entendido
+            {t("Entendido")}
           </Boton>
         }
       >
-        <p className="text-cuerpo leading-relaxed">{MEDIDAS.find((m) => m.tipo === ayudaDe)?.ayuda}</p>
+        <p className="text-cuerpo leading-relaxed">
+          {medidaAyuda ? t(medidaAyuda.ayuda) : ""}
+        </p>
         <Aviso tono="info">
-          Rango aceptado: {MEDIDAS.find((m) => m.tipo === ayudaDe)?.min} a{" "}
-          {MEDIDAS.find((m) => m.tipo === ayudaDe)?.max} cm. Si tu medida cae fuera, casi siempre
-          es la cinta mal puesta.
+          {t("Rango aceptado: {min} a {max} cm. Si tu medida cae fuera, casi siempre es la cinta mal puesta.", {
+            min: medidaAyuda?.min ?? 0,
+            max: medidaAyuda?.max ?? 0,
+          })}
         </Aviso>
       </Dialogo>
 
@@ -746,17 +782,17 @@ export function Chequeo() {
       <Dialogo
         abierto={enviado}
         onCambio={(v) => !v && navegar("/inicio")}
-        etiqueta="Enviado"
-        titulo="Tu chequeo ya está con tu coach"
+        etiqueta={t("Enviado")}
+        titulo={t("Tu chequeo ya está con tu coach")}
         pie={
           <Boton medida="chica" onClick={() => navegar("/inicio")}>
-            Volver al inicio
+            {t("Volver al inicio")}
           </Boton>
         }
       >
         <p className="flex items-center gap-3 text-cuerpo">
           <Check className="size-5 shrink-0 text-exito" />
-          Te avisamos en cuanto lo revise. Suele tardar menos de 48 horas.
+          {t("Te avisamos en cuanto lo revise. Suele tardar menos de 48 horas.")}
         </p>
       </Dialogo>
     </div>
@@ -778,6 +814,7 @@ interface CapturaProps {
  *  la del archivo local la alumna vería su cara y creería que eso se guardó.
  */
 function CapturaDeFoto({ angulo, rotulo, guia, chequeoUlid, estado, onCambio }: CapturaProps) {
+  const { t } = useIdioma();
   const entrada = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -820,13 +857,13 @@ function CapturaDeFoto({ angulo, rotulo, guia, chequeoUlid, estado, onCambio }: 
   return (
     <article className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-2">
-        <h3 className="text-menor font-semibold">{rotulo}</h3>
+        <h3 className="text-menor font-semibold">{t(rotulo)}</h3>
         {rechazada ? (
-          <Chip tono="espera">Revisar</Chip>
+          <Chip tono="espera">{t("Revisar")}</Chip>
         ) : lista ? (
-          <Chip tono="exito">Lista</Chip>
+          <Chip tono="exito">{t("Lista")}</Chip>
         ) : (
-          <Chip>Falta</Chip>
+          <Chip>{t("Falta")}</Chip>
         )}
       </div>
 
@@ -834,23 +871,23 @@ function CapturaDeFoto({ angulo, rotulo, guia, chequeoUlid, estado, onCambio }: 
         {lista ? (
           <img
             src={`${urlDeFoto(chequeoUlid, angulo, true)}${version ? `&v=${version}` : ""}`}
-            alt={`Tu toma ${rotulo.toLowerCase()}, ya recortada`}
+            alt={t("Tu toma {rotulo}, ya recortada", { rotulo: t(rotulo).toLowerCase() })}
             className="size-full object-cover"
           />
         ) : (
           <SiluetaGuia />
         )}
         <p className="absolute inset-x-2 bottom-2 rounded-marco bg-tinta px-2 py-1.5 text-center text-micro font-medium text-fondo">
-          {subiendo ? "Procesando…" : lista ? "Recortada y guardada" : guia}
+          {subiendo ? t("Procesando…") : lista ? t("Recortada y guardada") : t(guia)}
         </p>
       </div>
 
       {motivo ? (
-        <Aviso tono="atencion" titulo="Se puede mejorar">
+        <Aviso tono="atencion" titulo={t("Se puede mejorar")}>
           {motivo}
         </Aviso>
       ) : null}
-      {error ? <Aviso tono="error">{error}</Aviso> : null}
+      {error ? <Aviso tono="error">{t(error)}</Aviso> : null}
 
       <input
         ref={entrada}
@@ -875,11 +912,11 @@ function CapturaDeFoto({ angulo, rotulo, guia, chequeoUlid, estado, onCambio }: 
       >
         {subiendo ? null : lista ? (
           <>
-            <RotateCcw className="size-3.5" /> Repetir
+            <RotateCcw className="size-3.5" /> {t("Repetir")}
           </>
         ) : (
           <>
-            <Camera className="size-3.5" /> Capturar
+            <Camera className="size-3.5" /> {t("Capturar")}
           </>
         )}
       </Boton>

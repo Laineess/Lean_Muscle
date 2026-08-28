@@ -3,6 +3,7 @@
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { useIdioma } from "@/lib/idioma";
 import { LLAVE_TEMA, aplicarTema, temaGuardado, type Tema } from "@/lib/tema";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +14,7 @@ const OPCIONES: { id: Tema; rotulo: string; Icono: typeof Sun }[] = [
 ];
 
 export function InterruptorDeTema({ className }: { className?: string }) {
+  const { t } = useIdioma();
   const [tema, setTema] = useState<Tema>(temaGuardado);
 
   useEffect(() => {
@@ -24,7 +26,7 @@ export function InterruptorDeTema({ className }: { className?: string }) {
   return (
     <div
       role="radiogroup"
-      aria-label="Tema de la interfaz"
+      aria-label={t("Tema de la interfaz")}
       className={cn("flex items-center gap-0.5 rounded-marco border border-linea p-0.5", className)}
     >
       {OPCIONES.map(({ id, rotulo, Icono }) => (
@@ -32,8 +34,8 @@ export function InterruptorDeTema({ className }: { className?: string }) {
           key={id}
           role="radio"
           aria-checked={tema === id}
-          title={rotulo}
-          aria-label={rotulo}
+          title={t(rotulo)}
+          aria-label={t(rotulo)}
           onClick={() => setTema(id)}
           className={cn(
             "grid size-7 place-items-center rounded-[calc(var(--radio)-1px)] transition-colors",

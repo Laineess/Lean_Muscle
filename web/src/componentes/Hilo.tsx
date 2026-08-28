@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { Apoyo, Aviso, Boton, Vacio } from "@/componentes/primitivas";
 import { CargandoPantalla } from "@/componentes/Estado";
 import { ErrorApi, type MensajeApi } from "@/lib/api";
+import { idiomaGuardado, useIdioma } from "@/lib/idioma";
 import { cn } from "@/lib/utils";
 
 interface HiloProps {
@@ -24,6 +25,7 @@ interface HiloProps {
 const LARGO_MAXIMO = 4000;
 
 export function Hilo({ yo, cargar, enviar, contraparte }: HiloProps) {
+  const { t } = useIdioma();
   const [mensajes, setMensajes] = useState<MensajeApi[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
@@ -38,7 +40,7 @@ export function Hilo({ yo, cargar, enviar, contraparte }: HiloProps) {
       })
       .catch((causa: unknown) => {
         if (control.signal.aborted) return;
-        setError(causa instanceof ErrorApi ? causa.message : "No se pudo abrir la conversación.");
+        setError(causa instanceof ErrorApi ? causa.message : t("No se pudo abrir la conversación."));
         setMensajes([]);
       });
     return () => control.abort();
@@ -62,20 +64,20 @@ export function Hilo({ yo, cargar, enviar, contraparte }: HiloProps) {
       setMensajes((previos) => [...(previos ?? []), nuevo]);
       setTexto("");
     } catch (causa: unknown) {
-      setError(causa instanceof ErrorApi ? causa.message : "No se pudo enviar tu mensaje.");
+      setError(causa instanceof ErrorApi ? causa.message : t("No se pudo enviar tu mensaje."));
     } finally {
       setEnviando(false);
     }
   }
 
-  if (mensajes === null) return <CargandoPantalla que="la conversación" texto={4} filas={0} />;
+  if (mensajes === null) return <CargandoPantalla que={t("la conversación")} texto={4} filas={0} />;
 
   return (
     <div className="flex flex-col gap-5">
       {error ? <Aviso tono="error">{error}</Aviso> : null}
 
       {mensajes.length === 0 ? (
-        <Vacio>Todavía no hay mensajes con {contraparte}. Escribe el primero.</Vacio>
+        <Vacio>{t("Todavía no hay mensajes con {contraparte}. Escribe el primero.", { contraparte })}</Vacio>
       ) : (
         <ol className="flex flex-col gap-3">
           {mensajes.map((m) => {
@@ -96,7 +98,7 @@ export function Hilo({ yo, cargar, enviar, contraparte }: HiloProps) {
                     )}
                   >
                     {momento(m.enviadoEn)}
-                    {mio && m.leidoEn ? " · leído" : ""}
+                    {mio && m.leidoEn ? t(" · leído") : ""}
                   </span>
                 </div>
               </li>
@@ -114,7 +116,7 @@ export function Hilo({ yo, cargar, enviar, contraparte }: HiloProps) {
         }}
       >
         <label htmlFor="mensaje" className="sr-only">
-          Escribe tu mensaje
+          {t("Escribe tu mensaje")}
         </label>
         <textarea
           id="mensaje"
@@ -122,18 +124,18 @@ export function Hilo({ yo, cargar, enviar, contraparte }: HiloProps) {
           maxLength={LARGO_MAXIMO}
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          placeholder="Escribe aquí…"
+          placeholder={t("Escribe aquí…")}
           className="w-full rounded-marco border border-linea bg-fondo px-3 py-2 text-cuerpo leading-relaxed focus:border-tinta focus:outline-none"
         />
         <div className="flex items-center justify-between gap-3">
           <Apoyo>
             {yo === "alumna"
-              ? "Para dudas del plan. Si es una urgencia médica, acude a un servicio de salud."
-              : "Lo que escribas aquí lo lee tu alumna tal cual."}
+              ? t("Para dudas del plan. Si es una urgencia médica, acude a un servicio de salud.")
+              : t("Lo que escribas aquí lo lee tu alumna tal cual.")}
           </Apoyo>
           <Boton type="submit" cargando={enviando} disabled={enviando || !texto.trim()}>
             {enviando ? null : <Send className="size-4" />}
-            Enviar
+            {t("Enviar")}
           </Boton>
         </div>
       </form>
@@ -143,12 +145,13 @@ export function Hilo({ yo, cargar, enviar, contraparte }: HiloProps) {
 
 /** Fecha corta y hora. Un hilo de meses necesita el día; uno de hoy, la hora. */
 function momento(iso: string): string {
+  const locale = idiomaGuardado() === "en" ? "en-US" : "es-MX";
   const cuando = new Date(iso);
   const hoy = new Date();
   const mismoDia = cuando.toDateString() === hoy.toDateString();
   return mismoDia
-    ? cuando.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
-    : cuando.toLocaleString("es-MX", {
+    ? cuando.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
+    : cuando.toLocaleString(locale, {
         day: "numeric",
         month: "short",
         hour: "2-digit",

@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 
 import { App } from "./App";
 import { cuandoCaduqueLaSesion, cuandoFalteCambiarLaContrasena } from "./lib/api";
+import { IdiomaProvider } from "./lib/idioma.tsx";
 import { cerrarSesion } from "./lib/sesion";
 import "./index.css";
 
@@ -30,8 +31,10 @@ cuandoFalteCambiarLaContrasena(() => {
 
 createRoot(raiz).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <IdiomaProvider>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </IdiomaProvider>
   </StrictMode>,
 );

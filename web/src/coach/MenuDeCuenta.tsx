@@ -18,6 +18,8 @@ import { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import { BotonSalir } from "@/componentes/Seguridad";
+import { BotonDeIdioma } from "@/componentes/Idioma";
+import { useIdioma } from "@/lib/idioma";
 import { Regla } from "@/componentes/primitivas";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +52,7 @@ export function MenuDeCuenta({
 }) {
   const caja = useRef<HTMLDivElement>(null);
   const { pathname } = useLocation();
+  const { t } = useIdioma();
 
   // Al navegar se cierra solo: si no, queda abierto encima de la pantalla nueva.
   useEffect(() => onCerrar(), [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -79,7 +82,7 @@ export function MenuDeCuenta({
       {abierto ? (
         <div
           role="menu"
-          aria-label="Tu cuenta"
+          aria-label={t("Tu cuenta")}
           // Crece desde la esquina de la que cuelga, que es de donde el ojo viene.
           className="animate-emerge absolute right-0 top-full z-40 mt-2 w-72 origin-top-right overflow-hidden rounded-marco border border-linea bg-fondo-elevado shadow-lg"
         >
@@ -103,8 +106,8 @@ export function MenuDeCuenta({
                     )}
                   />
                   <span className="flex min-w-0 flex-col gap-0.5">
-                    <span className="text-menor font-medium">{rotulo}</span>
-                    <span className="text-micro text-tinta-suave">{detalle}</span>
+                    <span className="text-menor font-medium">{t(rotulo)}</span>
+                    <span className="text-micro text-tinta-suave">{t(detalle)}</span>
                   </span>
                 </Link>
               </li>
@@ -112,6 +115,10 @@ export function MenuDeCuenta({
           </ul>
 
           <Regla />
+
+          <div className="border-b border-linea px-2 py-2">
+            <BotonDeIdioma />
+          </div>
 
           <div className="px-4 py-3">
             <BotonSalir />

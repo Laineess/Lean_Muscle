@@ -24,6 +24,7 @@ import {
 } from "@/componentes/primitivas";
 import { ErrorApi, api, type AnuncioApi, type FilaCarteraApi } from "@/lib/api";
 import { fecha } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,7 @@ const LARGO_TITULO = 80;
 const LARGO_CUERPO = 300;
 
 export function Avisos() {
+  const { t } = useIdioma();
   const historial = usarApi<AnuncioApi[]>((s) => api.coach.anuncios(s), []);
   const cartera = usarApi<FilaCarteraApi[]>((s) => api.coach.alumnas(s), []);
 
@@ -65,11 +67,11 @@ export function Avisos() {
       setCuerpo("");
       setElegidas([]);
       setHecho(
-        r.enviadas === 1 ? "Enviado a una alumna." : `Enviado a ${r.enviadas} alumnas.`,
+        r.enviadas === 1 ? t("Enviado a una alumna.") : t("Enviado a {n} alumnas.", { n: r.enviadas }),
       );
       historial.recargar();
     } catch (causa) {
-      setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo enviar.");
+      setFallo(causa instanceof ErrorApi ? causa.message : t("No se pudo enviar."));
     } finally {
       setEnviando(false);
     }
@@ -78,33 +80,34 @@ export function Avisos() {
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-3">
-        <Etiqueta>Avisos</Etiqueta>
-        <Portada>Escríbele a tus alumnas</Portada>
+        <Etiqueta>{t("Avisos")}</Etiqueta>
+        <Portada>{t("Escríbele a tus alumnas")}</Portada>
         <Apoyo className="medida">
-          Les llega como notificación al teléfono. Va en una sola dirección: si quieres
-          conversar con una, usa su hilo de mensajes.
+          {t(
+            "Les llega como notificación al teléfono. Va en una sola dirección: si quieres conversar con una, usa su hilo de mensajes.",
+          )}
         </Apoyo>
       </header>
 
       <section className="flex max-w-xl flex-col gap-4">
-        <Campo id="av-titulo" etiqueta="Título" ayuda={`${titulo.length} de ${LARGO_TITULO}`}>
+        <Campo id="av-titulo" etiqueta={t("Título")} ayuda={t("{a} de {b}", { a: titulo.length, b: LARGO_TITULO })}>
           <Entrada
             id="av-titulo"
             value={titulo}
             maxLength={LARGO_TITULO}
             onChange={(e) => setTitulo(e.target.value)}
-            placeholder="Lunes de arranque"
+            placeholder={t("Lunes de arranque")}
           />
         </Campo>
 
-        <Campo id="av-cuerpo" etiqueta="Mensaje" ayuda={`${cuerpo.length} de ${LARGO_CUERPO}`}>
+        <Campo id="av-cuerpo" etiqueta={t("Mensaje")} ayuda={t("{a} de {b}", { a: cuerpo.length, b: LARGO_CUERPO })}>
           <textarea
             id="av-cuerpo"
             value={cuerpo}
             maxLength={LARGO_CUERPO}
             rows={3}
             onChange={(e) => setCuerpo(e.target.value)}
-            placeholder="No tiene que ser perfecto, tiene que ser hoy."
+            placeholder={t("No tiene que ser perfecto, tiene que ser hoy.")}
             className="w-full rounded-marco border border-linea bg-fondo px-3 py-2.5 text-cuerpo placeholder:text-tinta-suave focus:border-tinta focus:outline-none"
           />
         </Campo>
@@ -112,12 +115,14 @@ export function Avisos() {
         <div className="flex flex-col gap-2">
           <Etiqueta>
             {elegidas.length === 0
-              ? `A todas tus alumnas activas (${activas.length})`
-              : `A ${elegidas.length} de ${activas.length}`}
+              ? t("A todas tus alumnas activas ({n})", { n: activas.length })
+              : t("A {a} de {b}", { a: elegidas.length, b: activas.length })}
           </Etiqueta>
-          <Apoyo>Sin elegir a nadie va a todas. Toca un nombre para mandarlo solo a ella.</Apoyo>
+          <Apoyo>
+            {t("Sin elegir a nadie va a todas. Toca un nombre para mandarlo solo a ella.")}
+          </Apoyo>
           {activas.length === 0 ? (
-            <Vacio>No tienes alumnas activas.</Vacio>
+            <Vacio>{t("No tienes alumnas activas.")}</Vacio>
           ) : (
             <div className="flex flex-wrap gap-2">
               {activas.map((a) => (
@@ -145,7 +150,7 @@ export function Avisos() {
 
         <div>
           <Boton disabled={!listo || enviando} onClick={() => void enviar()}>
-            <Send className="size-4" /> {enviando ? "Enviando…" : "Enviar"}
+            <Send className="size-4" /> {enviando ? t("Enviando…") : t("Enviar")}
           </Boton>
         </div>
       </section>
@@ -154,14 +159,16 @@ export function Avisos() {
 
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <Titulo>Lo que ya mandaste</Titulo>
+          <Titulo>{t("Lo que ya mandaste")}</Titulo>
           <Apoyo>
-            Cada aviso <strong>se borra solo</strong> cuando todas lo abren, y a la semana
-            aunque no lo hayan abierto. Son frases del día, no un archivo.
+            {t("Cada aviso")} <strong>{t("se borra solo")}</strong>{" "}
+            {t(
+              "cuando todas lo abren, y a la semana aunque no lo hayan abierto. Son frases del día, no un archivo.",
+            )}
           </Apoyo>
         </div>
         {historial.cargando ? null : (historial.datos ?? []).length === 0 ? (
-          <Vacio>Nada pendiente. Lo que mandaste y ya leyeron desaparece de aquí.</Vacio>
+          <Vacio>{t("Nada pendiente. Lo que mandaste y ya leyeron desaparece de aquí.")}</Vacio>
         ) : (
           <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
             {(historial.datos ?? []).map((a) => (
@@ -171,7 +178,7 @@ export function Avisos() {
                   <span className="flex items-center gap-3">
                     <span className="text-micro text-tinta-suave">{fecha(a.enviadoEn)}</span>
                     <Chip tono={a.leidas === a.enviadas ? "exito" : "neutro"}>
-                      {a.leidas} de {a.enviadas} lo abrieron
+                      {t("{a} de {b} lo abrieron", { a: a.leidas, b: a.enviadas })}
                     </Chip>
                   </span>
                 </div>

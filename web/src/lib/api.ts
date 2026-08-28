@@ -71,7 +71,7 @@ async function pedir<T>(ruta: string, opciones: Opciones = {}): Promise<T> {
 
   // `exactOptionalPropertyTypes` no acepta `undefined` en propiedades opcionales, así que
   // las claves se agregan solo cuando hay valor en lugar de asignarles undefined.
-  const init: RequestInit = { method: metodo, credentials: "include" };
+  const init: RequestInit = { method: metodo, credentials: "include", cache: "no-store" };
   if (cuerpo !== undefined) {
     init.headers = { "Content-Type": "application/json" };
     init.body = JSON.stringify(cuerpo);
@@ -190,6 +190,8 @@ export interface ActorPublico {
   marca: string;
   /** Entró con la contraseña inicial. Hasta que la cambie el servidor cierra lo demás. */
   debeCambiarContrasena: boolean;
+  /** Preferencia de idioma de la cuenta ("es" | "en"): no es del dispositivo. */
+  idioma: string;
 }
 
 export interface ChequeoApi {
@@ -688,6 +690,18 @@ export interface AlimentoCatalogoApi {
   propio: boolean;
 }
 
+export interface AlimentoNuevoApi {
+  nombre: string;
+  marca?: string | null;
+  porcion: number;
+  unidad: string;
+  kcal: number;
+  proteina: number;
+  carbo: number;
+  grasa: number;
+  grupo?: string | null;
+}
+
 export interface EjercicioCatalogoApi {
   ulid: string;
   nombre: string;
@@ -697,6 +711,13 @@ export interface EjercicioCatalogoApi {
   tieneVideo: boolean;
   contraindicaciones: string | null;
   propio: boolean;
+}
+
+export interface EjercicioNuevoApi {
+  nombre: string;
+  grupo?: string | null;
+  equipo?: string | null;
+  patron?: string | null;
 }
 
 export interface FotoApi {
@@ -1200,6 +1221,9 @@ export const api = {
     yo: (senal?: AbortSignal) => pedir<ActorPublico>("/auth/yo", senal ? { senal } : {}),
     cambiarContrasena: (actual: string, nueva: string) =>
       pedir<void>("/auth/contrasena", { metodo: "POST", cuerpo: { actual, nueva } }),
+    /** Guarda el idioma de la cuenta en el servidor y devuelve el actor fresco. */
+    idioma: (idioma: string) =>
+      pedir<ActorPublico>("/auth/idioma", { metodo: "PUT", cuerpo: { idioma } }),
   },
 
   alumna: {
@@ -1307,7 +1331,7 @@ export const api = {
         cuerpo: { correo, codigo },
       }),
     reenviar: (slug: string, correo: string) =>
-      pedir<void>(`/registro/${encodeURIComponent(slug)}/codigo/reenviar`, {
+      pedir<RegistroAceptadoApi>(`/registro/${encodeURIComponent(slug)}/codigo/reenviar`, {
         metodo: "POST",
         cuerpo: { correo },
       }),
@@ -1488,11 +1512,15 @@ export const api = {
         `/coach/alimentos?q=${encodeURIComponent(q)}`,
         senal ? { senal } : {},
       ),
+    crearAlimento: (a: AlimentoNuevoApi) =>
+      pedir<AlimentoCatalogoApi>("/coach/alimentos", { metodo: "POST", cuerpo: a }),
     ejercicios: (q: string, senal?: AbortSignal) =>
       pedir<EjercicioCatalogoApi[]>(
         `/coach/ejercicios?q=${encodeURIComponent(q)}`,
         senal ? { senal } : {},
       ),
+    crearEjercicio: (e: EjercicioNuevoApi) =>
+      pedir<EjercicioCatalogoApi>("/coach/ejercicios", { metodo: "POST", cuerpo: e }),
     presentacion: (senal?: AbortSignal) =>
       pedir<PresentacionApi>("/coach/presentacion", senal ? { senal } : {}),
     guardarPresentacion: (p: {

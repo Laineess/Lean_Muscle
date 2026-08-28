@@ -8,10 +8,12 @@ import { Link, useParams } from "react-router-dom";
 import { Hilo } from "@/componentes/Hilo";
 import { Apoyo, Boton, Etiqueta, Portada } from "@/componentes/primitivas";
 import { api } from "@/lib/api";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 import type { FilaCarteraApi } from "@/lib/api";
 
 export function Conversacion() {
+  const { t } = useIdioma();
   const { alumnaUlid = "" } = useParams();
 
   // La cartera ya está en caché del navegador la mayoría de las veces; se pide para tener el
@@ -23,22 +25,22 @@ export function Conversacion() {
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
-          <Boton asChild tono="discreto" medida="icono" aria-label="Regresar">
+          <Boton asChild tono="discreto" medida="icono" aria-label={t("Regresar")}>
             <Link to="/coach/alumnas">
               <ArrowLeft className="size-4" />
             </Link>
           </Boton>
-          <Etiqueta>Conversación</Etiqueta>
+          <Etiqueta>{t("Conversación")}</Etiqueta>
         </div>
-        <Portada>{alumna?.nombre ?? "Mensajes"}</Portada>
+        <Portada>{alumna?.nombre ?? t("Mensajes")}</Portada>
         <Apoyo className="medida">
-          Todo lo que se han dicho, en orden. Lo que escribas aquí lo lee ella tal cual.
+          {t("Todo lo que se han dicho, en orden. Lo que escribas aquí lo lee ella tal cual.")}
         </Apoyo>
       </header>
 
       <Hilo
         yo="coach"
-        contraparte={alumna?.nombre.split(" ")[0] ?? "tu alumna"}
+        contraparte={alumna?.nombre.split(" ")[0] ?? t("tu alumna")}
         cargar={(senal) => api.coach.mensajes(alumnaUlid, senal)}
         enviar={(cuerpo) => api.coach.responder(alumnaUlid, cuerpo)}
       />

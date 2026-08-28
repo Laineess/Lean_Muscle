@@ -24,6 +24,7 @@ import {
 import { api, type FilaCarteraApi } from "@/lib/api";
 import { cartera as carteraEjemplo, coach } from "@/lib/datos";
 import { delta, fecha, num } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApiConRespaldo } from "@/lib/usarApi";
 import { ROTULO_ESTADO, type EstadoChequeo } from "@/lib/tipos";
 
@@ -36,6 +37,7 @@ const TONO_ESTADO: Record<EstadoChequeo, "neutro" | "espera" | "exito" | "error"
 };
 
 export function Cartera() {
+  const { t } = useIdioma();
   const [filtro, setFiltro] = useState("");
   const [editando, setEditando] = useState<FilaCarteraApi | null>(null);
   const [dandoDeAlta, setDandoDeAlta] = useState(false);
@@ -46,7 +48,7 @@ export function Cartera() {
     carteraEjemplo,
   );
 
-  if (cargando) return <CargandoPantalla que="tus alumnas" filas={6} />;
+  if (cargando) return <CargandoPantalla que={t("tus alumnas")} filas={6} />;
 
   const visibles = alumnas.filter((a) =>
     `${a.nombre} ${a.plan ?? ""}`
@@ -60,9 +62,9 @@ export function Cartera() {
 
       <header className="flex flex-col gap-3">
         <Etiqueta>
-          {alumnas.length} alumnas · límite {coach.limiteAlumnas}
+          {t("{n} alumnas · límite {m}", { n: alumnas.length, m: coach.limiteAlumnas })}
         </Etiqueta>
-        <Portada>Mis alumnas</Portada>
+        <Portada>{t("Mis pacientes")}</Portada>
       </header>
 
       <LigaDeRegistro />
@@ -72,20 +74,20 @@ export function Cartera() {
       <div className="flex flex-wrap items-center gap-3">
         <Entrada
           type="search"
-          placeholder="Filtrar por nombre…"
+          placeholder={t("Filtrar por nombre…")}
           value={filtro}
           onChange={(e) => setFiltro(e.target.value)}
           className="max-w-xs"
-          aria-label="Filtrar alumnas"
+          aria-label={t("Filtrar alumnas")}
         />
-        <Apoyo className="hidden lg:block">O pulsa ⌘K para buscar en todo.</Apoyo>
+        <Apoyo className="hidden lg:block">{t("O pulsa ⌘K para buscar en todo.")}</Apoyo>
         <Boton className="ml-auto" onClick={() => setDandoDeAlta(true)}>
-          Dar de alta
+          {t("Dar de alta")}
         </Boton>
       </div>
 
       {visibles.length === 0 ? (
-        <Vacio>Ninguna alumna con ese nombre.</Vacio>
+        <Vacio>{t("Ninguna alumna con ese nombre.")}</Vacio>
       ) : (
         <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
           {visibles.map((a) => {
@@ -95,23 +97,25 @@ export function Cartera() {
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-guia font-medium">{a.nombre}</span>
-                    {a.estado === "pausa" ? <Chip>En pausa</Chip> : null}
-                    {a.pago === "pendiente" ? <Chip tono="espera">Pago pendiente</Chip> : null}
+                    {a.estado === "pausa" ? <Chip>{t("En pausa")}</Chip> : null}
+                    {a.pago === "pendiente" ? <Chip tono="espera">{t("Pago pendiente")}</Chip> : null}
                   </div>
                   <Apoyo>
-                    Ciclo {a.ciclo}
+                    {t("Ciclo {ciclo}", { ciclo: a.ciclo })}
                     {a.plan
                       ? ` · ${a.plan}`
                       : ""}
                     {a.ultimoAcceso
-                      ? ` · último acceso ${fecha(a.ultimoAcceso, { day: "numeric", month: "short" })}`
+                      ? ` · ${t("último acceso {fecha}", {
+                          fecha: fecha(a.ultimoAcceso, { day: "numeric", month: "short" }),
+                        })}`
                       : ""}
                   </Apoyo>
                 </div>
 
                 <div className="flex items-center gap-6">
                   <div className="flex min-w-20 flex-col">
-                    <span className="text-micro uppercase tracking-[0.08em] text-tinta-suave">Peso</span>
+                    <span className="text-micro uppercase tracking-[0.08em] text-tinta-suave">{t("Peso")}</span>
                     <span className="cifra text-cuerpo font-semibold">
                       {a.pesoKg !== null ? `${num(a.pesoKg)} kg` : "—"}
                     </span>
@@ -121,19 +125,19 @@ export function Cartera() {
                   <div className="min-w-28">
                     {a.chequeoEstado ? (
                       <Chip tono={TONO_ESTADO[a.chequeoEstado as EstadoChequeo]}>
-                        {ROTULO_ESTADO[a.chequeoEstado as EstadoChequeo]}
+                        {t(ROTULO_ESTADO[a.chequeoEstado as EstadoChequeo])}
                       </Chip>
                     ) : (
-                      <span className="text-menor text-tinta-suave">Sin chequeo</span>
+                      <span className="text-menor text-tinta-suave">{t("Sin chequeo")}</span>
                     )}
                   </div>
 
                   <div className="ml-auto flex shrink-0 items-center gap-1">
                     <Boton tono="discreto" medida="chica" onClick={() => setEditando(a)}>
-                      Editar
+                      {t("Editar")}
                     </Boton>
                     <Boton tono="discreto" medida="chica" onClick={() => setRecuperando(a)}>
-                      Clave
+                      {t("Clave")}
                     </Boton>
                     <Boton
                       tono="discreto"
@@ -141,10 +145,10 @@ export function Cartera() {
                       className="text-peligro"
                       onClick={() => setDandoDeBaja(a)}
                     >
-                      Baja
+                      {t("Baja")}
                     </Boton>
                     <Boton asChild tono="discreto" medida="chica">
-                      <Link to={`/coach/mensajes/${a.ulid}`}>Mensajes</Link>
+                      <Link to={`/coach/mensajes/${a.ulid}`}>{t("Mensajes")}</Link>
                     </Boton>
                     {/* Lleva a lo que toca hacer con ella, no a un expediente genérico. */}
                     <Boton asChild tono="contorno" medida="chica">
@@ -155,7 +159,7 @@ export function Cartera() {
                             : `/coach/plan/${a.ulid}`
                         }
                       >
-                        {a.chequeoEstado === "pendiente_evaluacion" ? "Revisar" : "Plan"}
+                        {a.chequeoEstado === "pendiente_evaluacion" ? t("Revisar") : t("Plan")}
                       </Link>
                     </Boton>
                   </div>

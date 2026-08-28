@@ -38,6 +38,7 @@ import {
 import { fecha, num, pesos, porcentaje } from "@/lib/formato";
 import { usarApi, usarApiConRespaldo } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
+import { useIdioma } from "@/lib/idioma";
 
 const CATEGORIAS = {
   ingreso: [
@@ -75,6 +76,7 @@ const VACIO: PanelFinancieroApi = {
 };
 
 export function Finanzas() {
+  const { t } = useIdioma();
   const [meses, setMeses] = useState(12);
   const [editando, setEditando] = useState<MovimientoApi | "nuevo" | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
@@ -93,7 +95,7 @@ export function Finanzas() {
       await api.coach.eliminarMovimiento(m.ulid);
       recargar();
     } catch (causa) {
-      setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo eliminar.");
+      setFallo(causa instanceof ErrorApi ? causa.message : t("No se pudo eliminar."));
     }
   }
 
@@ -109,53 +111,52 @@ export function Finanzas() {
 
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-3">
-          <Etiqueta>Últimos {meses} meses</Etiqueta>
-          <Portada>Finanzas</Portada>
+          <Etiqueta>{t("Últimos {meses} meses", { meses })}</Etiqueta>
+          <Portada>{t("Finanzas")}</Portada>
         </div>
         <div className="flex items-center gap-2">
           <Selector
             value={meses}
             onChange={(e) => setMeses(Number(e.target.value))}
             className="w-auto"
-            aria-label="Periodo"
+            aria-label={t("Periodo")}
           >
-            <option value={3}>3 meses</option>
-            <option value={6}>6 meses</option>
-            <option value={12}>12 meses</option>
-            <option value={24}>24 meses</option>
+            <option value={3}>{t("3 meses")}</option>
+            <option value={6}>{t("6 meses")}</option>
+            <option value={12}>{t("12 meses")}</option>
+            <option value={24}>{t("24 meses")}</option>
           </Selector>
           <Boton onClick={() => setEditando("nuevo")}>
-            <Plus className="size-4" /> Movimiento
+            <Plus className="size-4" /> {t("Movimiento")}
           </Boton>
         </div>
       </header>
 
       {/* ---- Cifras ---- */}
       <section className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4">
-        <Dato rotulo="Ingresos" valor={pesos(datos.ingresos)} />
-        <Dato rotulo="Gastos" valor={pesos(datos.gastos)} />
+        <Dato rotulo={t("Ingresos")} valor={pesos(datos.ingresos)} />
+        <Dato rotulo={t("Gastos")} valor={pesos(datos.gastos)} />
         <Dato
-          rotulo="Utilidad"
+          rotulo={t("Utilidad")}
           valor={pesos(datos.utilidad)}
-          nota={`margen ${porcentaje(datos.margen)}`}
+          nota={t("margen {margen}", { margen: porcentaje(datos.margen) })}
           direccion={enPerdida ? "sube" : "baja"}
         />
         <Dato
-          rotulo="Por alumna"
+          rotulo={t("Por paciente")}
           valor={pesos(datos.ingresoPorAlumna)}
-          nota={`${datos.alumnasActivas} activas`}
+          nota={t("{activas} activas", { activas: datos.alumnasActivas })}
         />
       </section>
 
       {enPerdida ? (
-        <Aviso tono="error" titulo="El periodo cierra en pérdida">
-          Gastaste {pesos(datos.gastos - datos.ingresos)} más de lo que ingresaste.
+        <Aviso tono="error" titulo={t("El periodo cierra en pérdida")}>
+          {t("Gastaste {monto} más de lo que ingresaste.", { monto: pesos(datos.gastos - datos.ingresos) })}
         </Aviso>
       ) : null}
 
-      <Aviso tono="info" titulo={`Proyección: ${pesos(datos.proyeccionMensual)} al mes`}>
-        Es lo que entraría si tus {datos.alumnasActivas} alumnas activas renovaran. **Es una
-        proyección, no un dato**: no la cuentes como ingreso hasta que esté cobrada.
+      <Aviso tono="info" titulo={t("Proyección: {monto} al mes", { monto: pesos(datos.proyeccionMensual) })}>
+        {t("Es lo que entraría si tus {activas} alumnas activas renovaran. **Es una proyección, no un dato**: no la cuentes como ingreso hasta que esté cobrada.", { activas: datos.alumnasActivas })}
       </Aviso>
 
       <Regla />
@@ -163,17 +164,17 @@ export function Finanzas() {
       {/* ---- Evolución ---- */}
       {datos.porMes.length > 1 ? (
         <section className="flex flex-col gap-6">
-          <Titulo>Mes a mes</Titulo>
+          <Titulo>{t("Mes a mes")}</Titulo>
           <div className="grid gap-10 sm:grid-cols-2">
             <article className="flex flex-col gap-2">
-              <Etiqueta>Ingresos</Etiqueta>
+              <Etiqueta>{t("Ingresos")}</Etiqueta>
               <Grafica
                 puntos={datos.porMes.map((m) => ({ etiqueta: m.mes.slice(5), valor: m.ingresos }))}
                 decimales={0}
               />
             </article>
             <article className="flex flex-col gap-2">
-              <Etiqueta>Utilidad</Etiqueta>
+              <Etiqueta>{t("Utilidad")}</Etiqueta>
               <Grafica
                 puntos={datos.porMes.map((m) => ({ etiqueta: m.mes.slice(5), valor: m.utilidad }))}
                 decimales={0}
@@ -187,20 +188,20 @@ export function Finanzas() {
       <section className="grid gap-8 sm:grid-cols-2">
         {(
           [
-            ["En qué entra el dinero", datos.ingresosPorCategoria, datos.ingresos],
-            ["En qué se va", datos.gastosPorCategoria, datos.gastos],
+            [t("Historial de ingresos"), datos.ingresosPorCategoria, datos.ingresos],
+            [t("Historial de gastos"), datos.gastosPorCategoria, datos.gastos],
           ] as const
         ).map(([titulo, categorias, total]) => (
           <article key={titulo} className="flex flex-col gap-3">
             <Titulo>{titulo}</Titulo>
             {categorias.length === 0 ? (
-              <Apoyo>Sin movimientos en el periodo.</Apoyo>
+              <Apoyo>{t("Sin movimientos en el periodo.")}</Apoyo>
             ) : (
               <ul className="flex flex-col gap-2">
                 {categorias.map((c) => (
                   <li key={c.categoria} className="flex flex-col gap-1">
                     <div className="flex items-baseline justify-between gap-3 text-menor">
-                      <span>{ROTULO_CATEGORIA[c.categoria] ?? c.categoria}</span>
+                      <span>{t(ROTULO_CATEGORIA[c.categoria] ?? c.categoria)}</span>
                       <span className="cifra font-semibold">{pesos(c.monto)}</span>
                     </div>
                     {/* Barra proporcional: leer 8 cifras cuesta más que ver 8 barras. */}
@@ -222,10 +223,10 @@ export function Finanzas() {
 
       {/* ---- Movimientos ---- */}
       <section className="flex flex-col gap-4">
-        <Titulo>Movimientos</Titulo>
+        <Titulo>{t("Movimientos")}</Titulo>
 
         {datos.movimientos.length === 0 ? (
-          <Vacio>Todavía no hay movimientos en este periodo.</Vacio>
+          <Vacio>{t("Todavía no hay movimientos en este periodo.")}</Vacio>
         ) : (
           <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
             {datos.movimientos.map((m) => (
@@ -235,13 +236,13 @@ export function Finanzas() {
                     <span className="text-cuerpo">{m.concepto}</span>
                     {m.automatico ? (
                       <Chip>
-                        <Lock className="size-3" /> De un pago
+                        <Lock className="size-3" /> {t("De un pago")}
                       </Chip>
                     ) : null}
                   </div>
                   <Apoyo>
                     {fecha(m.fecha, { day: "numeric", month: "short", year: "numeric" })} ·{" "}
-                    {ROTULO_CATEGORIA[m.categoria] ?? m.categoria}
+                    {t(ROTULO_CATEGORIA[m.categoria] ?? m.categoria)}
                     {m.alumnaNombre ? ` · ${m.alumnaNombre}` : ""}
                   </Apoyo>
                 </div>
@@ -261,10 +262,10 @@ export function Finanzas() {
                     tono="discreto"
                     medida="chica"
                     disabled={m.automatico}
-                    title={m.automatico ? "Corrígelo en el pago que lo originó" : undefined}
+                    title={m.automatico ? t("Corrígelo en el pago que lo originó") : undefined}
                     onClick={() => setEditando(m)}
                   >
-                    Editar
+                    {t("Editar")}
                   </Boton>
                   <Boton
                     tono="discreto"
@@ -272,7 +273,7 @@ export function Finanzas() {
                     disabled={m.automatico}
                     onClick={() => void eliminar(m)}
                   >
-                    Borrar
+                    {t("Borrar")}
                   </Boton>
                 </div>
               </li>
@@ -306,6 +307,7 @@ function BuscadorDeCobro({
   onAlumna: (a: AlumnaConCobrosApi | null) => void;
   onCobro: (c: CobroApi2) => void;
 }) {
+  const { t } = useIdioma();
   const [texto, setTexto] = useState("");
   const carga = usarApi<AlumnaConCobrosApi[]>(
     (senal) => api.coach.aQuienCobrar(texto, senal),
@@ -318,10 +320,10 @@ function BuscadorDeCobro({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-menor font-medium">{alumna.nombre}</span>
           <Boton tono="discreto" medida="chica" onClick={() => onAlumna(null)}>
-            Cambiar
+            {t("Cambiar")}
           </Boton>
         </div>
-        <Etiqueta>Qué le cobras</Etiqueta>
+        <Etiqueta>{t("Qué le cobras")}</Etiqueta>
         <ul className="flex flex-col gap-1">
           {alumna.pendientes.map((c) => (
             <li key={c.ulid}>
@@ -339,7 +341,7 @@ function BuscadorDeCobro({
                   <span className="truncate">{c.concepto}</span>
                   <span className="text-micro text-tinta-suave">
                     {fecha(c.fecha)}
-                    {c.vencido ? " · vencido" : ""}
+                    {c.vencido ? ` · ${t("vencido")}` : ""}
                   </span>
                 </span>
                 <span className="cifra font-semibold">${num(c.monto)}</span>
@@ -347,7 +349,7 @@ function BuscadorDeCobro({
             </li>
           ))}
         </ul>
-        <Apoyo>Al registrarlo, ese cobro queda saldado y deja de contar como adeudo.</Apoyo>
+        <Apoyo>{t("Al registrarlo, ese cobro queda saldado y deja de contar como adeudo.")}</Apoyo>
       </div>
     );
   }
@@ -356,20 +358,20 @@ function BuscadorDeCobro({
 
   return (
     <div className="flex flex-col gap-2">
-      <Campo id="mv-alumna" etiqueta="¿De quién es el ingreso?">
+      <Campo id="mv-alumna" etiqueta={t("¿De quién es el ingreso?")}>
         <Entrada
           id="mv-alumna"
           type="search"
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          placeholder="Escribe un nombre…"
+          placeholder={t("Escribe un nombre…")}
           autoComplete="off"
         />
       </Campo>
 
       {encontradas.length === 0 ? (
         <Apoyo>
-          {carga.cargando ? "Buscando…" : "Nadie con cobros pendientes. Puedes registrarlo sin alumna."}
+          {carga.cargando ? t("Buscando…") : t("Nadie con cobros pendientes. Puedes registrarlo sin alumna.")}
         </Apoyo>
       ) : (
         <ul className="flex max-h-48 flex-col gap-1 overflow-y-auto">
@@ -383,11 +385,11 @@ function BuscadorDeCobro({
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate font-medium">{a.nombre}</span>
                   <span className="text-micro text-tinta-suave">
-                    {a.plan ?? "sin plan"} · {a.pendientes.length} pendiente
-                    {a.pendientes.length === 1 ? "" : "s"}
+                    {a.plan ?? t("sin plan")} · {a.pendientes.length}{" "}
+                    {a.pendientes.length === 1 ? t("pendiente") : t("pendientes")}
                   </span>
                 </span>
-                {a.adeudo > 0 ? <Chip tono="error">debe ${num(a.adeudo)}</Chip> : null}
+                {a.adeudo > 0 ? <Chip tono="error">{t("debe {monto}", { monto: num(a.adeudo) })}</Chip> : null}
               </button>
             </li>
           ))}
@@ -406,6 +408,7 @@ function FormMovimiento({
   onCerrar: () => void;
   onGuardado: () => void;
 }) {
+  const { t } = useIdioma();
   const hoy = new Date().toISOString().slice(0, 10);
   const [tipo, setTipo] = useState<"ingreso" | "gasto">(movimiento?.tipo ?? "gasto");
   const [categoria, setCategoria] = useState(movimiento?.categoria ?? "plataforma");
@@ -421,9 +424,9 @@ function FormMovimiento({
 
   const montoNum = Number.parseFloat(monto);
   const problema = !concepto.trim()
-    ? "Escribe un concepto: sin él el movimiento no se entiende dentro de tres meses."
+    ? t("Escribe un concepto: sin él el movimiento no se entiende dentro de tres meses.")
     : !montoNum || montoNum <= 0
-      ? "El monto tiene que ser mayor que cero."
+      ? t("El monto tiene que ser mayor que cero.")
       : null;
 
   // Al cambiar de tipo, la categoría anterior deja de ser válida.
@@ -469,7 +472,7 @@ function FormMovimiento({
       onGuardado();
       onCerrar();
     } catch (causa) {
-      setError(causa instanceof ErrorApi ? causa.message : "No se pudo guardar.");
+      setError(causa instanceof ErrorApi ? causa.message : t("No se pudo guardar."));
     }
   }
 
@@ -477,15 +480,15 @@ function FormMovimiento({
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta={movimiento ? "Editar movimiento" : "Nuevo movimiento"}
-      titulo={tipo === "ingreso" ? "Ingreso" : "Gasto"}
+      etiqueta={movimiento ? t("Editar movimiento") : t("Nuevo movimiento")}
+      titulo={tipo === "ingreso" ? t("Ingreso") : t("Gasto")}
       pie={
         <>
           <Boton tono="contorno" medida="chica" onClick={onCerrar}>
-            Cancelar
+            {t("Cancelar")}
           </Boton>
           <Boton medida="chica" onClick={() => void guardar()}>
-            Guardar
+            {t("Guardar")}
           </Boton>
         </>
       }
@@ -495,8 +498,7 @@ function FormMovimiento({
       {movimiento ? (
         movimiento.alumnaNombre ? (
           <Apoyo>
-            Ingreso de <strong>{movimiento.alumnaNombre}</strong>. Para ligarlo a otra alumna,
-            cancélalo y regístralo de nuevo.
+            {t("Ingreso de «{nombre}». Para ligarlo a otra alumna, cancélalo y regístralo de nuevo.", { nombre: movimiento.alumnaNombre })}
           </Apoyo>
         ) : null
       ) : tipo === "ingreso" ? (
@@ -513,21 +515,21 @@ function FormMovimiento({
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo id="m-tipo" etiqueta="Tipo">
+        <Campo id="m-tipo" etiqueta={t("Tipo")}>
           <Selector
             id="m-tipo"
             value={tipo}
             onChange={(e) => cambiarTipo(e.target.value as "ingreso" | "gasto")}
           >
-            <option value="gasto">Gasto</option>
-            <option value="ingreso">Ingreso</option>
+            <option value="gasto">{t("Gasto")}</option>
+            <option value="ingreso">{t("Ingreso")}</option>
           </Selector>
         </Campo>
-        <Campo id="m-categoria" etiqueta="Categoría">
+        <Campo id="m-categoria" etiqueta={t("Categoría")}>
           <Selector id="m-categoria" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
             {CATEGORIAS[tipo].map(([id, rotulo]) => (
               <option key={id} value={id}>
-                {rotulo}
+                {t(rotulo)}
               </option>
             ))}
           </Selector>
@@ -535,7 +537,7 @@ function FormMovimiento({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo id="m-monto" etiqueta="Monto" sufijo="MXN">
+        <Campo id="m-monto" etiqueta={t("Monto")} sufijo="MXN">
           <Entrada
             id="m-monto"
             type="number"
@@ -546,33 +548,32 @@ function FormMovimiento({
             className="rounded-r-none"
           />
         </Campo>
-        <Campo id="m-fecha" etiqueta="Fecha">
+        <Campo id="m-fecha" etiqueta={t("Fecha")}>
           <Entrada id="m-fecha" type="date" value={f} onChange={(e) => setF(e.target.value)} />
         </Campo>
       </div>
 
       <Campo
         id="m-concepto"
-        etiqueta="Concepto"
-        ayuda="Escríbelo para tu yo de dentro de tres meses."
+        etiqueta={t("Concepto")}
+        ayuda={t("Escríbelo para tu yo de dentro de tres meses.")}
       >
         <Entrada
           id="m-concepto"
           value={concepto}
           onChange={(e) => setConcepto(e.target.value)}
-          placeholder="Suscripción de MyFittPlan · agosto"
+          placeholder={t("Suscripción de MyFittPlan · agosto")}
         />
       </Campo>
 
-      <Campo id="m-nota" etiqueta="Nota (opcional)">
+      <Campo id="m-nota" etiqueta={t("Nota (opcional)")}>
         <Entrada id="m-nota" value={nota} onChange={(e) => setNota(e.target.value)} />
       </Campo>
 
       {error ? <Aviso tono="error">{error}</Aviso> : problema ? <Aviso tono="atencion">{problema}</Aviso> : null}
 
       <Apoyo>
-        Esto es contabilidad de gestión, para saber si tu negocio gana dinero. No sustituye tu
-        contabilidad fiscal: pídele a tu contador lo que necesite.
+        {t("Esto es contabilidad de gestión, para saber si tu negocio gana dinero. No sustituye tu contabilidad fiscal: pídele a tu contador lo que necesite.")}
       </Apoyo>
     </Dialogo>
   );

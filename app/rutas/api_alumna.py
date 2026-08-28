@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import ahora_utc, dia_calendario
-from app.datos.modelos import Alumna
+from app.datos.modelos import Alumna, Ciclo
 from app.datos.repos import consultas as q
 from app.dominio import baja as dominio_baja
 from app.dominio.ciclo import Ciclo as CicloDominio
@@ -100,6 +100,23 @@ def _resumen_de_plan(s: Session, alumna_id: int, ciclo: object) -> ResumenDePlan
     )
 
 
+def _estado_pago_del_ciclo(s: Session, alumna_id: int, ciclo: Ciclo) -> str:
+    """Lee el pago vigente tanto del modelo antiguo como de la cuenta por cobrar actual."""
+    pago = q.pago_del_ciclo(s, [ciclo.id]).get(ciclo.id)
+    if pago is not None and pago.estado == "validado":
+        return "validado"
+
+    # La bandeja actual salda CobroProgramado; se acepta cualquiera pagado por si hubo
+    # reintentos o si el pago se confirmó desde la aceptación de un registro.
+    hay_cobro_pagado = any(
+        c.motivo == "mensualidad"
+        and c.estado == "pagado"
+        and ciclo.inicia_en <= c.fecha < ciclo.termina_en
+        for c in q.cobros_de(s, alumna_id)
+    )
+    return "validado" if hay_cobro_pagado else "pendiente"
+
+
 @ruteador.get("/inicio", response_model=InicioAlumna)
 def inicio(
     actor: Annotated[Actor, Depends(solo_alumna_aceptada)],
@@ -108,7 +125,7 @@ def inicio(
     alumna = _mi_alumna(s, actor)
     ciclo = q.ciclo_vigente(s, alumna.id)
     chequeos = _chequeos_publicos(s, alumna.id)
-    pago = q.pago_del_ciclo(s, [ciclo.id]).get(ciclo.id) if ciclo else None
+    estado_pago = _estado_pago_del_ciclo(s, alumna.id, ciclo) if ciclo else "pendiente"
 
     ultimo_feedback = next(
         (c.feedback for c in reversed(chequeos) if c.feedback),
@@ -139,7 +156,7 @@ def inicio(
             numero=ciclo.numero,
             inicia_en=ciclo.inicia_en,
             termina_en=ciclo.termina_en,
-            estado_pago=pago.estado if pago else "pendiente",
+            estado_pago=estado_pago,
             precio=ciclo.precio,
         )
         if ciclo
@@ -188,8 +205,7 @@ def plan(
             lesiones=historial.lesiones if historial else None,
         )
 
-    pago = q.pago_del_ciclo(s, [ciclo.id]).get(ciclo.id)
-    estado_pago = EstadoPago(pago.estado) if pago else EstadoPago.PENDIENTE
+    estado_pago = EstadoPago(_estado_pago_del_ciclo(s, alumna.id, ciclo))
 
     # Se guarda el motivo, no solo el hecho: «bloqueado» a secas hacía que la pantalla dijera
     # «falta tu comprobante» a quien ya había pagado y solo tenía el ciclo terminado.

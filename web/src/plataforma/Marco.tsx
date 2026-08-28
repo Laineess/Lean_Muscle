@@ -7,7 +7,9 @@
 import { ShieldAlert } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
+import { BotonDeIdioma } from "@/componentes/Idioma";
 import { BotonSalir } from "@/componentes/Seguridad";
+import { useIdioma } from "@/lib/idioma";
 import { cn } from "@/lib/utils";
 
 const SECCIONES = [
@@ -17,15 +19,16 @@ const SECCIONES = [
 ];
 
 export function MarcoPlataforma() {
+  const { t } = useIdioma();
   return (
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-30 border-b border-linea bg-fondo/90 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-6 px-5 sm:px-6">
           <span className="text-menor font-semibold tracking-[-0.01em]">
-            MyFittPlan <span className="text-tinta-suave">· plataforma</span>
+            MyFittPlan <span className="text-tinta-suave">· {t("plataforma")}</span>
           </span>
 
-          <nav aria-label="Secciones" className="flex items-center gap-5 overflow-x-auto">
+          <nav aria-label={t("Secciones")} className="flex items-center gap-5 overflow-x-auto">
             {SECCIONES.map((s) => (
               <NavLink
                 key={s.a}
@@ -40,12 +43,13 @@ export function MarcoPlataforma() {
                   )
                 }
               >
-                {s.rotulo}
+                {t(s.rotulo)}
               </NavLink>
             ))}
           </nav>
 
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <BotonDeIdioma className="hidden sm:flex" />
             <BotonSalir />
           </div>
         </div>
@@ -54,8 +58,9 @@ export function MarcoPlataforma() {
       <div className="border-b border-linea bg-fondo-sutil">
         <p className="mx-auto flex w-full max-w-6xl items-center gap-2 px-5 py-2 text-micro text-tinta-media sm:px-6">
           <ShieldAlert className="size-3.5 shrink-0" />
-          Este panel administra cuentas. No tiene acceso a fotografías, historiales, pesos ni
-          nombres de alumnas: solo a cuántas hay.
+          {t(
+            "Este panel administra cuentas. No tiene acceso a fotografías, historiales, pesos ni nombres de alumnas: solo a cuántas hay.",
+          )}
         </p>
       </div>
 

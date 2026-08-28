@@ -4,12 +4,10 @@
  *  para no gastar una pestaña en ello.
  */
 
-import { ArrowRight, Bell, CalendarPlus, CalendarDays, LogOut, MessageSquare, ShieldCheck, Upload, User, Wallet } from "lucide-react";
+import { ArrowRight, CalendarPlus, CalendarDays, Upload, Wallet } from "lucide-react";
 import { useRef, useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 
-import { BotonSalir } from "@/componentes/Seguridad";
-import { cerrarSesion } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
 
 import {
@@ -29,6 +27,7 @@ import {
 } from "@/lib/api";
 import { chequeos, ciclo, mensajes, alumna } from "@/lib/datos";
 import { delta, diaSemana, fecha, horaLocal, num } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi, usarApiConRespaldo } from "@/lib/usarApi";
 import { ROTULO_ESTADO, type EstadoChequeo } from "@/lib/tipos";
 
@@ -65,7 +64,7 @@ const RESPALDO: InicioAlumnaApi = {
 };
 
 export function Inicio() {
-  const navegar = useNavigate();
+  const { t } = useIdioma();
   const { datos, cargando, sinServidor, mensaje, codigo } = usarApiConRespaldo<InicioAlumnaApi>(
     (senal) => api.alumna.inicio(senal),
     RESPALDO,
@@ -74,7 +73,7 @@ export function Inicio() {
   if (cargando)
     return (
       <Cargando
-        que="tu inicio"
+        que={t("tu inicio")}
         esqueleto={
           <div className="flex flex-col gap-12">
             <EsqueletoPortada />
@@ -104,8 +103,8 @@ export function Inicio() {
   const ultimo = historico.at(-1)!;
   const previo = historico.at(-2) ?? ultimo;
   const base = historico[0]!;
-  const primerNombre = datos.perfil.nombre.split(" ")[0];
-  const nombreCoach = datos.coach.split(" ")[0];
+  const primerNombre = datos.perfil.nombre.split(" ")[0] ?? "";
+  const nombreCoach = datos.coach.split(" ")[0] ?? "";
 
   const dPeso = delta(ultimo.pesoKg ?? 0, previo.pesoKg, "kg");
   const dCintura = delta(ultimo.medidas.cintura ?? 0, previo.medidas.cintura, "cm");
@@ -116,10 +115,13 @@ export function Inicio() {
       {/* ---- Encabezado ---- */}
       <header className="flex flex-col gap-3">
         <Etiqueta>{diaSemana("2026-08-13")}</Etiqueta>
-        <Portada>Hola, {primerNombre}</Portada>
+        <Portada>{t("Hola, {nombre}", { nombre: primerNombre })}</Portada>
         {datos.ciclo ? (
           <Apoyo>
-            Ciclo {datos.ciclo.numero} · termina el {fecha(datos.ciclo.terminaEn)}
+            {t("Ciclo {n} · termina el {fecha}", {
+              n: datos.ciclo.numero,
+              fecha: fecha(datos.ciclo.terminaEn),
+            })}
           </Apoyo>
         ) : null}
       </header>
@@ -128,11 +130,15 @@ export function Inicio() {
 
       {/* Dada de baja: lo primero que tiene que ver es hasta cuándo puede bajar lo suyo. */}
       {datos.perfil.estado === "baja" && datos.perfil.borraEn ? (
-        <Aviso tono="error" titulo={`Tu cuenta se cierra el ${fecha(datos.perfil.borraEn)}`}>
-          {nombreCoach} dio de baja tu cuenta. Hasta esa fecha puedes entrar y descargar lo
-          tuyo; después se borra todo, incluidas tus fotos y tu historial.{" "}
+        <Aviso
+          tono="error"
+          titulo={t("Tu cuenta se cierra el {fecha}", { fecha: fecha(datos.perfil.borraEn) })}
+        >
+          {t("{coach} dio de baja tu cuenta. Hasta esa fecha puedes entrar y descargar lo tuyo; después se borra todo, incluidas tus fotos y tu historial.", {
+            coach: nombreCoach,
+          })}{" "}
           <a href="/api/documentos/evolucion" className="underline underline-offset-2">
-            Descargar mi expediente
+            {t("Descargar mi expediente")}
           </a>
         </Aviso>
       ) : null}
@@ -140,10 +146,17 @@ export function Inicio() {
       {datos.avisosSinLeer > 0 ? (
         <Aviso
           tono="atencion"
-          titulo={datos.ultimoAviso ?? (datos.avisosSinLeer === 1 ? "Tienes un aviso" : `Tienes ${datos.avisosSinLeer} avisos`)}
+          titulo={
+            datos.ultimoAviso ??
+            (datos.avisosSinLeer === 1
+              ? t("Tienes un aviso")
+              : t("Tienes {n} avisos", { n: datos.avisosSinLeer }))
+          }
         >
           <Link to="/avisos" className="underline underline-offset-2">
-            {datos.avisosSinLeer === 1 ? "Ábrelo" : `Ver tus ${datos.avisosSinLeer} avisos`}
+            {datos.avisosSinLeer === 1
+              ? t("Ábrelo")
+              : t("Ver tus {n} avisos", { n: datos.avisosSinLeer })}
           </Link>
         </Aviso>
       ) : null}
@@ -154,28 +167,30 @@ export function Inicio() {
 
       {/* ---- Lo que toca hoy ---- */}
       <section className="filete flex flex-col gap-4">
-        <Etiqueta>{datos.plan ? "Hoy te toca" : "Tu plan"}</Etiqueta>
+        <Etiqueta>{datos.plan ? t("Hoy te toca") : t("Tu plan")}</Etiqueta>
         <div className="flex flex-col gap-1">
           {/* Sin plan publicado no se inventa uno: antes salía una rutina de ejemplo y una
               alumna recién dada de alta creía tener ejercicios asignados. */}
-          <Titulo>{datos.plan?.primerDia ?? "Todavía no tienes plan"}</Titulo>
+          <Titulo>{datos.plan?.primerDia ?? t("Todavía no tienes plan")}</Titulo>
           <Apoyo>
             {datos.plan
               ? [
                   datos.plan.diasEntrenamiento > 0
-                    ? `${datos.plan.diasEntrenamiento} días de entrenamiento`
+                    ? t("{n} días de entrenamiento", { n: datos.plan.diasEntrenamiento })
                     : null,
                   datos.plan.kcalObjetivo ? `${datos.plan.kcalObjetivo} kcal` : null,
                 ]
                   .filter(Boolean)
                   .join(" · ")
-              : `${nombreCoach} lo está armando. Te avisamos en cuanto lo publique.`}
+              : t("{coach} lo está armando. Te avisamos en cuanto lo publique.", {
+                  coach: nombreCoach,
+                })}
           </Apoyo>
         </div>
         <div>
           <Boton asChild medida="grande" className="hunde">
             <Link to="/plan">
-              Abrir mi plan <ArrowRight className="size-4 transition-transform duration-[var(--mov-rapido)] ease-salida group-hover:translate-x-0.5" />
+              {t("Abrir mi plan")} <ArrowRight className="size-4 transition-transform duration-[var(--mov-rapido)] ease-salida group-hover:translate-x-0.5" />
             </Link>
           </Boton>
         </div>
@@ -186,101 +201,77 @@ export function Inicio() {
       {/* ---- Cifras ---- */}
       <section className="escalona grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3">
         <Dato
-          rotulo="Peso"
+          rotulo={t("Peso")}
           valor={num(ultimo.pesoKg)}
           unidad="kg"
-          nota={dPeso ? `${dPeso.texto} desde julio` : undefined}
+          nota={dPeso ? t("{delta} desde julio", { delta: dPeso.texto }) : undefined}
           direccion={dPeso?.direccion}
         />
         <Dato
-          rotulo="Cintura"
+          rotulo={t("Cintura")}
           valor={num(ultimo.medidas.cintura)}
           unidad="cm"
-          nota={dCintura ? `${dCintura.texto} desde julio` : undefined}
+          nota={dCintura ? t("{delta} desde julio", { delta: dCintura.texto }) : undefined}
           direccion={dCintura?.direccion}
         />
         <Dato
-          rotulo="Desde que empezaste"
+          rotulo={t("Desde que empezaste")}
           valor={num(Math.abs(dTotal?.valor ?? 0))}
           unidad="kg"
-          nota={`${(dTotal?.valor ?? 0) < 0 ? "menos" : "más"} en ${historico.length} chequeos`}
+          nota={t("{signo} en {n} chequeos", {
+            signo: (dTotal?.valor ?? 0) < 0 ? t("menos") : t("más"),
+            n: historico.length,
+          })}
         />
       </section>
 
       <Regla />
 
       {/* ---- Chequeo del mes ---- */}
-      <Tarjeta acentuada className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <Etiqueta>
-              Chequeo #{ultimo.numero} · {fecha(ultimo.fecha)}
-            </Etiqueta>
-            <Titulo>{nombreCoach} lo está revisando</Titulo>
+      {ultimo.estado !== "validado" ? (
+        <Tarjeta acentuada className="flex flex-col gap-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <Etiqueta>
+                {t("Chequeo #{numero} · {fecha}", {
+                  numero: ultimo.numero,
+                  fecha: fecha(ultimo.fecha),
+                })}
+              </Etiqueta>
+              <Titulo>{t("{coach} lo está revisando", { coach: nombreCoach })}</Titulo>
+            </div>
+            <Chip tono="espera">{t(ROTULO_ESTADO[ultimo.estado as EstadoChequeo])}</Chip>
           </div>
-          <Chip tono="espera">{ROTULO_ESTADO[ultimo.estado as EstadoChequeo]}</Chip>
-        </div>
-        <Apoyo className="medida">
-          Enviaste tus ocho medidas, tu peso y las tres fotos el {fecha(ultimo.fecha)}. En cuanto lo
-          valide te avisamos y se libera tu plan del ciclo siguiente.
-        </Apoyo>
-        <div className="flex flex-wrap gap-2">
-          <Boton asChild tono="contorno">
-            <Link to="/evolucion">Ver lo que enviaste</Link>
-          </Boton>
-          <Boton asChild tono="discreto">
-            <Link to="/chequeo">Empezar el del mes que entra</Link>
-          </Boton>
-        </div>
-      </Tarjeta>
+          <Apoyo className="medida">
+            {t("Enviaste tus ocho medidas, tu peso y las tres fotos el {fecha}. En cuanto lo valide te avisamos y se libera tu plan del ciclo siguiente.", {
+              fecha: fecha(ultimo.fecha),
+            })}
+          </Apoyo>
+          <div className="flex flex-wrap gap-2">
+            <Boton asChild tono="contorno">
+              <Link to="/evolucion">{t("Ver lo que enviaste")}</Link>
+            </Boton>
+            <Boton asChild tono="discreto">
+              <Link to="/chequeo">{t("Empezar el del mes que entra")}</Link>
+            </Boton>
+          </div>
+        </Tarjeta>
+      ) : null}
 
       {/* ---- Último feedback ---- */}
       {datos.ultimoFeedback ? (
         <section className="flex flex-col gap-3">
-          <Etiqueta>Lo último que te dijo {nombreCoach}</Etiqueta>
+          <Etiqueta>{t("Lo último que te dijo {coach}", { coach: nombreCoach })}</Etiqueta>
           <blockquote className="medida text-guia leading-relaxed text-balance">
             «{datos.ultimoFeedback}»
           </blockquote>
-          <Apoyo>{mensajes.length} mensajes en tu hilo</Apoyo>
+          <Apoyo>{t("{n} mensajes en tu hilo", { n: mensajes.length })}</Apoyo>
         </section>
       ) : null}
 
       <Regla />
 
       {/* ---- Lo secundario, al pie: no gasta una pestaña ---- */}
-      <nav aria-label="Más opciones" className="flex flex-wrap gap-2">
-        <Boton asChild tono="discreto" medida="chica">
-          <Link to="/mensajes">
-            <MessageSquare className="size-4" /> Mensajes
-          </Link>
-        </Boton>
-        <Boton asChild tono="discreto" medida="chica">
-          <Link to="/avisos">
-            <Bell className="size-4" /> Avisos
-          </Link>
-        </Boton>
-        <Boton asChild tono="discreto" medida="chica">
-          <Link to="/cuenta">
-            <User className="size-4" /> Mi cuenta
-          </Link>
-        </Boton>
-        <Boton asChild tono="discreto" medida="chica">
-          <Link to="/cuenta">
-            <ShieldCheck className="size-4" /> Privacidad
-          </Link>
-        </Boton>
-        <Boton
-          tono="discreto"
-          medida="chica"
-          className="ml-auto"
-          onClick={() => {
-            cerrarSesion();
-            void navegar("/acceso", { replace: true });
-          }}
-        >
-          <LogOut className="size-4" /> Salir
-        </Boton>
-      </nav>
     </div>
   );
 }
@@ -304,10 +295,10 @@ function diasHasta(iso: string): number {
   return Math.round((objetivo.getTime() - hoy.getTime()) / 86_400_000);
 }
 
-function cuando(dias: number): string {
-  if (dias <= 0) return "hoy";
-  if (dias === 1) return "mañana";
-  return `en ${dias} días`;
+function cuando(dias: number): { clave: string; dias?: number } {
+  if (dias <= 0) return { clave: "hoy" };
+  if (dias === 1) return { clave: "mañana" };
+  return { clave: "en {dias} días", dias };
 }
 
 /** El pago del ciclo y las consultas: las dos únicas fechas que tiene que recordar. */
@@ -318,6 +309,7 @@ function ProximasFechas({
   ciclo: InicioAlumnaApi["ciclo"];
   citas: CitaDeAlumnaApi[];
 }) {
+  const { t } = useIdioma();
   // Sin ciclo ni citas la sección sigue en pie: ahí vive el botón de reservar.
   const vacia = !ciclo && citas.length === 0;
 
@@ -327,7 +319,7 @@ function ProximasFechas({
 
   return (
     <section className="flex flex-col gap-4">
-      <Etiqueta icono={CalendarDays}>Próximas fechas</Etiqueta>
+      <Etiqueta icono={CalendarDays}>{t("Próximas fechas")}</Etiqueta>
 
       <ul
         className={cn(
@@ -339,16 +331,23 @@ function ProximasFechas({
           <li className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3">
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className="text-menor font-medium">
-                {ciclo.estadoPago === "validado" ? "Renovación de tu ciclo" : "Pago de tu ciclo"}
+                {ciclo.estadoPago === "validado"
+                  ? t("Renovación de tu ciclo")
+                  : t("Pago de tu ciclo")}
               </span>
               <span className="text-micro text-tinta-suave">
-                Ciclo {ciclo.numero} · ${num(ciclo.precio)}
+                {t("Ciclo {n}", { n: ciclo.numero })} · ${num(ciclo.precio)}
               </span>
             </span>
             <span className="flex items-baseline gap-3">
               <span className="cifra text-menor">{fecha(ciclo.terminaEn)}</span>
               <Chip tono={vencido ? "error" : urgePago ? "espera" : "neutro"}>
-                {vencido ? "vencido" : cuando(diasParaPago ?? 0)}
+                {vencido
+                  ? t("vencido")
+                  : (() => {
+                      const c = cuando(diasParaPago ?? 0);
+                      return t(c.clave, { dias: c.dias ?? 0 });
+                    })()}
               </Chip>
             </span>
           </li>
@@ -356,6 +355,7 @@ function ProximasFechas({
 
         {citas.map((c) => {
           const dias = diasHasta(c.iniciaEn);
+          const cita = cuando(dias);
           return (
             <li
               key={c.ulid}
@@ -364,15 +364,17 @@ function ProximasFechas({
               <span className="flex min-w-0 flex-col gap-0.5">
                 <span className="text-menor font-medium">{c.titulo}</span>
                 <span className="text-micro text-tinta-suave">
-                  {ROTULO_MODALIDAD[c.modalidad] ?? c.modalidad}
-                  {c.estado === "confirmada" ? " · confirmada" : ""}
+                  {t(ROTULO_MODALIDAD[c.modalidad] ?? c.modalidad)}
+                  {c.estado === "confirmada" ? ` · ${t("confirmada")}` : ""}
                 </span>
               </span>
               <span className="flex items-baseline gap-3">
                 <span className="cifra text-menor">
                   {fecha(c.iniciaEn)} · {horaLocal(c.iniciaEn)}
                 </span>
-                <Chip tono={dias <= 1 ? "espera" : "neutro"}>{cuando(dias)}</Chip>
+                <Chip tono={dias <= 1 ? "espera" : "neutro"}>
+                  {t(cita.clave, { dias: cita.dias ?? 0 })}
+                </Chip>
               </span>
             </li>
           );
@@ -382,11 +384,11 @@ function ProximasFechas({
       <div className="flex flex-wrap items-center gap-3">
         <Boton asChild tono="contorno" medida="chica">
           <Link to="/reservar">
-            <CalendarPlus className="size-3.5" /> Reservar consulta
+            <CalendarPlus className="size-3.5" /> {t("Reservar consulta")}
           </Link>
         </Boton>
         {citas.length === 0 ? (
-          <Apoyo>Todavía no tienes ninguna agendada.</Apoyo>
+          <Apoyo>{t("Todavía no tienes ninguna agendada.")}</Apoyo>
         ) : null}
       </div>
     </section>
@@ -399,6 +401,7 @@ function ProximasFechas({
  *  la coach lo recibe emparejado en vez de adivinar a qué corresponde.
  */
 function SubirComprobante() {
+  const { t } = useIdioma();
   const carga = usarApi<CobroApi2[]>((senal) => api.alumna.cobros(senal));
   const entrada = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState<string | null>(null);
@@ -428,9 +431,11 @@ function SubirComprobante() {
     <Tarjeta className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <Etiqueta icono={Wallet}>Tus pagos</Etiqueta>
+          <Etiqueta icono={Wallet}>{t("Tus pagos")}</Etiqueta>
           <Titulo>
-            {cobros.some((c) => c.vencido) ? "Tienes un pago atrasado" : "Lo que te toca pagar"}
+            {cobros.some((c) => c.vencido)
+              ? t("Tienes un pago atrasado")
+              : t("Lo que te toca pagar")}
           </Titulo>
         </div>
       </div>
@@ -446,21 +451,21 @@ function SubirComprobante() {
               <span className="flex items-center gap-3">
                 <span className="cifra font-semibold">${num(c.monto)}</span>
                 {c.estado === "en_revision" ? (
-                  <Chip tono="espera">En revisión</Chip>
+                  <Chip tono="espera">{t("En revisión")}</Chip>
                 ) : c.vencido ? (
-                  <Chip tono="error">Vencido</Chip>
+                  <Chip tono="error">{t("Vencido")}</Chip>
                 ) : null}
               </span>
             </div>
 
             {c.motivoRechazo ? (
-              <Aviso tono="atencion" titulo="Tu coach pidió otro comprobante">
+              <Aviso tono="atencion" titulo={t("Tu coach pidió otro comprobante")}>
                 {c.motivoRechazo}
               </Aviso>
             ) : null}
 
             {c.estado === "en_revision" ? (
-              <Apoyo>Tu coach lo está revisando. Te avisamos en cuanto lo confirme.</Apoyo>
+              <Apoyo>{t("Tu coach lo está revisando. Te avisamos en cuanto lo confirme.")}</Apoyo>
             ) : (
               <div>
                 <Boton
@@ -474,7 +479,7 @@ function SubirComprobante() {
                   }}
                 >
                   {subiendo === c.ulid ? null : <Upload className="size-3.5" />}
-                  Subir comprobante
+                  {t("Subir comprobante")}
                 </Boton>
               </div>
             )}
@@ -493,11 +498,10 @@ function SubirComprobante() {
         }}
       />
 
-      {error ? <Aviso tono="error">{error}</Aviso> : null}
+      {error ? <Aviso tono="error">{t(error)}</Aviso> : null}
 
       <Apoyo>
-        Tu coach confirma cada pago contra su estado de cuenta. Un pago vencido pausa tu plan
-        hasta que lo valide.
+        {t("Tu coach confirma cada pago contra su estado de cuenta. Un pago vencido pausa tu plan hasta que lo valide.")}
       </Apoyo>
     </Tarjeta>
   );
@@ -507,30 +511,32 @@ function SubirComprobante() {
  *  primer chequeo la coach no puede calcular nada.
  */
 function PrimerChequeo({ nombre, coach }: { nombre: string; coach: string }) {
+  const { t } = useIdioma();
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-3">
-        <Etiqueta>Ya casi</Etiqueta>
-        <Portada>Hola, {nombre.split(" ")[0]}</Portada>
+        <Etiqueta>{t("Ya casi")}</Etiqueta>
+        <Portada>{t("Hola, {nombre}", { nombre: nombre.split(" ")[0] ?? "" })}</Portada>
         <Apoyo>
-          Falta lo último: tu primer chequeo. De ahí salen tu peso, tus medidas y el punto de
-          partida con el que {coach.split(" ")[0]} arma tu plan.
+          {t("Falta lo último: tu primer chequeo. De ahí salen tu peso, tus medidas y el punto de partida con el que {coach} arma tu plan.", {
+            coach: coach.split(" ")[0] ?? "",
+          })}
         </Apoyo>
       </header>
 
       <section className="filete flex flex-col gap-4">
-        <Etiqueta>Qué te va a pedir</Etiqueta>
+        <Etiqueta>{t("Qué te va a pedir")}</Etiqueta>
         <ul className="flex flex-col gap-2 text-menor text-tinta-media">
-          <li>Cómo llegas hoy: en ayunas, sin entrenar, recién despierta.</li>
-          <li>Tu peso.</li>
-          <li>Tus medidas: cintura, cadera, brazo y las demás.</li>
-          <li>Tres fotos. Se guardan sin cara y se borran a los cuatro meses, menos la primera y la última.</li>
+          <li>{t("Cómo llegas hoy: en ayunas, sin entrenar, recién despierta.")}</li>
+          <li>{t("Tu peso.")}</li>
+          <li>{t("Tus medidas: cintura, cadera, brazo y las demás.")}</li>
+          <li>{t("Tres fotos. Se guardan sin cara y se borran a los cuatro meses, menos la primera y la última.")}</li>
         </ul>
-        <Apoyo>Son unos diez minutos. Puedes dejarlo a medias y seguir después.</Apoyo>
+        <Apoyo>{t("Son unos diez minutos. Puedes dejarlo a medias y seguir después.")}</Apoyo>
         <div>
           <Boton asChild medida="grande">
             <Link to="/chequeo">
-              Empezar mi chequeo <ArrowRight className="size-4" />
+              {t("Empezar mi chequeo")} <ArrowRight className="size-4" />
             </Link>
           </Boton>
         </div>
@@ -539,14 +545,6 @@ function PrimerChequeo({ nombre, coach }: { nombre: string; coach: string }) {
       {/* Esta pantalla sustituye al inicio entero, y con él a su barra: sin salida, quien
           entra por error no puede ni volver al acceso. */}
       <Regla />
-      <nav aria-label="Más opciones" className="flex flex-wrap gap-2">
-        <Boton asChild tono="discreto" medida="chica">
-          <Link to="/cuenta">
-            <User className="size-4" /> Mi cuenta
-          </Link>
-        </Boton>
-        <BotonSalir className="ml-auto" />
-      </nav>
     </div>
   );
 }

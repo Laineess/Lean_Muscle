@@ -35,6 +35,7 @@ import {
 } from "@/lib/api";
 import { fecha, horaLocal, num } from "@/lib/formato";
 import { usarApi } from "@/lib/usarApi";
+import { useIdioma } from "@/lib/idioma";
 
 const ROTULO_PASO: Record<string, string> = {
   correo: "sin confirmar su correo",
@@ -57,11 +58,12 @@ function diasPara(iso: string): number {
 }
 
 export function Solicitudes() {
+  const { t } = useIdioma();
   const carga = usarApi<SolicitudEnBandejaApi[]>((s) => api.coach.solicitudes(s));
   const planes = usarApi<PlanComercialApi[]>((s) => api.coach.planes(s));
   const [decidiendo, setDecidiendo] = useState<SolicitudEnBandejaApi | null>(null);
 
-  if (carga.cargando) return <CargandoPantalla que="tus solicitudes" filas={3} />;
+  if (carga.cargando) return <CargandoPantalla que={t("tus solicitudes")} filas={3} />;
 
   const filas = carga.datos ?? [];
   const listas = filas.filter((f) => f.paso === "espera");
@@ -70,11 +72,10 @@ export function Solicitudes() {
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-3">
-        <Etiqueta>Llegaron por tu liga</Etiqueta>
-        <Portada>Solicitudes</Portada>
+        <Etiqueta>{t("Llegaron por tu liga")}</Etiqueta>
+        <Portada>{t("Solicitudes")}</Portada>
         <Apoyo>
-          Aceptar confirma su consulta, abre su ciclo y le deja el chequeo disponible.
-          Ninguna cuenta contra tu límite hasta que la aceptes.
+          {t("Aceptar confirma su consulta, abre su ciclo y le deja el chequeo disponible. Ninguna cuenta contra tu límite hasta que la aceptes.")}
         </Apoyo>
       </header>
 
@@ -82,14 +83,13 @@ export function Solicitudes() {
 
       {filas.length === 0 ? (
         <Vacio>
-          Nadie ha empezado su registro todavía. Comparte tu liga desde la pantalla de tus
-          alumnas.
+          {t("Nadie ha empezado su registro todavía. Comparte tu liga desde la pantalla de tus alumnas.")}
         </Vacio>
       ) : null}
 
       {listas.length > 0 ? (
         <section className="flex flex-col gap-4">
-          <Etiqueta>Te toca decidir</Etiqueta>
+          <Etiqueta>{t("Te toca decidir")}</Etiqueta>
           <ul className="flex flex-col gap-4">
             {listas.map((f) => (
               <li key={f.ulid}>
@@ -102,7 +102,7 @@ export function Solicitudes() {
 
       {enCurso.length > 0 ? (
         <section className="flex flex-col gap-4">
-          <Etiqueta>Todavía en su recorrido</Etiqueta>
+          <Etiqueta>{t("Todavía en su recorrido")}</Etiqueta>
           <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
             {enCurso.map((f) => (
               <li
@@ -112,20 +112,19 @@ export function Solicitudes() {
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-menor font-medium">{f.nombre}</span>
                   <span className="text-micro text-tinta-suave">
-                    {ROTULO_PASO[f.paso] ?? f.paso}
+                    {t(ROTULO_PASO[f.paso] ?? f.paso)}
                   </span>
                 </span>
                 {f.borraEn ? (
                   <Chip tono={diasPara(f.borraEn) <= 2 ? "espera" : "neutro"}>
-                    se borra en {diasPara(f.borraEn)} d
+                    {t("se borra en {dias} d", { dias: diasPara(f.borraEn) })}
                   </Chip>
                 ) : null}
               </li>
             ))}
           </ul>
           <Apoyo>
-            Si no terminan, su registro se borra solo y no queda nada suyo. Se les avisa dos
-            días antes.
+            {t("Si no terminan, su registro se borra solo y no queda nada suyo. Se les avisa dos días antes.")}
           </Apoyo>
         </section>
       ) : null}
@@ -154,6 +153,7 @@ function Tarjeta({
   solicitud: SolicitudEnBandejaApi;
   onDecidir: () => void;
 }) {
+  const { t } = useIdioma();
   const [verRespuestas, setVerRespuestas] = useState(false);
 
   return (
@@ -162,32 +162,32 @@ function Tarjeta({
         <div className="flex flex-col gap-1">
           <span className="text-guia font-medium">{solicitud.nombre}</span>
           <span className="text-micro text-tinta-suave">
-            {solicitud.edad} años · {solicitud.correo}
+            {t("{edad} años · {correo}", { edad: solicitud.edad, correo: solicitud.correo })}
             {solicitud.whatsapp ? ` · ${solicitud.whatsapp}` : ""}
           </span>
         </div>
         <Boton medida="chica" onClick={onDecidir}>
-          Revisar
+          {t("Revisar")}
         </Boton>
       </div>
 
       <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-3">
-        <Dato rotulo="Plan que pide">
+        <Dato rotulo={t("Plan que pide")}>
           {solicitud.planPedido ?? "—"}
           {solicitud.precioPlan !== null ? (
             <span className="text-tinta-suave"> · ${num(solicitud.precioPlan)}</span>
           ) : null}
         </Dato>
-        <Dato rotulo="Su consulta">
+        <Dato rotulo={t("Su consulta")}>
           {solicitud.citaIniciaEn
             ? `${fecha(solicitud.citaIniciaEn)} · ${horaLocal(solicitud.citaIniciaEn)}`
-            : "sin reservar"}
+            : t("sin reservar")}
         </Dato>
-        <Dato rotulo="Inscripción">
+        <Dato rotulo={t("Inscripción")}>
           {solicitud.montoInscripcion !== null ? `$${num(solicitud.montoInscripcion)}` : "—"}
           <span className="text-tinta-suave">
             {" · "}
-            {ROTULO_PAGO[solicitud.estadoDelPago ?? ""] ?? "—"}
+            {ROTULO_PAGO[solicitud.estadoDelPago ?? ""] ? t(ROTULO_PAGO[solicitud.estadoDelPago ?? ""]!) : "—"}
           </span>
         </Dato>
       </dl>
@@ -198,7 +198,7 @@ function Tarjeta({
           medida="chica"
           onClick={() => setVerRespuestas((v) => !v)}
         >
-          {verRespuestas ? "Ocultar lo que contestó" : "Ver lo que contestó"}
+          {verRespuestas ? t("Ocultar lo que contestó") : t("Ver lo que contestó")}
         </Boton>
       </div>
 
@@ -218,16 +218,17 @@ function Dato({ rotulo, children }: { rotulo: string; children: React.ReactNode 
 
 /** Lo que contestó. Se pide al abrirlo, no antes: cada lectura queda en la bitácora. */
 function Respuestas({ alumnaUlid }: { alumnaUlid: string }) {
+  const { t } = useIdioma();
   const carga = usarApi<RespuestaDeAlumnaApi[]>(
     (s) => api.coach.respuestasDeAlumna(alumnaUlid, s),
     [alumnaUlid],
   );
 
-  if (carga.cargando) return <Apoyo>Un momento…</Apoyo>;
+  if (carga.cargando) return <Apoyo>{t("Un momento…")}</Apoyo>;
   if (carga.error) return <Aviso tono="error">{carga.error.message}</Aviso>;
 
   const filas = carga.datos ?? [];
-  if (filas.length === 0) return <Apoyo>No contestó ninguna de tus preguntas.</Apoyo>;
+  if (filas.length === 0) return <Apoyo>{t("No contestó ninguna de tus preguntas.")}</Apoyo>;
 
   return (
     <dl className="flex flex-col divide-y divide-linea border-y border-linea">
@@ -254,6 +255,7 @@ function Decision({
   onCerrar: () => void;
   onHecho: () => void;
 }) {
+  const { t } = useIdioma();
   const [plan, setPlan] = useState(solicitud.planPedidoUlid ?? "");
   const [validarPago, setValidarPago] = useState(solicitud.estadoDelPago === "en_revision");
   const [descartando, setDescartando] = useState(false);
@@ -272,7 +274,7 @@ function Decision({
       }
       onHecho();
     } catch (causa) {
-      setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo completar.");
+      setFallo(causa instanceof ErrorApi ? causa.message : t("No se pudo completar."));
     } finally {
       setOcupado(false);
     }
@@ -282,14 +284,14 @@ function Decision({
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta="Solicitud"
+      etiqueta={t("Solicitud")}
       titulo={solicitud.nombre}
       descripcion={`${solicitud.edad} años · ${solicitud.correo}`}
       pie={
         descartando ? (
           <>
             <Boton tono="contorno" medida="chica" onClick={() => setDescartando(false)}>
-              Volver
+              {t("Volver")}
             </Boton>
             <Boton
               tono="peligro"
@@ -297,17 +299,17 @@ function Decision({
               disabled={ocupado || !motivo.trim()}
               onClick={() => void resolver("descartar")}
             >
-              Descartar y avisarle
+              {t("Descartar y avisarle")}
             </Boton>
           </>
         ) : (
           <>
             <Boton tono="peligro" medida="chica" onClick={() => setDescartando(true)}>
-              <X className="size-3.5" /> Descartar
+              <X className="size-3.5" /> {t("Descartar")}
             </Boton>
             <Boton medida="chica" cargando={ocupado} onClick={() => void resolver("aceptar")}>
               {ocupado ? null : <Check className="size-3.5" />}
-              Aceptar
+              {t("Aceptar")}
             </Boton>
           </>
         )
@@ -315,21 +317,20 @@ function Decision({
     >
       {descartando ? (
         <>
-          <Aviso tono="atencion" titulo="Pierde el acceso hoy">
-            Su registro y todo lo que capturó se borran en 7 días. La consulta que había
-            reservado queda libre para otra.
+          <Aviso tono="atencion" titulo={t("Pierde el acceso hoy")}>
+            {t("Su registro y todo lo que capturó se borran en 7 días. La consulta que había reservado queda libre para otra.")}
           </Aviso>
           <Campo
             id="so-motivo"
-            etiqueta="Por qué"
-            ayuda="Lo lee ella tal cual en su correo, así que escríbelo para ella."
+            etiqueta={t("Por qué")}
+            ayuda={t("Lo lee ella tal cual en su correo, así que escríbelo para ella.")}
           >
             <textarea
               id="so-motivo"
               rows={3}
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
-              placeholder="Tu condición necesita seguimiento médico que yo no doy."
+              placeholder={t("Tu condición necesita seguimiento médico que yo no doy.")}
               className="w-full rounded-marco border border-linea bg-fondo px-3 py-2 text-cuerpo leading-relaxed focus:border-tinta focus:outline-none"
             />
           </Campo>
@@ -340,23 +341,23 @@ function Decision({
             <span className="flex flex-wrap items-center gap-2 text-menor">
               <Clock className="size-3.5 text-tinta-suave" />
               {solicitud.citaIniciaEn
-                ? `Su consulta: ${fecha(solicitud.citaIniciaEn)} a las ${horaLocal(solicitud.citaIniciaEn)}`
-                : "Todavía no reserva consulta"}
+                ? t("Su consulta: {fecha} a las {hora}", { fecha: fecha(solicitud.citaIniciaEn), hora: horaLocal(solicitud.citaIniciaEn) })
+                : t("Todavía no reserva consulta")}
             </span>
-            <Apoyo>Al aceptarla queda confirmada y se le avisa por correo.</Apoyo>
+            <Apoyo>{t("Al aceptarla queda confirmada y se le avisa por correo.")}</Apoyo>
           </div>
 
           <Campo
             id="so-plan"
-            etiqueta="Plan que le confirmas"
+            etiqueta={t("Plan que le confirmas")}
             ayuda={
               solicitud.planPedido
-                ? `Ella pidió ${solicitud.planPedido}. De aquí sale el precio de su ciclo.`
-                : "De aquí sale el precio de su ciclo."
+                ? t("Ella pidió {plan}. De aquí sale el precio de su ciclo.", { plan: solicitud.planPedido })
+                : t("De aquí sale el precio de su ciclo.")
             }
           >
             <Selector id="so-plan" value={plan} onChange={(e) => setPlan(e.target.value)}>
-              <option value="">Sin plan por ahora</option>
+              <option value="">{t("Sin plan por ahora")}</option>
               {planes.map((p) => (
                 <option key={p.ulid} value={p.ulid}>
                   {p.nombre} · ${num(p.precio)} · {p.dias} días
@@ -377,31 +378,33 @@ function Decision({
                     className="size-4 accent-[var(--acento-texto)]"
                   />
                   {solicitud.estadoDelPago === "en_revision"
-                    ? "Dar por bueno el comprobante y registrar el ingreso"
-                    : "Todavía no sube comprobante: puedes aceptarla igual y queda el adeudo"}
+                    ? t("Dar por bueno el comprobante y registrar el ingreso")
+                    : t("Todavía no sube comprobante: puedes aceptarla igual y queda el adeudo")}
                 </label>
               </Campo>
 
               {solicitud.estadoDelPago === "en_revision" ? (
                 <img
                   src={urlDeComprobante(solicitud.cobroUlid)}
-                  alt={`Comprobante de ${solicitud.nombre}`}
+                  alt={t("Comprobante de {nombre}", { nombre: solicitud.nombre })}
                   className="max-h-72 w-full rounded-marco border border-linea object-contain"
                 />
               ) : null}
 
               {solicitud.montoLeido !== null &&
               solicitud.montoLeido !== solicitud.montoInscripcion ? (
-                <Aviso tono="atencion" titulo="El importe leído no coincide">
-                  Esperabas ${num(solicitud.montoInscripcion ?? 0)} y la captura dice $
-                  {num(solicitud.montoLeido)}. Compruébalo contra tu estado de cuenta.
+                <Aviso tono="atencion" titulo={t("El importe leído no coincide")}>
+                  {t("Esperabas {a} y la captura dice {b}. Compruébalo contra tu estado de cuenta.", {
+                    a: num(solicitud.montoInscripcion ?? 0),
+                    b: num(solicitud.montoLeido),
+                  })}
                 </Aviso>
               ) : null}
             </div>
           ) : null}
 
           <Etiqueta>
-            Al aceptarla entra a tu cartera y empieza a contar contra tu límite.
+            {t("Al aceptarla entra a tu cartera y empieza a contar contra tu límite.")}
           </Etiqueta>
         </>
       )}

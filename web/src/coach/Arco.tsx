@@ -10,6 +10,7 @@ import { useState } from "react";
 import { Apoyo, Aviso, Boton, Campo, Chip, Titulo, Vacio } from "@/componentes/primitivas";
 import { ErrorApi, api, type SolicitudArcoApi } from "@/lib/api";
 import { fecha } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 
 const ESTADO: Record<SolicitudArcoApi["estado"], string> = {
@@ -19,6 +20,7 @@ const ESTADO: Record<SolicitudArcoApi["estado"], string> = {
 };
 
 export function Arco() {
+  const { t } = useIdioma();
   const carga = usarApi<SolicitudArcoApi[]>((s) => api.coach.arco(s), []);
   const [abierta, setAbierta] = useState<string | null>(null);
   const [respuesta, setRespuesta] = useState("");
@@ -36,7 +38,7 @@ export function Arco() {
       setRespuesta("");
       carga.recargar();
     } catch (causa) {
-      setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo guardar.");
+      setFallo(causa instanceof ErrorApi ? causa.message : t("No se pudo guardar."));
     } finally {
       setOcupado(false);
     }
@@ -45,17 +47,18 @@ export function Arco() {
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <Titulo icono={Scale}>Derechos de tus alumnas</Titulo>
+        <Titulo icono={Scale}>{t("Derechos de tus alumnas")}</Titulo>
         <Apoyo>
-          Acceso, rectificación, cancelación y oposición. Tienes 20 días hábiles para
-          contestar y 15 más para ejecutar lo que prometas.
+          {t(
+            "Acceso, rectificación, cancelación y oposición. Tienes 20 días hábiles para contestar y 15 más para ejecutar lo que prometas.",
+          )}
         </Apoyo>
       </div>
 
       {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
 
       {carga.cargando ? null : filas.length === 0 ? (
-        <Vacio>Ninguna alumna ha ejercido sus derechos.</Vacio>
+        <Vacio>{t("Ninguna alumna ha ejercido sus derechos.")}</Vacio>
       ) : (
         <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
           {filas.map((s) => (
@@ -63,20 +66,20 @@ export function Arco() {
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-menor font-medium">
-                    {s.rotulo} · {s.alumna ?? "una alumna"}
+                    {s.rotulo} · {s.alumna ?? t("una alumna")}
                   </span>
                   <span className="text-micro text-tinta-suave">
-                    {ESTADO[s.estado]} · recibida el {fecha(s.recibidaEn)}
-                    {s.venceEl ? ` · vence el ${fecha(s.venceEl)}` : ""}
+                    {t(ESTADO[s.estado])} · {t("recibida el {fecha}", { fecha: fecha(s.recibidaEn) })}
+                    {s.venceEl ? ` · ${t("vence el {fecha}", { fecha: fecha(s.venceEl) })}` : ""}
                   </span>
                 </span>
                 {s.estado === "resuelta" ? (
-                  <Chip tono="exito">Resuelta</Chip>
+                  <Chip tono="exito">{t("Resuelta")}</Chip>
                 ) : (s.diasRestantes ?? 0) < 0 ? (
-                  <Chip tono="error">Fuera de plazo</Chip>
+                  <Chip tono="error">{t("Fuera de plazo")}</Chip>
                 ) : (
                   <Chip tono={(s.diasRestantes ?? 99) <= 5 ? "espera" : "neutro"}>
-                    {s.diasRestantes} días
+                    {t("{n} días", { n: s.diasRestantes ?? 0 })}
                   </Chip>
                 )}
               </div>
@@ -90,13 +93,13 @@ export function Arco() {
 
               {abierta === s.ulid ? (
                 <div className="flex flex-col gap-2">
-                  <Campo id={`ar-${s.ulid}`} etiqueta="Tu respuesta">
+                  <Campo id={`ar-${s.ulid}`} etiqueta={t("Tu respuesta")}>
                     <textarea
                       id={`ar-${s.ulid}`}
                       rows={3}
                       value={respuesta}
                       onChange={(e) => setRespuesta(e.target.value)}
-                      placeholder="Qué le contestas y qué vas a hacer."
+                      placeholder={t("Qué le contestas y qué vas a hacer.")}
                       className="w-full rounded-marco border border-linea bg-fondo px-3 py-2 text-cuerpo leading-relaxed focus:border-tinta focus:outline-none"
                     />
                   </Campo>
@@ -106,10 +109,10 @@ export function Arco() {
                       disabled={ocupado || !respuesta.trim()}
                       onClick={() => void correr(() => api.coach.responderArco(s.ulid, respuesta))}
                     >
-                      Guardar respuesta
+                      {t("Guardar respuesta")}
                     </Boton>
                     <Boton tono="contorno" medida="chica" onClick={() => setAbierta(null)}>
-                      Cancelar
+                      {t("Cancelar")}
                     </Boton>
                   </div>
                 </div>
@@ -124,7 +127,7 @@ export function Arco() {
                         setRespuesta("");
                       }}
                     >
-                      Contestar
+                      {t("Contestar")}
                     </Boton>
                   ) : null}
                   {s.estado === "respondida" ? (
@@ -134,7 +137,7 @@ export function Arco() {
                       disabled={ocupado}
                       onClick={() => void correr(() => api.coach.resolverArco(s.ulid))}
                     >
-                      Marcar como resuelta
+                      {t("Marcar como resuelta")}
                     </Boton>
                   ) : null}
                 </div>

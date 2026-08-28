@@ -20,6 +20,7 @@ import {
   Titulo,
 } from "@/componentes/primitivas";
 import { coach } from "@/lib/datos";
+import { useIdioma } from "@/lib/idioma";
 
 const AVISOS = [
   ["Recordatorio de chequeo", "Día 1 de cada mes a todas tus alumnas activas"],
@@ -30,27 +31,31 @@ const AVISOS = [
 ] as const;
 
 export function Ajustes() {
+  const { t } = useIdioma();
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-3">
         <Etiqueta>
-          Plan {coach.plan} · hasta {coach.limiteAlumnas} alumnas
+          {t("Plan {plan} · hasta {n} alumnas", {
+            plan: coach.plan,
+            n: coach.limiteAlumnas,
+          })}
         </Etiqueta>
-        <Portada>Ajustes</Portada>
+        <Portada>{t("Ajustes")}</Portada>
       </header>
 
       {/* ---- Zona horaria ---- */}
       <section className="flex max-w-md flex-col gap-4">
-        <Titulo icono={Globe}>Tu zona horaria</Titulo>
+        <Titulo icono={Globe}>{t("Tu zona horaria")}</Titulo>
         <Campo
           id="aj-zona"
-          etiqueta="Zona"
-          ayuda="La de cada alumna se guarda aparte: su día calendario se evalúa con la suya."
+          etiqueta={t("Zona")}
+          ayuda={t("La de cada alumna se guarda aparte: su día calendario se evalúa con la suya.")}
         >
           <Selector id="aj-zona" defaultValue="America/Mexico_City">
-            <option value="America/Mexico_City">Ciudad de México (GMT−6)</option>
-            <option value="America/Tijuana">Tijuana (GMT−8)</option>
-            <option value="America/Cancun">Cancún (GMT−5)</option>
+            <option value="America/Mexico_City">{t("Ciudad de México (GMT−6)")}</option>
+            <option value="America/Tijuana">{t("Tijuana (GMT−8)")}</option>
+            <option value="America/Cancun">{t("Cancún (GMT−5)")}</option>
           </Selector>
         </Campo>
       </section>
@@ -60,16 +65,17 @@ export function Ajustes() {
       {/* ---- Avisos ---- */}
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <Titulo icono={BellRing}>Avisos automáticos</Titulo>
+          <Titulo icono={BellRing}>{t("Avisos automáticos")}</Titulo>
           <Apoyo>
-            Salen por notificación dentro de la plataforma. El correo se reserva para lo que no
-            puede perderse: acceso, dinero y privacidad.
+            {t(
+              "Salen por notificación dentro de la plataforma. El correo se reserva para lo que no puede perderse: acceso, dinero y privacidad.",
+            )}
           </Apoyo>
         </div>
         <div className="flex flex-col gap-2">
           {AVISOS.map(([titulo, detalle]) => (
-            <Casilla key={titulo} id={`av-${titulo}`} titulo={titulo} defaultChecked>
-              {detalle}
+            <Casilla key={titulo} id={`av-${titulo}`} titulo={t(titulo)} defaultChecked>
+              {t(detalle)}
             </Casilla>
           ))}
         </div>
@@ -90,9 +96,9 @@ export function Ajustes() {
       <Regla />
 
       <section className="flex flex-col gap-4">
-        <Titulo icono={KeyRound}>Sesión</Titulo>
+        <Titulo icono={KeyRound}>{t("Sesión")}</Titulo>
         <Aviso tono="info">
-          Cerrar sesión revoca el token en el servidor, no solo en este navegador.
+          {t("Cerrar sesión revoca el token en el servidor, no solo en este navegador.")}
         </Aviso>
         <div>
           <BotonSalir />

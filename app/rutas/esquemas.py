@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
 from pydantic.alias_generators import to_camel
@@ -73,6 +73,12 @@ class ActorPublico(Esquema):
     marca: str
     #: Entró con la contraseña inicial. Hasta que la cambie no se abre nada más.
     debe_cambiar_contrasena: bool = False
+    #: Preferencia de idioma de la cuenta ("es" | "en").
+    idioma: str = "es"
+
+
+class IdiomaPreferido(Esquema):
+    idioma: Literal["es", "en"]
 
 
 # ---------------------------------------------------------------------------
@@ -479,6 +485,13 @@ class EjercicioCatalogo(Esquema):
     propio: bool
 
 
+class EjercicioNuevo(Esquema):
+    nombre: Texto160
+    grupo: Texto60 | None = None
+    equipo: Texto60 | None = None
+    patron: Texto60 | None = None
+
+
 #: Fracción de un reparto: `Numeric(4, 3)`, entre 0 y 1.
 Fraccion = Annotated[Decimal, Field(ge=0, le=1)]
 
@@ -613,7 +626,7 @@ class AnuncioNuevo(Esquema):
 
     titulo: Texto80
     cuerpo: Texto300
-    #: ULIDs de a quién va. Vacío es «a todas mis alumnas activas».
+    #: ULIDs de a quién va. Vacío es «a todas mis pacientes activas».
     alumnas: Annotated[list[Texto30], Field(max_length=500)] = []
 
 

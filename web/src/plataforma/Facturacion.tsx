@@ -13,24 +13,26 @@ import { Grafica } from "@/componentes/Grafica";
 import { Apoyo, Aviso, Chip, Dato, Etiqueta, Portada, Regla, Titulo, Vacio } from "@/componentes/primitivas";
 import { api, type FacturacionApi, type FilaDeCoachApi } from "@/lib/api";
 import { fecha, num } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 
 export function Facturacion() {
   const resumen = usarApi<FacturacionApi>((senal) => api.plataforma.facturacion(12, senal));
   const coaches = usarApi<FilaDeCoachApi[]>((senal) => api.plataforma.coaches(senal));
+  const { t } = useIdioma();
 
   if (resumen.cargando || coaches.cargando)
-    return <CargandoPantalla que="la facturación" cifras={4} filas={5} />;
+    return <CargandoPantalla que={t("la facturación")} cifras={4} filas={5} />;
   if (resumen.error) {
     return (
-      <Aviso tono="error" titulo="No se pudo cargar la facturación">
+      <Aviso tono="error" titulo={t("No se pudo cargar la facturación")}>
         {resumen.error.message}
       </Aviso>
     );
   }
 
   const d = resumen.datos;
-  if (!d) return <Vacio>Todavía no hay nada que facturar.</Vacio>;
+  if (!d) return <Vacio>{t("Todavía no hay nada que facturar.")}</Vacio>;
 
   const hoy = new Date().toISOString().slice(0, 10);
   const morosas = (coaches.datos ?? []).filter(
@@ -43,29 +45,29 @@ export function Facturacion() {
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-3">
-        <Etiqueta icono={Wallet}>Suscripciones de coaches</Etiqueta>
-        <Portada>Facturación</Portada>
+        <Etiqueta icono={Wallet}>{t("Suscripciones de coaches")}</Etiqueta>
+        <Portada>{t("Facturación")}</Portada>
       </header>
 
       <section className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4">
-        <Dato rotulo="Cobrado este año" valor={`$${num(d.cobradoEnElAno)}`} grande />
+        <Dato rotulo={t("Cobrado este año")} valor={`$${num(d.cobradoEnElAno)}`} grande />
         <Dato
-          rotulo="Esperado al mes"
+          rotulo={t("Esperado al mes")}
           valor={`$${num(d.facturacionMensualEsperada)}`}
-          nota="suma de suscripciones activas"
+          nota={t("suma de suscripciones activas")}
         />
-        <Dato rotulo="Al corriente" valor={String(d.coachesAlCorriente)} />
+        <Dato rotulo={t("Al corriente")} valor={String(d.coachesAlCorriente)} />
         <Dato
-          rotulo="Vencidas"
+          rotulo={t("Vencidas")}
           valor={String(d.coachesVencidas)}
-          nota={d.coachesEnCortesia > 0 ? `${d.coachesEnCortesia} en cortesía` : undefined}
+          nota={d.coachesEnCortesia > 0 ? t("{n} en cortesía", { n: d.coachesEnCortesia }) : undefined}
         />
       </section>
 
       <Regla />
 
       <section className="flex flex-col gap-4">
-        <Titulo icono={TrendingUp}>Cobrado por mes</Titulo>
+        <Titulo icono={TrendingUp}>{t("Cobrado por mes")}</Titulo>
         {d.porMes.length >= 2 ? (
           <Grafica
             puntos={d.porMes.map((m) => ({ etiqueta: m.mes.slice(5), valor: m.ingresos }))}
@@ -73,16 +75,16 @@ export function Facturacion() {
             decimales={0}
           />
         ) : (
-          <Vacio>Con un mes de cobros todavía no hay línea que dibujar.</Vacio>
+          <Vacio>{t("Con un mes de cobros todavía no hay línea que dibujar.")}</Vacio>
         )}
       </section>
 
       <Regla />
 
       <section className="flex flex-col gap-4">
-        <Titulo icono={Clock}>Por cobrar</Titulo>
+        <Titulo icono={Clock}>{t("Por cobrar")}</Titulo>
         {morosas.length === 0 ? (
-          <Apoyo>Nadie debe nada. Es la única cifra de esta pantalla que conviene que sea cero.</Apoyo>
+          <Apoyo>{t("Nadie debe nada. Es la única cifra de esta pantalla que conviene que sea cero.")}</Apoyo>
         ) : (
           <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
             {morosas.map((c) => (
@@ -91,8 +93,8 @@ export function Facturacion() {
                   <span className="text-menor font-medium">{c.nombre}</span>
                   <Chip tono="error">
                     {c.suscripcion?.vigenteHasta
-                      ? `venció el ${fecha(c.suscripcion.vigenteHasta)}`
-                      : "sin periodo pagado"}
+                      ? t("venció el {fecha}", { fecha: fecha(c.suscripcion.vigenteHasta) })
+                      : t("sin periodo pagado")}
                   </Chip>
                 </span>
                 <span className="cifra font-semibold">${num(c.suscripcion?.precio ?? 0)}</span>

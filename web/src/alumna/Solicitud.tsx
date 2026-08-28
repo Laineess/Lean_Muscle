@@ -30,7 +30,9 @@ import {
   type PasoDeSolicitud,
 } from "@/lib/api";
 import { fecha, horaLocal, num } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
+import { cn } from "@/lib/utils";
 
 interface Escalon {
   paso: PasoDeSolicitud;
@@ -63,10 +65,12 @@ function diasPara(iso: string): number {
 }
 
 export function Solicitud() {
+  const { t } = useIdioma();
   const navegar = useNavigate();
+  const [pasoSeleccionado, setPasoSeleccionado] = useState<PasoDeSolicitud | null>(null);
   const carga = usarApi<EstadoDeSolicitudApi>((s) => api.alumna.solicitud(s));
 
-  if (carga.cargando) return <CargandoPantalla que="tu registro" texto={3} filas={0} />;
+  if (carga.cargando) return <CargandoPantalla que={t("tu registro")} texto={3} filas={0} />;
 
   if (carga.error) {
     return (
@@ -91,30 +95,33 @@ export function Solicitud() {
 
   const quedan = s.venceEn ? diasPara(s.venceEn) : null;
   const termino = s.paso === "espera" || s.paso === "lista";
+  const pasoActivo = pasoSeleccionado ?? s.paso;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-5 py-12">
       <header className="flex flex-col gap-3">
         <Etiqueta>{s.coach}</Etiqueta>
-        <Portada>{termino ? "Ya está todo de tu lado" : "Te falta poco"}</Portada>
+        <Portada>{termino ? t("Ya está todo de tu lado") : t("Te falta poco")}</Portada>
         <Apoyo>
           {termino
-            ? "Tu coach revisa tu solicitud y confirma tu consulta. Te avisamos por correo en cuanto lo haga."
-            : "Termina estos pasos y tu coach recibe tu solicitud."}
+            ? t("Tu coach revisa tu solicitud y confirma tu consulta. Te avisamos por correo en cuanto lo haga.")
+            : t("Termina estos pasos y tu coach recibe tu solicitud.")}
         </Apoyo>
       </header>
 
       {!termino && quedan !== null ? (
         <Aviso tono={quedan <= 2 ? "atencion" : "info"}>
-          Lo que capturaste se guarda {quedan === 1 ? "un día" : `${quedan} días`} más. Si no
-          terminas, se borra solo: es tu dato y no lo guardamos de más.
+          {t("Lo que capturaste se guarda {tiempo} más. Si no terminas, se borra solo: es tu dato y no lo guardamos de más.", {
+            tiempo: quedan === 1 ? t("un día") : t("{dias} días", { dias: quedan }),
+          })}
         </Aviso>
       ) : null}
 
       <ol className="flex flex-col divide-y divide-linea border-y border-linea">
         {ESCALONES.map((escalon, i) => {
           const hecho = hechos.has(escalon.paso);
-          const actual = !termino && s.paso === escalon.paso;
+          const puedeElegir = hecho || s.paso === escalon.paso;
+          const actual = !termino && pasoActivo === escalon.paso;
           return (
             <li key={escalon.paso} className="flex items-start gap-4 py-4">
               <span
@@ -131,16 +138,23 @@ export function Solicitud() {
 
               <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={
-                      hecho ? "text-menor font-medium text-tinta-suave" : "text-menor font-medium"
-                    }
+                  <button
+                    type="button"
+                    disabled={!puedeElegir || termino}
+                    onClick={() => setPasoSeleccionado(escalon.paso)}
+                    className={cn(
+                      "text-left text-menor font-medium transition-colors",
+                      hecho ? "text-tinta-suave" : "text-tinta",
+                      puedeElegir && !termino
+                        ? "hover:text-tinta underline-offset-2 hover:underline"
+                        : "cursor-default",
+                    )}
                   >
-                    {escalon.titulo}
-                  </span>
-                  {hecho ? <Chip tono="exito">listo</Chip> : null}
+                    {t(escalon.titulo)}
+                  </button>
+                  {hecho ? <Chip tono="exito">{t("listo")}</Chip> : null}
                 </span>
-                <span className="text-micro text-tinta-suave">{escalon.detalle}</span>
+                <span className="text-micro text-tinta-suave">{t(escalon.detalle)}</span>
 
                 {escalon.paso === "cita" && s.citaIniciaEn ? (
                   <span className="cifra text-micro">
@@ -148,7 +162,15 @@ export function Solicitud() {
                   </span>
                 ) : null}
 
-                {actual ? <AccionDelPaso paso={escalon.paso} onHecho={carga.recargar} /> : null}
+                {actual ? (
+                  <AccionDelPaso
+                    paso={escalon.paso}
+                    onHecho={() => {
+                      setPasoSeleccionado(null);
+                      carga.recargar();
+                    }}
+                  />
+                ) : null}
               </span>
             </li>
           );
@@ -160,7 +182,7 @@ export function Solicitud() {
       <Regla />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Apoyo>Entras con tu correo y la contraseña que elegiste.</Apoyo>
+        <Apoyo>{t("Entras con tu correo y la contraseña que elegiste.")}</Apoyo>
         <BotonSalir />
       </div>
     </div>
@@ -168,12 +190,13 @@ export function Solicitud() {
 }
 
 function AccionDelPaso({ paso, onHecho }: { paso: PasoDeSolicitud; onHecho: () => void }) {
+  const { t } = useIdioma();
   if (paso === "cuestionario") {
     return (
       <span className="mt-2">
         <Boton asChild medida="chica">
           <Link to="/bienvenida">
-            Empezar <ArrowRight className="size-3.5" />
+            {t("Empezar")} <ArrowRight className="size-3.5" />
           </Link>
         </Boton>
       </span>
@@ -185,7 +208,7 @@ function AccionDelPaso({ paso, onHecho }: { paso: PasoDeSolicitud; onHecho: () =
       <span className="mt-2">
         <Boton asChild medida="chica">
           <Link to="/reservar">
-            Ver horarios <ArrowRight className="size-3.5" />
+            {t("Ver horarios")} <ArrowRight className="size-3.5" />
           </Link>
         </Boton>
       </span>
@@ -198,6 +221,7 @@ function AccionDelPaso({ paso, onHecho }: { paso: PasoDeSolicitud; onHecho: () =
 /* --------------------------------------------------- Comprobante --- */
 
 function SubirInscripcion({ onHecho }: { onHecho: () => void }) {
+  const { t } = useIdioma();
   const carga = usarApi<CobroApi2[]>((s) => api.alumna.cobros(s));
   const entrada = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState(false);
@@ -227,7 +251,7 @@ function SubirInscripcion({ onHecho }: { onHecho: () => void }) {
         <span className="cifra font-semibold">${num(inscripcion.monto)}</span>
         <Boton medida="chica" cargando={subiendo} onClick={() => entrada.current?.click()}>
           {subiendo ? null : <Upload className="size-3.5" />}
-          Subir comprobante
+          {t("Subir comprobante")}
         </Boton>
         <input
           ref={entrada}
@@ -248,14 +272,14 @@ function SubirInscripcion({ onHecho }: { onHecho: () => void }) {
 /* --------------------------------------------------------- Espera --- */
 
 function Espera() {
+  const { t } = useIdioma();
   return (
     <Tarjeta className="flex flex-col gap-3">
-      <Titulo>Qué sigue</Titulo>
+      <Titulo>{t("Qué sigue")}</Titulo>
       <Apoyo>
-        Tu coach revisa lo que capturaste, confirma tu consulta y valida tu pago. Cuando te
-        acepte se abre tu primer chequeo, y ahí empieza el método: peso, medidas y fotos.
+        {t("Tu coach revisa lo que capturaste, confirma tu consulta y valida tu pago. Cuando te acepte se abre tu primer chequeo, y ahí empieza el método: peso, medidas y fotos.")}
       </Apoyo>
-      <Etiqueta>Mientras tanto no hace falta que hagas nada.</Etiqueta>
+      <Etiqueta>{t("Mientras tanto no hace falta que hagas nada.")}</Etiqueta>
     </Tarjeta>
   );
 }

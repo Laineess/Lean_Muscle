@@ -1,0 +1,82 @@
+/** Traducciones de las pantallas de acceso, registro y documentos. Claves: texto en español tal cual. */
+
+export const EN_RAIZ: Record<string, string> = {
+  "Faltan tu correo o tu contraseña.": "Your email or password is missing.",
+  "Algo salió mal. Vuelve a intentarlo.": "Something went wrong. Try again.",
+  "Entra a tu cuenta": "Sign in to your account",
+  "Con el correo que le diste a tu coach.": "With the email you gave your coach.",
+  "Tu sesión expiró": "Your session expired",
+  "Vuelve a entrar. Es por seguridad: las sesiones no duran para siempre.":
+    "Sign in again. It's for security: sessions don't last forever.",
+  "Correo": "Email",
+  "Contraseña": "Password",
+  "Recordar mis datos": "Remember my details",
+  "Guardamos tu correo y mantenemos la sesión abierta 30 días en este dispositivo. Tu contraseña nunca se guarda aquí.":
+    "We save your email and keep the session open for 30 days on this device. Your password is never stored here.",
+  "Entrando…": "Signing in…",
+  "Entrar": "Sign in",
+  "¿Olvidaste tu contraseña?": "Forgot your password?",
+  "En esta versión no hay recuperación automática. Escríbele a tu coach y ella te genera una clave temporal desde su panel, después de verificar que eres tú.":
+    "There's no automatic recovery in this version. Write to your coach and she'll generate a temporary key from her panel, after confirming it's really you.",
+  "Al entrar aceptas los": "By signing in you accept the",
+  "Términos y Condiciones": "Terms and Conditions",
+  "y el": "and the",
+  "Aviso de Privacidad": "Privacy Notice",
+  "No se pudo reanudar tu registro.": "Your registration couldn't be resumed.",
+  "la página de tu coach": "your coach's page",
+  "Esta liga no existe": "This link doesn't exist",
+  "Revisa la dirección que te compartieron, o pídesela otra vez a tu coach.":
+    "Check the link they shared with you, or ask your coach for it again.",
+  "Revisa tu correo": "Check your email",
+  "Empieza con {coach}": "Start with {coach}",
+  "Esta liga no está disponible ahora mismo.": "This link isn't available right now.",
+  "¿Ya tienes cuenta?": "Already have an account?",
+  "Entra por aquí": "Sign in here",
+  "No se pudo completar el registro.": "The registration couldn't be completed.",
+  "Inscripción: ${monto}": "Enrollment: ${monto}",
+  "Se paga al final, cuando ya sepas a qué hora es tu primera consulta.":
+    "It's paid at the end, once you know what time your first consult is.",
+  "Tu nombre": "Your name",
+  "Tu correo": "Your email",
+  "Ahí te mandamos un código de 6 dígitos.": "We'll send you a 6-digit code there.",
+  "Tu contraseña": "Your password",
+  "Ocho caracteres, un número y un símbolo. Nadie más la conoce.":
+    "Eight characters, a number and a symbol. No one else knows it.",
+  "Fecha de nacimiento": "Date of birth",
+  "La plataforma es solo para mayores de edad.": "The platform is only for adults.",
+  "WhatsApp (opcional)": "WhatsApp (optional)",
+  "Acepto los Términos y Condiciones": "I accept the Terms and Conditions",
+  "Leerlos antes de aceptar": "Read them before accepting",
+  "Acepto el Aviso de Privacidad": "I accept the Privacy Notice",
+  "Leerlo antes de aceptar": "Read it before accepting",
+  "Continuar": "Continue",
+  "Los datos de salud y las fotos vienen después, y con su propio consentimiento.":
+    "Health data and photos come later, and with their own consent.",
+  "No se pudo verificar el código.": "The code couldn't be verified.",
+  "Te mandamos otro código.": "We sent you another code.",
+  "No se pudo reenviar el código.": "The code couldn't be resent.",
+  "Mandamos un código de 6 dígitos a": "We sent a 6-digit code to",
+  "Vence en 15 minutos.": "It expires in 15 minutes.",
+  "Estás en desarrollo": "You're in development",
+  "El correo no sale de ningún buzón, así que aquí está el código:":
+    "The email doesn't leave any mailbox, so here's the code:",
+  "Código": "Code",
+  "Verificar": "Verify",
+  "Mandar otro código": "Send another code",
+  "Corregir mis datos": "Fix my details",
+  "Ponle tu contraseña": "Set your password",
+  "Entraste con la que te dieron de alta, y esa la conoce alguien más. Cámbiala ahora y lo demás se abre.":
+    "You signed in with the one you were set up with, and someone else knows it. Change it now and everything else opens up.",
+  "Es la única pantalla disponible hasta que la cambies": "It's the only screen available until you change it",
+  "No es una recomendación: mientras no lo hagas, el servidor no abre tu expediente ni tu plan.":
+    "It's not a suggestion: until you do, the server won't open your record or your plan.",
+  "el documento": "the document",
+  "No se pudo abrir el documento": "The document couldn't be opened",
+  "Inténtalo otra vez.": "Try again.",
+  "Volver": "Back",
+  "Versión {version} · {actualizado}": "Version {version} · {actualizado}",
+  "Este documento todavía no está completo": "This document isn't complete yet",
+  "Faltan por rellenar: {marcadores}. Está pendiente de revisión por abogado y no debe considerarse definitivo.":
+    "Still to fill in: {marcadores}. It's pending review by a lawyer and shouldn't be considered final.",
+  "¿Dudas sobre tus datos? Escribe a": "Questions about your data? Write to",
+};

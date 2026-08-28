@@ -17,8 +17,10 @@ import {
 } from "@/lib/api";
 import { fecha, num } from "@/lib/formato";
 import { usarApi } from "@/lib/usarApi";
+import { useIdioma } from "@/lib/idioma";
 
 export function Comprobantes({ onCambio }: { onCambio: () => void }) {
+  const { t } = useIdioma();
   const carga = usarApi<ComprobantePorRevisarApi[]>((senal) => api.coach.comprobantes(senal));
   const [abierto, setAbierto] = useState<ComprobantePorRevisarApi | null>(null);
 
@@ -28,12 +30,11 @@ export function Comprobantes({ onCambio }: { onCambio: () => void }) {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <Titulo>Comprobantes por revisar</Titulo>
+        <Titulo>{t("Comprobantes por revisar")}</Titulo>
         <Chip tono="espera">{filas.length}</Chip>
       </div>
       <Apoyo>
-        Confirma cada uno contra tu estado de cuenta. Al validarlo se registra el ingreso y el
-        cobro deja de contar como adeudo.
+        {t("Confirma cada uno contra tu estado de cuenta. Al validarlo se registra el ingreso y el cobro deja de contar como adeudo.")}
       </Apoyo>
 
       <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
@@ -45,7 +46,7 @@ export function Comprobantes({ onCambio }: { onCambio: () => void }) {
                 {c.montoNoCuadra ? (
                   <Chip tono="error">
                     <AlertTriangle className="mr-1 inline size-3" />
-                    leyó ${num(c.montoLeido)}
+                    {t("leyó")} ${num(c.montoLeido)}
                   </Chip>
                 ) : null}
               </span>
@@ -57,7 +58,7 @@ export function Comprobantes({ onCambio }: { onCambio: () => void }) {
             </span>
             <span className="cifra font-semibold">${num(c.montoEsperado)}</span>
             <Boton medida="chica" onClick={() => setAbierto(c)}>
-              Revisar
+              {t("Revisar")}
             </Boton>
           </li>
         ))}
@@ -87,6 +88,7 @@ function RevisarComprobante({
   onCerrar: () => void;
   onResuelto: () => void;
 }) {
+  const { t } = useIdioma();
   const [motivo, setMotivo] = useState("");
   const [rechazando, setRechazando] = useState(false);
   const [ocupado, setOcupado] = useState(false);
@@ -100,7 +102,7 @@ function RevisarComprobante({
       else await api.coach.rechazarComprobante(comprobante.cobroUlid, motivo.trim());
       onResuelto();
     } catch (causa) {
-      setError(causa instanceof ErrorApi ? causa.message : "No se pudo guardar.");
+      setError(causa instanceof ErrorApi ? causa.message : t("No se pudo guardar."));
     } finally {
       setOcupado(false);
     }
@@ -110,14 +112,14 @@ function RevisarComprobante({
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta="Comprobante"
+      etiqueta={t("Comprobante")}
       titulo={comprobante.alumna}
       descripcion={`${comprobante.concepto} · $${num(comprobante.montoEsperado)}`}
       pie={
         rechazando ? (
           <>
             <Boton tono="contorno" medida="chica" onClick={() => setRechazando(false)}>
-              Volver
+              {t("Volver")}
             </Boton>
             <Boton
               tono="peligro"
@@ -125,27 +127,28 @@ function RevisarComprobante({
               disabled={ocupado || !motivo.trim()}
               onClick={() => void resolver("rechazar")}
             >
-              Rechazar y avisar
+              {t("Rechazar y avisar")}
             </Boton>
           </>
         ) : (
           <>
             <Boton tono="peligro" medida="chica" onClick={() => setRechazando(true)}>
-              <X className="size-3.5" /> Rechazar
+              <X className="size-3.5" /> {t("Rechazar")}
             </Boton>
             <Boton medida="chica" cargando={ocupado} onClick={() => void resolver("validar")}>
               {ocupado ? null : <Check className="size-3.5" />}
-              Validar pago
+              {t("Validar pago")}
             </Boton>
           </>
         )
       }
     >
       {comprobante.montoNoCuadra ? (
-        <Aviso tono="atencion" titulo="El importe leído no coincide">
-          Esperabas ${num(comprobante.montoEsperado)} y la captura dice $
-          {num(comprobante.montoLeido)}. Compruébalo contra tu estado de cuenta antes de
-          validar.
+        <Aviso tono="atencion" titulo={t("El importe leído no coincide")}>
+          {t("Esperabas {esperado} y la captura dice {leido}. Compruébalo contra tu estado de cuenta antes de validar.", {
+            esperado: `$${num(comprobante.montoEsperado)}`,
+            leido: `$${num(comprobante.montoLeido)}`,
+          })}
         </Aviso>
       ) : null}
 
@@ -169,32 +172,31 @@ function RevisarComprobante({
           ] as const
         ).map(([rotulo, valor]) => (
           <div key={rotulo} className="flex items-baseline justify-between gap-2">
-            <dt className="text-tinta-suave">{rotulo}</dt>
+            <dt className="text-tinta-suave">{t(rotulo)}</dt>
             <dd className="cifra font-medium">{valor}</dd>
           </div>
         ))}
       </dl>
 
       {rechazando ? (
-        <Campo id="cp-motivo" etiqueta="¿Por qué lo rechazas?">
+        <Campo id="cp-motivo" etiqueta={t("¿Por qué lo rechazas?")}>
           <textarea
             id="cp-motivo"
             rows={3}
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
-            placeholder="La captura está cortada y no se ve la referencia."
+            placeholder={t("La captura está cortada y no se ve la referencia.")}
             className="w-full rounded-marco border border-linea bg-fondo px-3 py-2 text-cuerpo leading-relaxed focus:border-tinta focus:outline-none"
           />
         </Campo>
       ) : (
         <Apoyo>
-          Validar registra el ingreso, salda el cobro y le avisa. Rechazar le devuelve el
-          motivo tal como lo escribas.
+          {t("Validar registra el ingreso, salda el cobro y le avisa. Rechazar le devuelve el motivo tal como lo escribas.")}
         </Apoyo>
       )}
 
       {error ? <Aviso tono="error">{error}</Aviso> : null}
-      <Etiqueta>El OCR solo sugiere: lo que vale es tu estado de cuenta.</Etiqueta>
+      <Etiqueta>{t("El OCR solo sugiere: lo que vale es tu estado de cuenta.")}</Etiqueta>
     </Dialogo>
   );
 }
@@ -219,6 +221,7 @@ function VistaDelComprobante({
   alumna: string;
   esPdf: boolean;
 }) {
+  const { t } = useIdioma();
   const [rota, setRota] = useState(false);
   const url = urlDeComprobante(cobroUlid);
 
@@ -228,21 +231,21 @@ function VistaDelComprobante({
         <object
           data={url}
           type="application/pdf"
-          aria-label={`Comprobante de ${alumna}`}
+          aria-label={t("Comprobante de {alumna}", { alumna })}
           className="h-96 w-full rounded-marco border border-linea bg-fondo-sutil"
         >
           <div className="grid h-full place-items-center p-6 text-center">
-            <Apoyo>Tu navegador no puede enseñar el PDF aquí. Ábrelo en otra pestaña.</Apoyo>
+            <Apoyo>{t("Tu navegador no puede enseñar el PDF aquí. Ábrelo en otra pestaña.")}</Apoyo>
           </div>
         </object>
       ) : rota ? (
         <div className="grid h-40 place-items-center rounded-marco border border-dashed border-linea">
-          <Apoyo>No se pudo cargar la imagen del comprobante.</Apoyo>
+          <Apoyo>{t("No se pudo cargar la imagen del comprobante.")}</Apoyo>
         </div>
       ) : (
         <img
           src={url}
-          alt={`Comprobante de ${alumna}`}
+          alt={t("Comprobante de {alumna}", { alumna })}
           onError={() => setRota(true)}
           className="max-h-96 w-full rounded-marco border border-linea object-contain"
         />
@@ -254,7 +257,7 @@ function VistaDelComprobante({
         rel="noreferrer"
         className="flex items-center gap-1.5 self-start text-menor text-tinta-media underline underline-offset-4 transition-colors hover:text-tinta"
       >
-        <ExternalLink className="size-3.5" /> Abrir en otra pestaña
+        <ExternalLink className="size-3.5" /> {t("Abrir en otra pestaña")}
       </a>
     </div>
   );

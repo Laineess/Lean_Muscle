@@ -23,6 +23,7 @@ import {
   Vacio,
 } from "@/componentes/primitivas";
 import { api, type MovimientoDeAuditoriaApi, type SaludApi } from "@/lib/api";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 
 export function Salud() {
@@ -30,63 +31,70 @@ export function Salud() {
   const auditoria = usarApi<MovimientoDeAuditoriaApi[]>((senal) =>
     api.plataforma.auditoria(60, senal),
   );
+  const { t } = useIdioma();
 
-  if (salud.cargando) return <CargandoPantalla que="el estado del sistema" cifras={4} filas={4} />;
+  if (salud.cargando)
+    return <CargandoPantalla que={t("el estado del sistema")} cifras={4} filas={4} />;
   if (salud.error) {
     return (
-      <Aviso tono="error" titulo="No se pudo consultar el estado">
+      <Aviso tono="error" titulo={t("No se pudo consultar el estado")}>
         {salud.error.message}
       </Aviso>
     );
   }
 
   const d = salud.datos;
-  if (!d) return <Vacio>Sin datos.</Vacio>;
+  if (!d) return <Vacio>{t("Sin datos.")}</Vacio>;
 
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-3">
-        <Etiqueta icono={HeartPulse}>Estado del sistema</Etiqueta>
-        <Portada>Salud</Portada>
+        <Etiqueta icono={HeartPulse}>{t("Estado del sistema")}</Etiqueta>
+        <Portada>{t("Salud")}</Portada>
       </header>
 
       {d.avisosAgotados > 0 ? (
-        <Aviso tono="error" titulo={`${d.avisosAgotados} avisos se rindieron`}>
-          Fallaron cinco veces y ya no se reintentan. Revisa la configuración de correo:
-          alguien no recibió su clave temporal o su recibo y no se enteró.
+        <Aviso tono="error" titulo={t("{n} avisos se rindieron", { n: d.avisosAgotados })}>
+          {t(
+            "Fallaron cinco veces y ya no se reintentan. Revisa la configuración de correo: alguien no recibió su clave temporal o su recibo y no se enteró.",
+          )}
         </Aviso>
       ) : null}
 
       {d.fotosPorPurgar > 0 ? (
-        <Aviso tono="atencion" titulo={`${d.fotosPorPurgar} fotografías pasaron su plazo`}>
-          Deberían estar borradas. Comprueba que el trabajo de purga esté corriendo:
-          <code className="ml-1">systemctl list-timers myfittplan-recordatorios</code>. El
-          plazo de conservación está prometido por escrito en el Aviso de Privacidad.
+        <Aviso tono="atencion" titulo={t("{n} fotografías pasaron su plazo", { n: d.fotosPorPurgar })}>
+          {t(
+            "Deberían estar borradas. Comprueba que el trabajo de purga esté corriendo:",
+          )}{" "}
+          <code className="ml-1">systemctl list-timers myfittplan-recordatorios</code>.{" "}
+          {t(
+            "El plazo de conservación está prometido por escrito en el Aviso de Privacidad.",
+          )}
         </Aviso>
       ) : null}
 
       <section className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4">
         <Dato
-          rotulo="Avisos en cola"
+          rotulo={t("Avisos en cola")}
           valor={String(d.avisosPendientes)}
-          nota={d.avisosAgotados > 0 ? `${d.avisosAgotados} agotados` : "ninguno agotado"}
+          nota={d.avisosAgotados > 0 ? t("{n} agotados", { n: d.avisosAgotados }) : t("ninguno agotado")}
         />
         <Dato
-          rotulo="Fotos por purgar"
+          rotulo={t("Fotos por purgar")}
           valor={String(d.fotosPorPurgar)}
-          nota={d.fotosPorPurgar === 0 ? "al día" : "revisar el trabajo"}
+          nota={d.fotosPorPurgar === 0 ? t("al día") : t("revisar el trabajo")}
         />
-        <Dato rotulo="Almacenamiento" valor={String(d.mbTotales)} unidad="MB" />
-        <Dato rotulo="Sesiones vivas" valor={String(d.sesionesVivas)} />
-        <Dato rotulo="Coaches activas" valor={String(d.coachesActivas)} nota="entraron este mes" />
+        <Dato rotulo={t("Almacenamiento")} valor={String(d.mbTotales)} unidad="MB" />
+        <Dato rotulo={t("Sesiones vivas")} valor={String(d.sesionesVivas)} />
+        <Dato rotulo={t("Coaches activas")} valor={String(d.coachesActivas)} nota={t("entraron este mes")} />
         <Dato
-          rotulo="Coaches inactivas"
+          rotulo={t("Coaches inactivas")}
           valor={String(d.coachesInactivas)}
-          nota="30 días o más sin entrar"
+          nota={t("30 días o más sin entrar")}
         />
-        <Dato rotulo="Dispositivos con push" valor={String(d.suscripcionesPush)} />
+        <Dato rotulo={t("Dispositivos con push")} valor={String(d.suscripcionesPush)} />
         <Dato
-          rotulo="Último aviso enviado"
+          rotulo={t("Último aviso enviado")}
           valor={
             d.ultimoAvisoEnviado
               ? new Date(d.ultimoAvisoEnviado).toLocaleString("es-MX", {
@@ -95,7 +103,7 @@ export function Salud() {
                   hour: "2-digit",
                   minute: "2-digit",
                 })
-              : "nunca"
+              : t("nunca")
           }
         />
       </section>
@@ -103,17 +111,17 @@ export function Salud() {
       <Regla />
 
       <section className="flex flex-col gap-4">
-        <Titulo icono={Activity}>Movimientos recientes</Titulo>
+        <Titulo icono={Activity}>{t("Movimientos recientes")}</Titulo>
         <Apoyo className="medida">
-          Qué se hizo y en qué cuenta. Sin el detalle ni el identificador de la entidad: este
-          panel no puede reconstruir a qué alumna corresponde cada movimiento, y esa es
-          justamente la línea que lo mantiene del lado correcto de la ley.
+          {t(
+            "Qué se hizo y en qué cuenta. Sin el detalle ni el identificador de la entidad: este panel no puede reconstruir a qué alumna corresponde cada movimiento, y esa es justamente la línea que lo mantiene del lado correcto de la ley.",
+          )}
         </Apoyo>
 
         {auditoria.cargando ? (
-          <Cargando que="la auditoría" esqueleto={<EsqueletoLista filas={5} />} />
+          <Cargando que={t("la auditoría")} esqueleto={<EsqueletoLista filas={5} />} />
         ) : (auditoria.datos ?? []).length === 0 ? (
-          <Vacio>Todavía no hay movimientos registrados.</Vacio>
+          <Vacio>{t("Todavía no hay movimientos registrados.")}</Vacio>
         ) : (
           <ul className="flex flex-col divide-y divide-linea border-y border-linea">
             {(auditoria.datos ?? []).map((m, i) => (

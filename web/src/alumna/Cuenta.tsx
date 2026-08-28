@@ -33,6 +33,7 @@ import {
   type SolicitudArcoApi,
 } from "@/lib/api";
 import { fecha } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 
 const CONSENTIMIENTOS = [
@@ -50,6 +51,7 @@ const DERECHOS = [
 ] as const;
 
 export function Cuenta() {
+  const { t } = useIdioma();
   const [arco, setArco] = useState<string | null>(null);
   const [baja, setBaja] = useState(false);
   const [detalle, setDetalle] = useState("");
@@ -84,21 +86,23 @@ export function Cuenta() {
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-3">
-        <Etiqueta>Tu cuenta</Etiqueta>
-        <Portada>{perfil?.nombre ?? "Tu cuenta"}</Portada>
+        <Etiqueta>{t("Tu cuenta")}</Etiqueta>
+        <Portada>{perfil?.nombre ?? t("Tu cuenta")}</Portada>
       </header>
 
       {enviado ? (
-        <Aviso tono="exito" titulo="Solicitud registrada">
-          «{enviado}» quedó con fecha. Tu coach tiene 20 días hábiles para contestarte.
+        <Aviso tono="exito" titulo={t("Solicitud registrada")}>
+          {t("«{rotulo}» quedó con fecha. Tu coach tiene 20 días hábiles para contestarte.", {
+            rotulo: t(enviado ?? ""),
+          })}
         </Aviso>
       ) : null}
 
       {/* ---- Tema ---- */}
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <Titulo icono={Palette}>Apariencia</Titulo>
-          <Apoyo>De fábrica sigue a tu teléfono. Si prefieres uno fijo, elígelo aquí.</Apoyo>
+          <Titulo icono={Palette}>{t("Apariencia")}</Titulo>
+          <Apoyo>{t("De fábrica sigue a tu teléfono. Si prefieres uno fijo, elígelo aquí.")}</Apoyo>
         </div>
         <InterruptorDeTema className="w-fit" />
       </section>
@@ -107,11 +111,11 @@ export function Cuenta() {
 
       {/* ---- Contacto ---- */}
       <section className="flex max-w-md flex-col gap-4">
-        <Titulo icono={AtSign}>Datos de contacto</Titulo>
-        <Campo id="cu-correo" etiqueta="Correo">
+        <Titulo icono={AtSign}>{t("Datos de contacto")}</Titulo>
+        <Campo id="cu-correo" etiqueta={t("Correo")}>
           <Entrada id="cu-correo" type="email" value={perfil?.correo ?? ""} readOnly />
         </Campo>
-        <Apoyo>Para cambiarlos, escríbele a tu coach: es ella quien los tiene.</Apoyo>
+        <Apoyo>{t("Para cambiarlos, escríbele a tu coach: es ella quien los tiene.")}</Apoyo>
       </section>
 
       <Regla />
@@ -123,21 +127,21 @@ export function Cuenta() {
       {/* ---- Rutina de chequeo ---- */}
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <Titulo icono={ClipboardList}>Tu rutina de chequeo</Titulo>
-          <Apoyo>Se precargan cada mes. Cámbialas solo si de verdad cambió algo.</Apoyo>
+          <Titulo icono={ClipboardList}>{t("Tu rutina de chequeo")}</Titulo>
+          <Apoyo>{t("Se precargan cada mes. Cámbialas solo si de verdad cambió algo.")}</Apoyo>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
-          <Campo id="cu-bascula" etiqueta="Báscula">
+          <Campo id="cu-bascula" etiqueta={t("Báscula")}>
             <Entrada id="cu-bascula" value={perfil?.basculaRef ?? ""} readOnly />
           </Campo>
-          <Campo id="cu-lugar" etiqueta="Lugar de las fotos">
+          <Campo id="cu-lugar" etiqueta={t("Lugar de las fotos")}>
             <Entrada id="cu-lugar" value={perfil?.lugarRef ?? ""} readOnly />
           </Campo>
-          <Campo id="cu-hora" etiqueta="Hora">
+          <Campo id="cu-hora" etiqueta={t("Hora")}>
             <Entrada id="cu-hora" value={perfil?.horaRef ?? ""} readOnly />
           </Campo>
         </div>
-        <Apoyo>Se toman de tu último chequeo. Si cambió algo, dilo al hacer el siguiente.</Apoyo>
+        <Apoyo>{t("Se toman de tu último chequeo. Si cambió algo, dilo al hacer el siguiente.")}</Apoyo>
       </section>
 
       <Regla />
@@ -145,13 +149,10 @@ export function Cuenta() {
       {/* ---- Salud ---- */}
       <section className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Titulo icono={HeartPulse}>Tu historial de salud</Titulo>
-          <Chip tono="espera">Dato sensible</Chip>
+          <Titulo icono={HeartPulse}>{t("Tu historial de salud")}</Titulo>
+          <Chip tono="espera">{t("Dato sensible")}</Chip>
         </div>
-        <Apoyo>
-          Es lo que contestaste en tu cuestionario. De esto depende que tu plan sea seguro: si
-          cambió algo, díselo a tu coach para que lo actualice.
-        </Apoyo>
+        <Apoyo>{t("Es lo que contestaste en tu cuestionario. De esto depende que tu plan sea seguro: si cambió algo, díselo a tu coach para que lo actualice.")}</Apoyo>
         <div className="grid gap-4 sm:grid-cols-2">
           {(
             [
@@ -161,7 +162,7 @@ export function Cuenta() {
               ["Alergias y restricciones", salud?.restricciones],
             ] as const
           ).map(([rotulo, valor]) => (
-            <Campo key={rotulo} id={`cu-${rotulo}`} etiqueta={rotulo}>
+            <Campo key={rotulo} id={`cu-${rotulo}`} etiqueta={t(rotulo)}>
               <textarea
                 id={`cu-${rotulo}`}
                 value={valor ?? ""}
@@ -178,48 +179,41 @@ export function Cuenta() {
 
       {/* ---- Privacidad ---- */}
       <section className="flex flex-col gap-5">
-        <Titulo icono={ShieldCheck}>Privacidad</Titulo>
+        <Titulo icono={ShieldCheck}>{t("Privacidad")}</Titulo>
 
         <div className="flex flex-col gap-2">
-          <Etiqueta>Lo que aceptaste</Etiqueta>
+          <Etiqueta>{t("Lo que aceptaste")}</Etiqueta>
           <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
             {CONSENTIMIENTOS.map(([titulo, version, sensible, ruta]) => (
               <li key={titulo} className="flex flex-wrap items-center gap-3 py-3">
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link to={ruta} className="text-menor font-medium underline underline-offset-2">
-                      {titulo}
+                      {t(titulo)}
                     </Link>
-                    {sensible ? <Chip tono="espera">Sensible</Chip> : null}
+                    {sensible ? <Chip tono="espera">{t("Sensible")}</Chip> : null}
                   </div>
-                  <Apoyo>Versión {version}</Apoyo>
+                  <Apoyo>{t("Versión {version}", { version })}</Apoyo>
                 </div>
                 {(cuestionario?.consentimientosPendientes ?? []).length > 0 ? (
-                  <Chip tono="espera">Pendiente</Chip>
+                  <Chip tono="espera">{t("Pendiente")}</Chip>
                 ) : (
-                  <Chip tono="exito">Aceptado</Chip>
+                  <Chip tono="exito">{t("Aceptado")}</Chip>
                 )}
               </li>
             ))}
           </ul>
-          <Apoyo>
-            Guardamos la fecha, la hora y el hash del texto exacto que aceptaste. Para revocar
-            uno, escríbele a tu coach: revocar el protocolo fotográfico impide que genere o
-            ajuste tu plan.
-          </Apoyo>
+          <Apoyo>{t("Guardamos la fecha, la hora y el hash del texto exacto que aceptaste. Para revocar uno, escríbele a tu coach: revocar el protocolo fotográfico impide que genere o ajuste tu plan.")}</Apoyo>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2">
           <div className="flex flex-col gap-3">
-            <Etiqueta>Tus fotos</Etiqueta>
-            <Apoyo>
-              Se guardan cifradas y del cuello para abajo. A los 4 meses se borran, menos tu
-              primera y tu última de cada ángulo, que se quedan para tu comparativa.
-            </Apoyo>
+            <Etiqueta>{t("Tus fotos")}</Etiqueta>
+            <Apoyo>{t("Se guardan cifradas y del cuello para abajo. A los 4 meses se borran, menos tu primera y tu última de cada ángulo, que se quedan para tu comparativa.")}</Apoyo>
             <div className="flex flex-wrap gap-2">
               <Boton asChild tono="contorno" medida="chica">
                 <a href="/api/documentos/expediente" download>
-                  <Download className="size-3.5" /> Descargar todo
+                  <Download className="size-3.5" /> {t("Descargar todo")}
                 </a>
               </Boton>
               <Boton
@@ -227,23 +221,20 @@ export function Cuenta() {
                 medida="chica"
                 onClick={() => void descargarPdf("/documentos/evolucion", "mi-evolucion.pdf")}
               >
-                Solo el historial
+                {t("Solo el historial")}
               </Boton>
             </div>
-            <Apoyo>
-              «Descargar todo» trae tus fotos y tu historial en un ZIP. El historial suelto es
-              un PDF con tus medidas y tu peso.
-            </Apoyo>
+            <Apoyo>{t("«Descargar todo» trae tus fotos y tu historial en un ZIP. El historial suelto es un PDF con tus medidas y tu peso.")}</Apoyo>
           </div>
 
           <div className="flex flex-col gap-3">
-            <Etiqueta>Tus derechos ARCO</Etiqueta>
-            <Apoyo>Tienes respuesta en 20 días hábiles y ejecución en 15 más.</Apoyo>
+            <Etiqueta>{t("Tus derechos ARCO")}</Etiqueta>
+            <Apoyo>{t("Tienes respuesta en 20 días hábiles y ejecución en 15 más.")}</Apoyo>
             <SolicitudesArco filas={solicitudes.datos ?? []} />
             <div className="flex flex-wrap gap-2">
               {DERECHOS.map(([derecho, , clave]) => (
                 <Boton key={derecho} tono="contorno" medida="chica" onClick={() => setArco(clave)}>
-                  {derecho}
+                  {t(derecho)}
                 </Boton>
               ))}
             </div>
@@ -259,14 +250,11 @@ export function Cuenta() {
 
       {/* ---- Baja ---- */}
       <section className="flex flex-col gap-4 border-l-2 border-l-peligro pl-4">
-        <Titulo>Darme de baja</Titulo>
-        <Apoyo>
-          Se borra todo: fotos, medidas e historial clínico. Descarga antes lo que quieras
-          conservar, porque después no se puede recuperar.
-        </Apoyo>
+        <Titulo>{t("Darme de baja")}</Titulo>
+        <Apoyo>{t("Se borra todo: fotos, medidas e historial clínico. Descarga antes lo que quieras conservar, porque después no se puede recuperar.")}</Apoyo>
         <div className="flex flex-wrap gap-2">
           <Boton tono="peligro" onClick={() => setBaja(true)}>
-            Quiero darme de baja
+            {t("Quiero darme de baja")}
           </Boton>
           <BotonSalir />
         </div>
@@ -277,38 +265,35 @@ export function Cuenta() {
         <Dialogo
           abierto
           onCambio={(v) => !v && setArco(null)}
-          etiqueta={`Derecho de ${arco}`}
-          titulo="Cuéntanos qué necesitas"
+          etiqueta={t("Derecho de {codigo}", { codigo: arco })}
+          titulo={t("Cuéntanos qué necesitas")}
           pie={
             <>
               <Boton tono="contorno" medida="chica" onClick={() => setArco(null)}>
-                Cancelar
+                {t("Cancelar")}
               </Boton>
               <Boton
                 medida="chica"
                 disabled={enviando}
                 onClick={() => void pedir(`Derecho de ${arco}`, detalle)}
               >
-                {enviando ? "Enviando…" : "Enviar solicitud"}
+                {enviando ? t("Enviando…") : t("Enviar solicitud")}
               </Boton>
             </>
           }
         >
-          <Campo id="arco-detalle" etiqueta="Detalle">
+          <Campo id="arco-detalle" etiqueta={t("Detalle")}>
             <textarea
               id="arco-detalle"
               rows={3}
               value={detalle}
               onChange={(e) => setDetalle(e.target.value)}
               className="w-full rounded-marco border border-linea bg-fondo px-3 py-2 text-cuerpo leading-relaxed focus:border-tinta focus:outline-none"
-              placeholder="Explica brevemente tu solicitud"
+              placeholder={t("Explica brevemente tu solicitud")}
             />
           </Campo>
-          <Apoyo>
-            Le llega a tu coach, que es quien responde por tus datos. Queda con fecha y tienes
-            respuesta en 20 días hábiles.
-          </Apoyo>
-          {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
+          <Apoyo>{t("Le llega a tu coach, que es quien responde por tus datos. Queda con fecha y tienes respuesta en 20 días hábiles.")}</Apoyo>
+          {fallo ? <Aviso tono="error">{t(fallo)}</Aviso> : null}
         </Dialogo>
       ) : null}
 
@@ -316,12 +301,12 @@ export function Cuenta() {
         <Dialogo
           abierto
           onCambio={(v) => !v && setBaja(false)}
-          etiqueta="Baja definitiva"
-          titulo="Esto no se puede deshacer"
+          etiqueta={t("Baja definitiva")}
+          titulo={t("Esto no se puede deshacer")}
           pie={
             <>
               <Boton tono="contorno" medida="chica" onClick={() => setBaja(false)}>
-                Mejor no
+                {t("Mejor no")}
               </Boton>
               <Boton
                 tono="peligro"
@@ -329,20 +314,15 @@ export function Cuenta() {
                 disabled={enviando}
                 onClick={() => void pedir("C", detalle || "Baja definitiva de la cuenta.")}
               >
-                {enviando ? "Enviando…" : "Pedir mi baja"}
+                {enviando ? t("Enviando…") : t("Pedir mi baja")}
               </Boton>
             </>
           }
         >
-          <Apoyo>
-            Se borran tus fotos, tus medidas, tu peso y tu historial clínico. Solo se conserva
-            el registro de movimientos, con tu identificador anonimizado, por obligación legal.
-          </Apoyo>
-          <Aviso tono="error">
-            Si quieres conservar algo, descárgalo antes de pedirla.
-          </Aviso>
-          <Apoyo>La solicitud le llega a tu coach, que la procesa y te confirma.</Apoyo>
-          {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
+          <Apoyo>{t("Se borran tus fotos, tus medidas, tu peso y tu historial clínico. Solo se conserva el registro de movimientos, con tu identificador anonimizado, por obligación legal.")}</Apoyo>
+          <Aviso tono="error">{t("Si quieres conservar algo, descárgalo antes de pedirla.")}</Aviso>
+          <Apoyo>{t("La solicitud le llega a tu coach, que la procesa y te confirma.")}</Apoyo>
+          {fallo ? <Aviso tono="error">{t(fallo)}</Aviso> : null}
         </Dialogo>
       ) : null}
     </div>
@@ -357,6 +337,7 @@ const ROTULO_ARCO: Record<SolicitudArcoApi["estado"], string> = {
 
 /** Lo que ha pedido y en qué va. Vacío no se enseña: no hay nada que decir. */
 function SolicitudesArco({ filas }: { filas: SolicitudArcoApi[] }) {
+  const { t } = useIdioma();
   if (filas.length === 0) return null;
 
   return (
@@ -366,16 +347,16 @@ function SolicitudesArco({ filas }: { filas: SolicitudArcoApi[] }) {
           <span className="flex min-w-0 flex-col gap-0.5">
             <span className="text-menor font-medium">{s.rotulo}</span>
             <span className="text-micro text-tinta-suave">
-              {ROTULO_ARCO[s.estado]}
-              {s.venceEl ? ` · antes del ${fecha(s.venceEl)}` : ""}
+              {t(ROTULO_ARCO[s.estado])}
+              {s.venceEl ? t(" · antes del {fecha}", { fecha: fecha(s.venceEl) }) : ""}
             </span>
           </span>
           {s.estado === "resuelta" ? (
-            <Chip tono="exito">Lista</Chip>
+            <Chip tono="exito">{t("Lista")}</Chip>
           ) : (s.diasRestantes ?? 0) < 0 ? (
-            <Chip tono="error">Fuera de plazo</Chip>
+            <Chip tono="error">{t("Fuera de plazo")}</Chip>
           ) : (
-            <Chip tono="espera">{s.diasRestantes} días</Chip>
+            <Chip tono="espera">{t("{dias} días", { dias: s.diasRestantes ?? 0 })}</Chip>
           )}
         </li>
       ))}

@@ -15,6 +15,7 @@ import { X } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Etiqueta } from "@/componentes/primitivas";
+import { useIdioma } from "@/lib/idioma";
 
 export function Dialogo({
   abierto,
@@ -36,6 +37,7 @@ export function Dialogo({
   /** «ancho» para contenido que se lee mal angosto, como una lámina de referencia. */
   ancho?: "normal" | "ancho";
 }) {
+  const { t } = useIdioma();
   return (
     <Dialog.Root open={abierto} onOpenChange={onCambio}>
       <Dialog.Portal>
@@ -61,7 +63,7 @@ export function Dialogo({
               ) : null}
             </div>
             <Dialog.Close
-              aria-label="Cerrar"
+              aria-label={t("Cerrar")}
               className="hunde grid size-8 shrink-0 place-items-center rounded-marco border border-linea text-tinta-media transition-colors duration-[var(--mov-rapido)] ease-suave hover:border-tinta hover:text-tinta"
             >
               <X className="size-4" />

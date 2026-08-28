@@ -60,14 +60,32 @@ export function actorGuardado(): ActorPublico | null {
 
 export function guardarActor(actor: ActorPublico): void {
   escribir(sessionStorage, LLAVE_ACTOR, JSON.stringify(actor));
+  avisarDelCambioDeActor();
 }
 
 export function rolActual(): Rol | null {
   return actorGuardado()?.rol ?? null;
 }
 
+/** Quien quiera enterarse de los cambios de actor (login, refresco, cierre). Devuelve la
+ *  función que cancela la suscripción. El idioma de la cuenta depende de estos cambios:
+ *  al entrar otra cuenta hay que volver al idioma de la nueva, no quedarse con el anterior. */
+export function suscribirACambiosDeActor(avisar: () => void): () => void {
+  avisosDelCambioDeActor.add(avisar);
+  return () => {
+    avisosDelCambioDeActor.delete(avisar);
+  };
+}
+
+const avisosDelCambioDeActor = new Set<() => void>();
+
+function avisarDelCambioDeActor(): void {
+  for (const avisar of avisosDelCambioDeActor) avisar();
+}
+
 export function cerrarSesion(): void {
   escribir(sessionStorage, LLAVE_ACTOR, null);
+  avisarDelCambioDeActor();
   // Los colores viven en `<html>`, fuera de React: si no se quitan aquí, la marca de una
   // coach sigue puesta en el acceso y en el primer pintado de quien entre después.
   limpiarPaleta();

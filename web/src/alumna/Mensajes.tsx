@@ -8,32 +8,33 @@ import { Link } from "react-router-dom";
 import { Hilo } from "@/componentes/Hilo";
 import { Apoyo, Boton, Etiqueta, Portada } from "@/componentes/primitivas";
 import { api } from "@/lib/api";
+import { useIdioma } from "@/lib/idioma";
 import { actorGuardado } from "@/lib/sesion";
 
 export function Mensajes() {
+  const { t } = useIdioma();
   const actor = actorGuardado();
 
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
-          <Boton asChild tono="discreto" medida="icono" aria-label="Regresar">
+          <Boton asChild tono="discreto" medida="icono" aria-label={t("Regresar")}>
             <Link to="/inicio">
               <ArrowLeft className="size-4" />
             </Link>
           </Boton>
-          <Etiqueta>Conversación</Etiqueta>
+          <Etiqueta>{t("Conversación")}</Etiqueta>
         </div>
-        <Portada>Tus mensajes</Portada>
+        <Portada>{t("Tus mensajes")}</Portada>
         <Apoyo className="medida">
-          Aquí queda todo lo que se han dicho, en orden. Abrir el hilo marca como leídos los
-          mensajes de tu coach.
+          {t("Aquí queda todo lo que se han dicho, en orden. Abrir el hilo marca como leídos los mensajes de tu coach.")}
         </Apoyo>
       </header>
 
       <Hilo
         yo="alumna"
-        contraparte={actor?.marca ?? "tu coach"}
+        contraparte={actor?.marca ?? t("tu coach")}
         cargar={(senal) => api.alumna.mensajes(senal)}
         enviar={(cuerpo) => api.alumna.escribir(cuerpo)}
       />

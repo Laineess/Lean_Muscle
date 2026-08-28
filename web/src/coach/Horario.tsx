@@ -21,6 +21,7 @@ import {
 } from "@/componentes/primitivas";
 import { ErrorApi, api, type HorarioDeCoachApi, type TramoDeHorarioApi } from "@/lib/api";
 import { usarApi } from "@/lib/usarApi";
+import { useIdioma } from "@/lib/idioma";
 
 /** Lunes es 0, igual que en el servidor. */
 const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -60,14 +61,16 @@ function seEmpalman(a: TramoDeHorarioApi, b: TramoDeHorarioApi): boolean {
 }
 
 /** Lo que impide guardar, dicho para quien lo va a leer. */
-function revisar(tramos: TramoDeHorarioApi[]): string | null {
+function revisar(tramos: TramoDeHorarioApi[], t: (s: string, r?: Record<string, string | number>) => string): string | null {
   if (tramos.length > MAXIMO_DE_TRAMOS) {
-    return `No puedes tener más de ${MAXIMO_DE_TRAMOS} tramos.`;
+    return t("No puedes tener más de {max} tramos.", { max: MAXIMO_DE_TRAMOS });
   }
 
-  for (const t of tramos) {
-    if (minutos(t.desde) >= minutos(t.hasta)) {
-      return `${DIAS[t.diaSemana]}: la hora de fin tiene que ir después de la de inicio.`;
+  for (const tramo of tramos) {
+    if (minutos(tramo.desde) >= minutos(tramo.hasta)) {
+      return t("{dia}: la hora de fin tiene que ir después de la de inicio.", {
+        dia: t(DIAS[tramo.diaSemana] ?? ""),
+      });
     }
   }
   for (let i = 0; i < tramos.length; i++) {
@@ -75,7 +78,7 @@ function revisar(tramos: TramoDeHorarioApi[]): string | null {
       const a = tramos[i]!;
       const b = tramos[j]!;
       if (a.diaSemana === b.diaSemana && seEmpalman(a, b)) {
-        return `${DIAS[a.diaSemana]}: tienes dos tramos encimados.`;
+        return t("{dia}: tienes dos tramos encimados.", { dia: t(DIAS[a.diaSemana] ?? "") });
       }
     }
   }
@@ -83,6 +86,7 @@ function revisar(tramos: TramoDeHorarioApi[]): string | null {
 }
 
 export function Horario() {
+  const { t } = useIdioma();
   const carga = usarApi<HorarioDeCoachApi>((s) => api.coach.horario(s));
 
   const [tramos, setTramos] = useState<TramoDeHorarioApi[]>([]);
@@ -109,7 +113,7 @@ export function Horario() {
     setZona(carga.datos.zonaHoraria);
   }, [carga.datos]);
 
-  const problema = revisar(tramos);
+  const problema = revisar(tramos, t);
   const porSemana = tramos.reduce(
     (suma, t) => suma + cuantasCaben(t, numeros.duracionConsultaMin, numeros.margenConsultaMin),
     0,
@@ -158,24 +162,24 @@ export function Horario() {
       setTramos(nuevo.tramos);
       setGuardado(true);
     } catch (causa) {
-      setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo guardar el horario.");
+      setFallo(causa instanceof ErrorApi ? causa.message : t("No se pudo guardar el horario."));
     } finally {
       setOcupado(false);
     }
   }
 
-  if (carga.cargando) return <CargandoPantalla que="tu horario" filas={5} />;
+  if (carga.cargando) return <CargandoPantalla que={t("tu horario")} filas={5} />;
 
   // Sin haber leído lo guardado no se guarda: el PUT reemplaza el horario entero y lo
   // dejaría vacío.
   if (carga.error) {
     return (
       <div className="flex flex-col gap-4">
-        <Portada>Horario de consultas</Portada>
+        <Portada>{t("Horario de consultas")}</Portada>
         <Aviso tono="error">{carga.error.message}</Aviso>
         <div>
           <Boton tono="contorno" onClick={carga.recargar}>
-            Volver a intentar
+            {t("Volver a intentar")}
           </Boton>
         </div>
       </div>
@@ -185,49 +189,48 @@ export function Horario() {
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-3">
-        <Etiqueta>Cuándo pueden reservarte</Etiqueta>
-        <Portada>Horario de consultas</Portada>
+        <Etiqueta>{t("Cuándo pueden reservarte")}</Etiqueta>
+        <Portada>{t("Horario de consultas")}</Portada>
         <Apoyo>
-          Las horas van en tu hora local ({zona.replace("_", " ")}). Cada alumna las ve
-          convertidas a la suya.
+          {t("Las horas van en tu hora local ({zona}). Cada alumna las ve convertidas a la suya.", { zona: zona.replace("_", " ") })}
         </Apoyo>
       </header>
 
       {tramos.length === 0 ? (
-        <Aviso tono="atencion" titulo="Todavía no publicas horarios">
-          Mientras esto esté vacío, tus alumnas no pueden reservar consulta contigo.
+        <Aviso tono="atencion" titulo={t("Todavía no publicas horarios")}>
+          {t("Mientras esto esté vacío, tus alumnas no pueden reservar consulta contigo.")}
         </Aviso>
       ) : null}
 
       <section className="flex flex-col gap-6">
         {DIAS.map((rotulo, dia) => {
           const delDia = tramos
-            .map((t, indice) => ({ t, indice }))
-            .filter(({ t }) => t.diaSemana === dia);
+            .map((tramo, indice) => ({ tramo, indice }))
+            .filter(({ tramo }) => tramo.diaSemana === dia);
 
           return (
             <div key={rotulo} className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <Titulo>{rotulo}</Titulo>
+                <Titulo>{t(rotulo)}</Titulo>
                 <div className="flex items-center gap-2">
                   {delDia.length > 0 && HABILES.includes(dia) ? (
                     <Boton tono="discreto" medida="chica" onClick={() => copiarAHabiles(dia)}>
-                      Copiar a lunes–viernes
+                      {t("Copiar a lunes–viernes")}
                     </Boton>
                   ) : null}
                   <Boton tono="contorno" medida="chica" onClick={() => agregar(dia)}>
-                    <Plus className="size-3.5" /> Tramo
+                    <Plus className="size-3.5" /> {t("Tramo")}
                   </Boton>
                 </div>
               </div>
 
               {delDia.length === 0 ? (
-                <Apoyo>No atiendes este día.</Apoyo>
+                <Apoyo>{t("No atiendes este día.")}</Apoyo>
               ) : (
                 <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
-                  {delDia.map(({ t, indice }) => {
+                  {delDia.map(({ tramo, indice }) => {
                     const caben = cuantasCaben(
-                      t,
+                      tramo,
                       numeros.duracionConsultaMin,
                       numeros.margenConsultaMin,
                     );
@@ -235,30 +238,30 @@ export function Horario() {
                       <li key={indice} className="flex flex-wrap items-center gap-3 py-3">
                         <Entrada
                           type="time"
-                          aria-label={`${rotulo}: desde`}
-                          value={t.desde}
+                          aria-label={t("{dia}: desde", { dia: t(rotulo) })}
+                          value={tramo.desde}
                           onChange={(e) => cambiar(indice, "desde", e.target.value)}
                           className="w-32"
                         />
-                        <span className="text-menor text-tinta-suave">a</span>
+                        <span className="text-menor text-tinta-suave">{t("a")}</span>
                         <Entrada
                           type="time"
-                          aria-label={`${rotulo}: hasta`}
-                          value={t.hasta}
+                          aria-label={t("{dia}: hasta", { dia: t(rotulo) })}
+                          value={tramo.hasta}
                           onChange={(e) => cambiar(indice, "hasta", e.target.value)}
                           className="w-32"
                         />
                         <span className="text-micro text-tinta-suave">
                           {caben === 0
-                            ? "no cabe ninguna consulta"
+                            ? t("no cabe ninguna consulta")
                             : caben === 1
-                              ? "1 consulta"
-                              : `${caben} consultas`}
+                              ? t("1 consulta")
+                              : t("{n} consultas", { n: caben })}
                         </span>
                         <Boton
                           tono="discreto"
                           medida="icono"
-                          aria-label={`Quitar tramo de ${rotulo}`}
+                          aria-label={t("Quitar tramo de {dia}", { dia: t(rotulo) })}
                           className="ml-auto"
                           onClick={() => quitar(indice)}
                         >
@@ -278,14 +281,14 @@ export function Horario() {
 
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <Titulo>Cómo se trocea</Titulo>
+          <Titulo>{t("Cómo se trocea")}</Titulo>
           <Apoyo>
-            Cada consulta dura lo que digas aquí, y entre una y otra queda el respiro que elijas.
+            {t("Cada consulta dura lo que digas aquí, y entre una y otra queda el respiro que elijas.")}
           </Apoyo>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Campo id="ho-duracion" etiqueta="Dura cada consulta" sufijo="min">
+          <Campo id="ho-duracion" etiqueta={t("Dura cada consulta")} sufijo="min">
             <Entrada
               id="ho-duracion"
               type="number"
@@ -297,7 +300,7 @@ export function Horario() {
               className="rounded-r-none"
             />
           </Campo>
-          <Campo id="ho-margen" etiqueta="Respiro entre consultas" sufijo="min">
+          <Campo id="ho-margen" etiqueta={t("Respiro entre consultas")} sufijo="min">
             <Entrada
               id="ho-margen"
               type="number"
@@ -311,9 +314,9 @@ export function Horario() {
           </Campo>
           <Campo
             id="ho-antelacion"
-            etiqueta="Con cuánta antelación"
+            etiqueta={t("Con cuánta antelación")}
             sufijo="h"
-            ayuda="Nadie puede reservarte con menos aviso que esto."
+            ayuda={t("Nadie puede reservarte con menos aviso que esto.")}
           >
             <Entrada
               id="ho-antelacion"
@@ -327,9 +330,9 @@ export function Horario() {
           </Campo>
           <Campo
             id="ho-horizonte"
-            etiqueta="Hasta cuándo se ve"
+            etiqueta={t("Hasta cuándo se ve")}
             sufijo="semanas"
-            ayuda="Más allá de esto no aparece nada libre."
+            ayuda={t("Más allá de esto no aparece nada libre.")}
           >
             <Entrada
               id="ho-horizonte"
@@ -345,14 +348,14 @@ export function Horario() {
 
         <Etiqueta>
           {porSemana === 0
-            ? "Con este horario no ofreces ninguna consulta"
-            : `Ofreces ${porSemana} consultas por semana`}
+            ? t("Con este horario no ofreces ninguna consulta")
+            : t("Ofreces {n} consultas por semana", { n: porSemana })}
         </Etiqueta>
       </section>
 
       {problema ? <Aviso tono="atencion">{problema}</Aviso> : null}
       {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
-      {guardado ? <Aviso tono="exito">Horario guardado.</Aviso> : null}
+      {guardado ? <Aviso tono="exito">{t("Horario guardado.")}</Aviso> : null}
 
       <div>
         <Boton
@@ -360,7 +363,7 @@ export function Horario() {
           disabled={ocupado || problema !== null}
           onClick={() => void guardar()}
         >
-          Guardar horario
+          {t("Guardar horario")}
         </Boton>
       </div>
     </div>

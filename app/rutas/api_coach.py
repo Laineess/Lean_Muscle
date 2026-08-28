@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.compartido.errores import Codigo, ErrorDeDominio
-from app.compartido.fechas import ahora_utc, en_zona
+from app.compartido.fechas import ahora_utc, dia_calendario, en_zona
 from app.config import ajustes
 from app.datos.modelos import Alumna, Chequeo, Cita, Coach, Tarifa, Usuario
 from app.datos.repos import consultas as q
@@ -87,24 +87,23 @@ def _encolar_correo(
 # ---------------------------------------------------------------------------
 
 
-def _filas_de_cartera(s: Session) -> list[FilaCartera]:
+def _filas_de_cartera(s: Session, zona_horaria: str) -> list[FilaCartera]:
     alumnas = q.cartera(s)
     ids = [a.id for a in alumnas]
 
-    ciclos = q.ciclos_vigentes(s, ids)
+    hoy = dia_calendario(ahora_utc(), zona_horaria)
+    ciclos = q.ciclos_vigentes(s, ids, hoy)
     planes = {t.id: t.nombre for t in q.tarifas_de_coach(s)}
     ultimos = q.ultimo_chequeo_por_alumna(s, ids)
     accesos = q.ultimo_acceso_de(s, [a.usuario_id for a in alumnas])
 
     pesos_por_chequeo = q.peso_de_chequeo(s, [c.id for c in ultimos.values()])
-    hoy = ahora_utc().date()
-
     filas: list[FilaCartera] = []
     for a in alumnas:
         ciclo = ciclos.get(a.id)
         chequeo = ultimos.get(a.id)
         acceso = accesos.get(a.usuario_id) if a.usuario_id is not None else None
-        acceso_dia = acceso.date() if acceso else None
+        acceso_dia = dia_calendario(acceso, zona_horaria) if acceso else None
 
         # Primero lo que bloquea el método, luego lo que cuesta dinero, al final el empujón.
         vencidos = q.adeudos_vencidos(s, a.id, hoy)
@@ -147,7 +146,7 @@ def panel(
     if coach is None:  # pragma: no cover - solo si el inquilino se borró bajo los pies
         raise ErrorDeDominio(Codigo.SIN_PERMISO)
 
-    filas = _filas_de_cartera(s)
+    filas = _filas_de_cartera(s, coach.zona_horaria)
 
     return ResumenPanel(
         coach=coach.nombre,
@@ -167,7 +166,10 @@ def alumnas(
     actor: Annotated[Actor, Depends(solo_coach)],
     s: Annotated[Session, Depends(datos)],
 ) -> list[FilaCartera]:
-    return _filas_de_cartera(s)
+    coach = s.get(Coach, actor.coach_id)
+    if coach is None:  # pragma: no cover - solo si el inquilino se borró bajo los pies
+        raise ErrorDeDominio(Codigo.SIN_PERMISO)
+    return _filas_de_cartera(s, coach.zona_horaria)
 
 
 @ruteador.post("/alumnas", response_model=AlumnaDadaDeAlta, status_code=201)
@@ -338,7 +340,10 @@ def editar_alumna(
     )
 
     s.flush()
-    fila = next((f for f in _filas_de_cartera(s) if f.ulid == ulid), None)
+    coach = s.get(Coach, actor.coach_id)
+    if coach is None:  # pragma: no cover - solo si el inquilino se borró bajo los pies
+        raise ErrorDeDominio(Codigo.SIN_PERMISO)
+    fila = next((f for f in _filas_de_cartera(s, coach.zona_horaria) if f.ulid == ulid), None)
     if fila is None:  # pragma: no cover - defensivo
         raise HTTPException(404, "No existe esa alumna")
     return fila

@@ -67,14 +67,16 @@ function Entrada() {
 }
 
 export function App() {
+  useLocation();
   const actor = actorGuardado();
+  const coloresDeActor = actor?.rol === "coach" || actor?.rol === "alumna" ? actor : null;
 
-  // Los dos colores de la Coach reemplazan a los de MyFittPlan en toda la interfaz de sus
+  // Los dos colores de la Coach reemplazan a los de MyFitt en toda la interfaz de sus
   // alumnas. Negro y gris son la estructura y no se tocan.
   //
   // Se recalculan al cambiar de tema y no se escriben tal cual: un color que luce sobre
   // blanco puede desaparecer sobre negro, y al revés.
-  usarPaleta(actor?.colorAcento, actor?.colorSecundario);
+  usarPaleta(coloresDeActor?.colorAcento, coloresDeActor?.colorSecundario);
 
   // El permiso de notificaciones no se pide aquí sino al tocar el interruptor: un diálogo
   // sin contexto se bloquea, y bloqueado no se puede volver a pedir nunca.

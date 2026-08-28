@@ -11,6 +11,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 import { Aviso, Boton } from "@/componentes/primitivas";
+import { contextoDeIdioma, type ValorDeIdioma } from "@/lib/idioma";
 
 interface Props {
   children: ReactNode;
@@ -24,6 +25,10 @@ interface Estado {
 
 export class Limite extends Component<Props, Estado> {
   state: Estado = { error: null };
+
+  static contextType = contextoDeIdioma;
+
+  declare context: ValorDeIdioma | null;
 
   static getDerivedStateFromError(error: Error): Estado {
     return { error };
@@ -44,21 +49,23 @@ export class Limite extends Component<Props, Estado> {
 
   render(): ReactNode {
     const { error } = this.state;
+    const t = this.context?.t ?? ((texto: string) => texto);
     if (!error) return this.props.children;
 
     return (
       <div className="flex flex-col gap-6">
-        <Aviso tono="error" titulo="Esta pantalla no se pudo mostrar">
-          Algo falló al pintarla. El resto de la aplicación sigue funcionando: usa el menú
-          para ir a otro lado.
+        <Aviso tono="error" titulo={t("Esta pantalla no se pudo mostrar")}>
+          {t(
+            "Algo falló al pintarla. El resto de la aplicación sigue funcionando: usa el menú para ir a otro lado.",
+          )}
           {import.meta.env.DEV ? (
             <code className="mt-3 block text-micro text-tinta-media">{error.message}</code>
           ) : null}
         </Aviso>
         <div className="flex flex-wrap gap-2">
-          <Boton onClick={() => this.setState({ error: null })}>Volver a intentar</Boton>
+          <Boton onClick={() => this.setState({ error: null })}>{t("Volver a intentar")}</Boton>
           <Boton tono="contorno" onClick={() => window.location.replace("/")}>
-            Ir al inicio
+            {t("Ir al inicio")}
           </Boton>
         </div>
       </div>

@@ -23,6 +23,7 @@ import {
 } from "@/componentes/primitivas";
 import { ErrorApi, api, type PlanComercialApi } from "@/lib/api";
 import { num } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 
 const INTENSIDADES = [
@@ -32,11 +33,12 @@ const INTENSIDADES = [
 ] as const;
 
 export function Planes() {
+  const { t } = useIdioma();
   const carga = usarApi<PlanComercialApi[]>((senal) => api.coach.planes(senal));
   const [editando, setEditando] = useState<PlanComercialApi | null>(null);
   const [creando, setCreando] = useState(false);
 
-  if (carga.cargando) return <CargandoPantalla que="tus planes" filas={4} />;
+  if (carga.cargando) return <CargandoPantalla que={t("tus planes")} filas={4} />;
 
   const planes = carga.datos ?? [];
 
@@ -44,21 +46,22 @@ export function Planes() {
     <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <Titulo>Tus planes</Titulo>
+          <Titulo>{t("Tus planes")}</Titulo>
           <Apoyo>
-            Cada alumna pertenece a uno y de ahí sale cuánto se le cobra. Puedes tener los que
-            quieras, con el precio que quieras.
+            {t(
+              "Cada alumna pertenece a uno y de ahí sale cuánto se le cobra. Puedes tener los que quieras, con el precio que quieras.",
+            )}
           </Apoyo>
         </div>
         <Boton medida="chica" onClick={() => setCreando(true)}>
-          <Plus className="size-4" /> Nuevo plan
+          <Plus className="size-4" /> {t("Nuevo plan")}
         </Boton>
       </div>
 
       {carga.error ? <Aviso tono="error">{carga.error.message}</Aviso> : null}
 
       {planes.length === 0 ? (
-        <Vacio>Todavía no tienes planes. Crea el primero para poder dar de alta alumnas.</Vacio>
+        <Vacio>{t("Todavía no tienes planes. Crea el primero para poder dar de alta alumnas.")}</Vacio>
       ) : (
         <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
           {planes.map((p) => (
@@ -67,18 +70,18 @@ export function Planes() {
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="text-menor font-medium">{p.nombre}</span>
                   <Chip>{p.intensidad}</Chip>
-                  {!p.activa ? <Chip tono="error">Inactivo</Chip> : null}
+                  {!p.activa ? <Chip tono="error">{t("Inactivo")}</Chip> : null}
                 </span>
                 <span className="text-micro text-tinta-suave">
                   {p.alumnas === 0
-                    ? "sin alumnas"
-                    : `${p.alumnas} ${p.alumnas === 1 ? "alumna" : "alumnas"}`}{" "}
-                  · cada {p.dias} días
+                    ? t("sin alumnas")
+                    : t(p.alumnas === 1 ? "{n} alumna" : "{n} alumnas", { n: p.alumnas })}{" "}
+                  · {t("cada {n} días", { n: p.dias })}
                 </span>
               </span>
               <span className="cifra font-semibold">${num(p.precio)}</span>
               <Boton tono="contorno" medida="chica" onClick={() => setEditando(p)}>
-                Editar
+                {t("Editar")}
               </Boton>
             </li>
           ))}
@@ -112,6 +115,7 @@ function FormularioDePlan({
   onCerrar: () => void;
   onGuardado: () => void;
 }) {
+  const { t } = useIdioma();
   const [nombre, setNombre] = useState(plan?.nombre ?? "");
   const codigo = plan?.codigo ?? "";
   const [precio, setPrecio] = useState(plan?.precio ?? 0);
@@ -140,7 +144,7 @@ function FormularioDePlan({
       else await api.coach.crearPlan(cuerpo);
       onGuardado();
     } catch (causa) {
-      setError(causa instanceof ErrorApi ? causa.message : "No se pudo guardar el plan.");
+      setError(causa instanceof ErrorApi ? causa.message : t("No se pudo guardar el plan."));
     } finally {
       setEnviando(false);
     }
@@ -150,34 +154,34 @@ function FormularioDePlan({
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta={plan ? "Editar plan" : "Nuevo plan"}
-      titulo={nombre || "Sin nombre"}
+      etiqueta={plan ? t("Editar plan") : t("Nuevo plan")}
+      titulo={nombre || t("Sin nombre")}
       pie={
         <>
           <Boton tono="contorno" medida="chica" onClick={onCerrar}>
-            Cerrar
+            {t("Cerrar")}
           </Boton>
           <Boton
             medida="chica"
             disabled={enviando || !nombre.trim() || precio <= 0}
             onClick={() => void guardar()}
           >
-            Guardar
+            {t("Guardar")}
           </Boton>
         </>
       }
     >
-      <Campo id="pl-nombre" etiqueta="Nombre del plan" ayuda="Es lo que ve la alumna al darse de alta.">
+      <Campo id="pl-nombre" etiqueta={t("Nombre del plan")} ayuda={t("Es lo que ve la alumna al darse de alta.")}>
         <Entrada
           id="pl-nombre"
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
-          placeholder="Pérdida de grasa · 3 días"
+          placeholder={t("Pérdida de grasa · 3 días")}
         />
       </Campo>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Campo id="pl-precio" etiqueta="Costo" sufijo="MXN">
+        <Campo id="pl-precio" etiqueta={t("Costo")} sufijo="MXN">
           <Entrada
             id="pl-precio"
             type="number"
@@ -187,7 +191,7 @@ function FormularioDePlan({
             className="rounded-r-none"
           />
         </Campo>
-        <Campo id="pl-intensidad" etiqueta="Intensidad">
+        <Campo id="pl-intensidad" etiqueta={t("Intensidad")}>
           <Selector
             id="pl-intensidad"
             value={intensidad}
@@ -195,12 +199,12 @@ function FormularioDePlan({
           >
             {INTENSIDADES.map(([valor, rotulo]) => (
               <option key={valor} value={valor}>
-                {rotulo}
+                {t(rotulo)}
               </option>
             ))}
           </Selector>
         </Campo>
-        <Campo id="pl-dias" etiqueta="Duración" sufijo="días">
+        <Campo id="pl-dias" etiqueta={t("Duración")} sufijo={t("días")}>
           <Entrada
             id="pl-dias"
             type="number"
@@ -215,19 +219,20 @@ function FormularioDePlan({
 
       {plan ? (
         <>
-          <Campo id="pl-activa" etiqueta="Estado">
+          <Campo id="pl-activa" etiqueta={t("Estado")}>
             <Selector
               id="pl-activa"
               value={activa ? "si" : "no"}
               onChange={(e) => setActiva(e.target.value === "si")}
             >
-              <option value="si">Activo · se puede asignar</option>
-              <option value="no">Inactivo · no aparece al dar de alta</option>
+              <option value="si">{t("Activo · se puede asignar")}</option>
+              <option value="no">{t("Inactivo · no aparece al dar de alta")}</option>
             </Selector>
           </Campo>
           <Apoyo>
-            Cambiar el precio no toca lo ya programado: cada cobro guarda su propio monto, así
-            que subirlo afecta a lo que programes desde hoy.
+            {t(
+              "Cambiar el precio no toca lo ya programado: cada cobro guarda su propio monto, así que subirlo afecta a lo que programes desde hoy.",
+            )}
           </Apoyo>
         </>
       ) : null}

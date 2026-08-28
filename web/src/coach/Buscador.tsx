@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 
 import { api, type FilaCarteraApi } from "@/lib/api";
 import { fecha } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { ROTULO_ESTADO, type EstadoChequeo } from "@/lib/tipos";
 
 const SECCIONES = [
@@ -22,13 +23,14 @@ const SECCIONES = [
 ];
 
 export function DisparadorBuscador({ onClick }: { onClick: () => void }) {
+  const { t } = useIdioma();
   return (
     <button
       onClick={onClick}
       className="flex h-9 w-full max-w-xs items-center gap-2 rounded-marco border border-linea px-3 text-menor text-tinta-suave transition-colors hover:border-tinta hover:text-tinta"
     >
       <Search className="size-4 shrink-0" strokeWidth={1.6} />
-      <span className="truncate">Buscar alumna o sección…</span>
+      <span className="truncate">{t("Buscar alumna o sección…")}</span>
       <kbd className="ml-auto hidden shrink-0 rounded border border-linea px-1.5 py-0.5 text-micro font-medium lg:inline">
         ⌘K
       </kbd>
@@ -38,6 +40,7 @@ export function DisparadorBuscador({ onClick }: { onClick: () => void }) {
 
 export function Buscador({ abierto, onCerrar }: { abierto: boolean; onCerrar: () => void }) {
   const navegar = useNavigate();
+  const { t } = useIdioma();
   const [cartera, setCartera] = useState<FilaCarteraApi[]>([]);
 
   // Se pide al abrir, no al montar: el buscador vive en el marco de todas las pantallas.
@@ -62,7 +65,7 @@ export function Buscador({ abierto, onCerrar }: { abierto: boolean; onCerrar: ()
     <Command.Dialog
       open={abierto}
       onOpenChange={(v) => !v && onCerrar()}
-      label="Buscador"
+      label={t("Buscador")}
       className="animate-aparece fixed inset-0 z-50 grid place-items-start justify-items-center bg-tinta/40 pt-[12vh] backdrop-blur-sm"
     >
       {/* Baja un poco al abrirse, desde el borde superior de donde cuelga. */}
@@ -71,37 +74,37 @@ export function Buscador({ abierto, onCerrar }: { abierto: boolean; onCerrar: ()
           <Search className="size-4 shrink-0 text-tinta-suave" strokeWidth={1.6} />
           <Command.Input
             autoFocus
-            placeholder="Busca una alumna, un chequeo o una sección…"
+            placeholder={t("Busca una alumna, un chequeo o una sección…")}
             className="h-12 w-full bg-transparent text-cuerpo outline-none placeholder:text-tinta-suave"
           />
         </div>
 
         <Command.List className="max-h-[min(60vh,24rem)] overflow-y-auto p-2">
           <Command.Empty className="px-3 py-8 text-center text-menor text-tinta-suave">
-            Nada con ese nombre.
+            {t("Nada con ese nombre.")}
           </Command.Empty>
 
           <Command.Group
-            heading="Alumnas"
+            heading={t("Alumnas")}
             className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-micro [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.1em] [&_[cmdk-group-heading]]:text-tinta-suave"
           >
             {cartera.map((a) => (
               <Command.Item
                 key={a.ulid}
-                value={`${a.nombre} ${(a.plan ?? "sin plan")} ciclo ${a.ciclo}`}
+                value={`${a.nombre} ${a.plan ?? t("sin plan")} ${t("ciclo {n}", { n: a.ciclo })}`}
                 onSelect={() => ir(`/coach/alumnas?a=${a.ulid}`)}
                 className="flex cursor-pointer items-center justify-between gap-3 rounded-marco px-3 py-2.5 text-menor data-[selected=true]:bg-fondo-sutil"
               >
                 <span className="flex flex-col">
                   <span className="font-medium">{a.nombre}</span>
                   <span className="text-micro text-tinta-suave">
-                    Ciclo {a.ciclo} · {(a.plan ?? "sin plan")}
-                    {a.chequeoFecha ? ` · chequeo ${fecha(a.chequeoFecha)}` : ""}
+                    {t("Ciclo {n} · {plan}", { n: a.ciclo, plan: a.plan ?? t("sin plan") })}
+                    {a.chequeoFecha ? ` · ${t("chequeo {d}", { d: fecha(a.chequeoFecha) })}` : ""}
                   </span>
                 </span>
                 {a.chequeoEstado ? (
                   <span className="shrink-0 text-micro text-tinta-suave">
-                    {ROTULO_ESTADO[a.chequeoEstado as EstadoChequeo]}
+                    {t(ROTULO_ESTADO[a.chequeoEstado as EstadoChequeo])}
                   </span>
                 ) : null}
               </Command.Item>
@@ -109,7 +112,7 @@ export function Buscador({ abierto, onCerrar }: { abierto: boolean; onCerrar: ()
           </Command.Group>
 
           <Command.Group
-            heading="Ir a"
+            heading={t("Ir a")}
             className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-micro [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.1em] [&_[cmdk-group-heading]]:text-tinta-suave"
           >
             {SECCIONES.map((s) => (

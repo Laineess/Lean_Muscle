@@ -12,9 +12,11 @@ import { Link } from "react-router-dom";
 import { Apoyo, Aviso, Boton, Chip, Titulo } from "@/componentes/primitivas";
 import { ErrorApi, api, type RegistroDeCoachApi } from "@/lib/api";
 import { num } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 
 export function LigaDeRegistro() {
+  const { t } = useIdioma();
   const carga = usarApi<RegistroDeCoachApi>((s) => api.coach.registro(s));
   const [ocupado, setOcupado] = useState(false);
   const [copiada, setCopiada] = useState(false);
@@ -32,7 +34,7 @@ export function LigaDeRegistro() {
       await api.coach.abrirRegistro(abierto);
       carga.recargar();
     } catch (causa) {
-      setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo cambiar.");
+      setFallo(causa instanceof ErrorApi ? causa.message : t("No se pudo cambiar."));
     } finally {
       setOcupado(false);
     }
@@ -45,7 +47,7 @@ export function LigaDeRegistro() {
       window.setTimeout(() => setCopiada(false), 2000);
     } catch {
       // Sin permiso de portapapeles la dirección sigue a la vista para copiarla a mano.
-      setFallo("Copia la dirección a mano: el navegador no dio permiso.");
+      setFallo(t("Copia la dirección a mano: el navegador no dio permiso."));
     }
   }
 
@@ -54,27 +56,28 @@ export function LigaDeRegistro() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <Titulo>Tu liga de registro</Titulo>
-            {r.abierto ? <Chip tono="exito">Abierta</Chip> : <Chip>Apagada</Chip>}
+            <Titulo>{t("Tu liga de registro")}</Titulo>
+            {r.abierto ? <Chip tono="exito">{t("Abierta")}</Chip> : <Chip>{t("Apagada")}</Chip>}
             {r.solicitudesPendientes > 0 ? (
               <Link to="/coach/solicitudes" className="no-underline">
                 <Chip tono="espera">
                   {r.solicitudesPendientes === 1
-                    ? "1 solicitud esperando"
-                    : `${r.solicitudesPendientes} solicitudes esperando`}
+                    ? t("1 solicitud esperando")
+                    : t("{n} solicitudes esperando", { n: r.solicitudesPendientes })}
                 </Chip>
               </Link>
             ) : null}
           </div>
           <Apoyo>
-            Compártela y quien la abra empieza su registro sola. Queda como solicitud hasta
-            que tú la aceptes, y no cuenta contra tu límite.
+            {t(
+              "Compártela y quien la abra empieza su registro sola. Queda como solicitud hasta que tú la aceptes, y no cuenta contra tu límite.",
+            )}
           </Apoyo>
         </div>
 
         <div className="flex items-center gap-2">
           <Boton asChild tono="discreto" medida="chica">
-            <Link to="/coach/solicitudes">Ver solicitudes</Link>
+            <Link to="/coach/solicitudes">{t("Ver solicitudes")}</Link>
           </Boton>
           <Boton
             tono={r.abierto ? "contorno" : "solido"}
@@ -82,13 +85,13 @@ export function LigaDeRegistro() {
             disabled={ocupado || (!r.abierto && !r.puedeEncenderse)}
             onClick={() => void cambiar(!r.abierto)}
           >
-            {r.abierto ? "Apagar" : "Encender"}
+            {r.abierto ? t("Apagar") : t("Encender")}
           </Boton>
         </div>
       </div>
 
       {r.puedeEncenderse ? null : (
-        <Aviso tono="atencion" titulo="Todavía no se puede encender">
+        <Aviso tono="atencion" titulo={t("Todavía no se puede encender")}>
           {r.motivo}
         </Aviso>
       )}
@@ -100,12 +103,12 @@ export function LigaDeRegistro() {
         <span className="min-w-0 flex-1 truncate text-menor">{direccion}</span>
         {r.precioInscripcion !== null ? (
           <span className="text-micro text-tinta-suave">
-            inscripción ${num(r.precioInscripcion)}
+            {t("inscripción {monto}", { monto: `$${num(r.precioInscripcion)}` })}
           </span>
         ) : null}
         <Boton tono="contorno" medida="chica" onClick={() => void copiar()}>
           {copiada ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-          {copiada ? "Copiada" : "Copiar"}
+          {copiada ? t("Copiada") : t("Copiar")}
         </Boton>
       </div>
     </section>

@@ -37,8 +37,10 @@ import { usarApi, usarApiConRespaldo } from "@/lib/usarApi";
 import { composicion } from "@/lib/calculadora";
 import { delta, fecha, num, porcentaje } from "@/lib/formato";
 import { ANGULOS, MEDIDAS, type Angulo } from "@/lib/tipos";
+import { useIdioma } from "@/lib/idioma";
 
 export function Validacion() {
+  const { t } = useIdioma();
   const { alumnaUlid = "" } = useParams();
   const navegar = useNavigate();
 
@@ -79,11 +81,11 @@ export function Validacion() {
   const problemaDeGrasa = !grasa
     ? null
     : Number.isNaN(grasaNum) || grasaNum < 0.03 || grasaNum > 0.7
-      ? "Entre 3 % y 70 %."
+      ? t("Entre 3 % y 70 %.")
       : actual?.pesoKg == null
-        ? "Este chequeo no trae peso, así que no hay con qué calcular."
+        ? t("Este chequeo no trae peso, así que no hay con qué calcular.")
         : !ficha?.estaturaCm
-          ? "Falta su estatura en la ficha: sin ella no sale el IMC."
+          ? t("Falta su estatura en la ficha: sin ella no sale el IMC.")
           : null;
 
   const derivados = useMemo(() => {
@@ -109,10 +111,10 @@ export function Validacion() {
       : 0;
 
   if (expediente.cargando)
-    return <CargandoPantalla que="el expediente" cifras={2} columnas={2} filas={5} />;
+    return <CargandoPantalla que={t("el expediente")} cifras={2} columnas={2} filas={5} />;
   if (expediente.error) {
     return (
-      <Aviso tono="error" titulo="No se pudo abrir el expediente">
+      <Aviso tono="error" titulo={t("No se pudo abrir el expediente")}>
         {expediente.error.message}
       </Aviso>
     );
@@ -124,10 +126,10 @@ export function Validacion() {
           to={`/coach/plan/${alumnaUlid}`}
           className="flex w-fit items-center gap-2 text-menor text-tinta-media hover:text-tinta"
         >
-          <ArrowLeft className="size-4" /> Expediente
+          <ArrowLeft className="size-4" /> {t("Expediente")}
         </Link>
-        <Aviso tono="info" titulo="No hay nada que validar">
-          {ficha?.alumna ?? "Esta alumna"} todavía no ha enviado ningún chequeo.
+        <Aviso tono="info" titulo={t("No hay nada que validar")}>
+          {t("{alumna} todavía no ha enviado ningún chequeo.", { alumna: ficha?.alumna ?? t("Esta alumna") })}
         </Aviso>
       </div>
     );
@@ -140,24 +142,24 @@ export function Validacion() {
           to={`/coach/plan/${alumnaUlid}`}
           className="flex w-fit items-center gap-2 text-menor text-tinta-media hover:text-tinta"
         >
-          <ArrowLeft className="size-4" /> Expediente
+          <ArrowLeft className="size-4" /> {t("Expediente")}
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-3">
-            <Etiqueta>Chequeo del {fecha(actual.fecha)}</Etiqueta>
+            <Etiqueta>{t("Chequeo del {fecha}", { fecha: fecha(actual.fecha) })}</Etiqueta>
             <Portada>{ficha.alumna}</Portada>
           </div>
           {resuelto ? (
             <Chip tono={actual.estado === "validado" ? "exito" : "error"}>
-              {ROTULO_ESTADO[actual.estado as EstadoChequeo]}
+              {t(ROTULO_ESTADO[actual.estado as EstadoChequeo])}
             </Chip>
           ) : (
             <div className="flex flex-wrap gap-2">
               <Boton tono="peligro" onClick={() => setAccion("rechazar")}>
-                Rechazar con causa
+                {t("Rechazar con causa")}
               </Boton>
               <Boton disabled={!derivados} onClick={() => setAccion("validar")}>
-                Validar
+                {t("Validar")}
               </Boton>
             </div>
           )}
@@ -169,26 +171,28 @@ export function Validacion() {
           tono={actual.estado === "validado" ? "exito" : "info"}
           titulo={
             actual.estado === "validado"
-              ? "Este chequeo ya está validado"
-              : "Este chequeo ya se resolvió"
+              ? t("Este chequeo ya está validado")
+              : t("Este chequeo ya se resolvió")
           }
         >
           {actual.estado === "validado"
-            ? "Su plan se calculó con estos números. Cambiarlos ahora dejaría el plan publicado diciendo otra cosa."
-            : "Se rechazó con causa. La alumna tiene que volver a capturarlo."}
+            ? t("Su plan se calculó con estos números. Cambiarlos ahora dejaría el plan publicado diciendo otra cosa.")
+            : t("Se rechazó con causa. La alumna tiene que volver a capturarlo.")}
         </Aviso>
       ) : null}
 
       {fallo ? (
-        <Aviso tono="error" titulo="No se pudo guardar">
+        <Aviso tono="error" titulo={t("No se pudo guardar")}>
           {fallo}
         </Aviso>
       ) : null}
 
       {alertaOutlier ? (
-        <Aviso tono="error" titulo={`Alerta de outlier: ${num(varianza * 100)} % de cambio`}>
-          De {num(previo?.pesoKg)} kg a {num(actual.pesoKg)} kg en un ciclo. Para validar tendrás
-          que escribir por qué lo consideras real.
+        <Aviso tono="error" titulo={t("Alerta de outlier: {cambio} % de cambio", { cambio: num(varianza * 100) })}>
+          {t("De {a} kg a {b} kg en un ciclo. Para validar tendrás que escribir por qué lo consideras real.", {
+            a: num(previo?.pesoKg),
+            b: num(actual.pesoKg),
+          })}
         </Aviso>
       ) : null}
 
@@ -197,12 +201,12 @@ export function Validacion() {
           {/* ---- Comparativa visual ---- */}
           <section className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <Titulo>Comparativa visual</Titulo>
-              <Apoyo>Encuadre sin rostro. Cada apertura queda en la bitácora de accesos.</Apoyo>
+              <Titulo>{t("Comparativa visual")}</Titulo>
+              <Apoyo>{t("Encuadre sin rostro. Cada apertura queda en la bitácora de accesos.")}</Apoyo>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <Campo id="v-contra" etiqueta="Comparar contra">
+              <Campo id="v-contra" etiqueta={t("Comparar contra")}>
                 <Selector id="v-contra" value={comparaCon} onChange={(e) => setComparaCon(Number(e.target.value))}>
                   {[...ficha.anteriores].reverse().map((c, i) => (
                     <option key={c.ulid} value={i}>
@@ -211,11 +215,11 @@ export function Validacion() {
                   ))}
                 </Selector>
               </Campo>
-              <Campo id="v-angulo" etiqueta="Ángulo">
+              <Campo id="v-angulo" etiqueta={t("Ángulo")}>
                 <Selector id="v-angulo" value={angulo} onChange={(e) => setAngulo(e.target.value as Angulo)}>
                   {ANGULOS.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.rotulo}
+                      {t(a.rotulo)}
                     </option>
                   ))}
                 </Selector>
@@ -223,27 +227,29 @@ export function Validacion() {
             </div>
 
             {!sinFotos && fotos.some((f) => f.diasParaPurga !== null && f.diasParaPurga <= 15) ? (
-              <Aviso tono="atencion" titulo="Estas fotos se purgan pronto">
-                Su primera y su última de cada ángulo se quedan. A la alumna ya se le avisó,
-                con enlace para descargar todo.
+              <Aviso tono="atencion" titulo={t("Estas fotos se purgan pronto")}>
+                {t("Su primera y su última de cada ángulo se quedan. A la alumna ya se le avisó, con enlace para descargar todo.")}
               </Aviso>
             ) : null}
 
             <div className="grid grid-cols-2 gap-3">
               {[
-                { c: previo, rotulo: "Anterior" },
-                { c: actual, rotulo: "Este chequeo" },
+                { c: previo, rotulo: t("Anterior") },
+                { c: actual, rotulo: t("Este chequeo") },
               ].map(({ c, rotulo }) => (
                 <figure key={rotulo} className="overflow-hidden rounded-marco border border-linea">
                   {c ? (
                     <img
                       src={urlDeFoto(c.ulid, angulo)}
-                      alt={`Toma ${angulo} del ${fecha(c.fecha)}`}
+                      alt={t("Toma {angulo} del {fecha}", {
+                        angulo: t(ANGULOS.find((a) => a.id === angulo)?.rotulo ?? ""),
+                        fecha: fecha(c.fecha),
+                      })}
                       className="aspect-3/4 w-full bg-fondo-sutil object-cover"
                     />
                   ) : (
                     <div className="grid aspect-3/4 place-items-center bg-fondo-sutil text-micro text-tinta-suave">
-                      sin chequeo anterior
+                      {t("sin chequeo anterior")}
                     </div>
                   )}
                   <figcaption className="flex items-center justify-between gap-2 border-t border-linea px-3 py-2 text-micro font-medium">
@@ -259,10 +265,10 @@ export function Validacion() {
 
           {/* ---- Números ---- */}
           <section className="flex flex-col gap-4">
-            <Titulo>Medidas y peso</Titulo>
+            <Titulo>{t("Medidas y peso")}</Titulo>
             <ul className="flex flex-col divide-y divide-linea border-y border-linea">
               <li className="flex items-baseline justify-between gap-3 py-3">
-                <span className="text-menor font-semibold">Peso</span>
+                <span className="text-menor font-semibold">{t("Peso")}</span>
                 <span className="flex items-baseline gap-4">
                   <span className="cifra text-menor text-tinta-suave">{num(previo?.pesoKg)}</span>
                   <span className="cifra font-semibold">{num(actual.pesoKg)} kg</span>
@@ -275,7 +281,7 @@ export function Validacion() {
               </li>
               {MEDIDAS.map((m) => (
                 <li key={m.tipo} className="flex items-baseline justify-between gap-3 py-3">
-                  <span className="text-menor">{m.rotulo}</span>
+                  <span className="text-menor">{t(m.rotulo)}</span>
                   <span className="flex items-baseline gap-4">
                     <span className="cifra text-menor text-tinta-suave">{num(previo?.medidas[m.tipo])}</span>
                     <span className="cifra font-semibold">{num(actual.medidas[m.tipo])} cm</span>
@@ -296,15 +302,15 @@ export function Validacion() {
           {/* Sin este dato no se puede calcular el plan del ciclo siguiente. */}
           <section className="filete flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
-              <Etiqueta>Estimación de grasa</Etiqueta>
-              {resuelto ? null : <Chip tono="espera">Obligatorio</Chip>}
+              <Etiqueta>{t("Estimación de grasa")}</Etiqueta>
+              {resuelto ? null : <Chip tono="espera">{t("Obligatorio")}</Chip>}
             </div>
 
             <Campo
               id="v-grasa"
-              etiqueta="% de grasa corporal"
+              etiqueta={t("% de grasa corporal")}
               sufijo="%"
-              ayuda={`Mes pasado: ${previo?.porcentajeGrasa ? porcentaje(previo.porcentajeGrasa) : "—"}`}
+              ayuda={t("Mes pasado: {valor}", { valor: previo?.porcentajeGrasa ? porcentaje(previo.porcentajeGrasa) : "—" })}
               {...(problemaDeGrasa ? { error: problemaDeGrasa } : {})}
             >
               <Entrada
@@ -328,16 +334,16 @@ export function Validacion() {
               className="flex items-center gap-2 self-start text-menor text-tinta-media underline underline-offset-4 transition-colors hover:text-tinta"
             >
               <Images className="size-4" />
-              Ver tabla de referencia visual
+              {t("Ver tabla de referencia visual")}
             </button>
 
             {derivados ? (
               <>
                 <dl className="flex flex-col gap-2 text-menor">
                   {[
-                    ["Masa grasa", `${num(derivados.hoy.masaGrasaKg)} kg`, derivados.dGrasa?.texto],
-                    ["Masa magra", `${num(derivados.hoy.masaLibreDeGrasaKg)} kg`, derivados.dMagra?.texto],
-                    ["IMC", `${num(derivados.hoy.imc)} · ${derivados.hoy.clasificacionImc}`, null],
+                    [t("Masa grasa"), `${num(derivados.hoy.masaGrasaKg)} kg`, derivados.dGrasa?.texto],
+                    [t("Masa magra"), `${num(derivados.hoy.masaLibreDeGrasaKg)} kg`, derivados.dMagra?.texto],
+                    [t("IMC"), `${num(derivados.hoy.imc)} · ${derivados.hoy.clasificacionImc}`, null],
                   ].map(([rotulo, valor, cambio]) => (
                     <div key={rotulo} className="flex items-baseline justify-between gap-3">
                       <dt className="text-tinta-suave">{rotulo}</dt>
@@ -350,35 +356,34 @@ export function Validacion() {
                 </dl>
 
                 {derivados.dMagra && derivados.dMagra.valor < -1 ? (
-                  <Aviso tono="error" titulo="Perdió más de 1 kg de masa magra">
-                    Con este déficit no debería. Revisa proteína y adherencia antes de bajar más
-                    las calorías.
+                  <Aviso tono="error" titulo={t("Perdió más de 1 kg de masa magra")}>
+                    {t("Con este déficit no debería. Revisa proteína y adherencia antes de bajar más las calorías.")}
                   </Aviso>
                 ) : null}
               </>
             ) : null}
 
             <Apoyo>
-              Sin este dato el constructor no puede calcular calorías ni macros del ciclo siguiente.
+              {t("Sin este dato el constructor no puede calcular calorías ni macros del ciclo siguiente.")}
             </Apoyo>
           </section>
 
           {/* ---- Lo automático ---- */}
           <section className="flex flex-col gap-3">
-            <Etiqueta>Revisión automática</Etiqueta>
+            <Etiqueta>{t("Revisión automática")}</Etiqueta>
             <dl className="flex flex-col gap-2 text-menor">
               {[
                 [
-                  "Nitidez",
+                  t("Nitidez"),
                   fotos.length
                     ? fotos.every((f) => f.estadoAuto !== "rechazada")
-                      ? "Dentro de umbral"
-                      : "Bajo umbral"
-                    : "Sin datos",
+                      ? t("Dentro de umbral")
+                      : t("Bajo umbral")
+                    : t("Sin datos"),
                 ],
-                ["Ángulos", `${fotos.filter((f) => f.disponible).length} de 3`],
-                ["Medidas", `${Object.keys(actual.medidas).length} de ${MEDIDAS.length}`],
-                ["Confirmó varianza", actual.varianzaConfirmada ? "Sí" : "No hizo falta"],
+                [t("Ángulos"), `${fotos.filter((f) => f.disponible).length} de 3`],
+                [t("Medidas"), `${Object.keys(actual.medidas).length} de ${MEDIDAS.length}`],
+                [t("Confirmó varianza"), actual.varianzaConfirmada ? t("Sí") : t("No hizo falta")],
               ].map(([k, v]) => (
                 <div key={k} className="flex items-baseline justify-between gap-3">
                   <dt className="text-tinta-suave">{k}</dt>
@@ -390,46 +395,46 @@ export function Validacion() {
 
           {/* ---- Lo que revisa la coach ---- */}
           <section className="flex flex-col gap-3">
-            <Etiqueta>Lo que revisas tú</Etiqueta>
-            <Apoyo>El sistema no juzga postura ni vestimenta. Eso lo ves tú.</Apoyo>
+            <Etiqueta>{t("Lo que revisas tú")}</Etiqueta>
+            <Apoyo>{t("El sistema no juzga postura ni vestimenta. Eso lo ves tú.")}</Apoyo>
             <div className="flex flex-col gap-2">
               <Casilla
                 id="r-postura"
-                titulo="Postura"
+                titulo={t("Postura")}
                 checked={revisado.postura}
                 onChange={(e) => setRevisado((r) => ({ ...r, postura: e.target.checked }))}
               >
-                Brazos relajados, abdomen neutro, sin poses
+                {t("Brazos relajados, abdomen neutro, sin poses")}
               </Casilla>
               <Casilla
                 id="r-vestimenta"
-                titulo="Vestimenta"
+                titulo={t("Vestimenta")}
                 checked={revisado.vestimenta}
                 onChange={(e) => setRevisado((r) => ({ ...r, vestimenta: e.target.checked }))}
               >
-                Short y top de color liso, según protocolo
+                {t("Short y top de color liso, según protocolo")}
               </Casilla>
               <Casilla
                 id="r-entorno"
-                titulo="Entorno"
+                titulo={t("Entorno")}
                 checked={revisado.entorno}
                 onChange={(e) => setRevisado((r) => ({ ...r, entorno: e.target.checked }))}
               >
-                Mismo lugar y misma luz que el chequeo anterior
+                {t("Mismo lugar y misma luz que el chequeo anterior")}
               </Casilla>
             </div>
           </section>
 
           {actual.notaAlumna ? (
             <section className="flex flex-col gap-2">
-              <Etiqueta>Nota de la alumna</Etiqueta>
+              <Etiqueta>{t("Nota de la alumna")}</Etiqueta>
               <Apoyo>{actual.notaAlumna}</Apoyo>
             </section>
           ) : null}
 
           {ficha.lesiones ? (
             <section className="flex flex-col gap-2">
-              <Etiqueta>Lesiones declaradas</Etiqueta>
+              <Etiqueta>{t("Lesiones declaradas")}</Etiqueta>
               <Apoyo>{ficha.lesiones}</Apoyo>
             </section>
           ) : null}
@@ -440,13 +445,13 @@ export function Validacion() {
         abierto={verReferencia}
         onCambio={setVerReferencia}
         ancho="ancho"
-        etiqueta="Referencia visual"
-        titulo="Estimación de porcentaje de grasa"
-        descripcion="Es una guía de apoyo, no una medición: toma el rango que más se parezca."
+        etiqueta={t("Referencia visual")}
+        titulo={t("Estimación de porcentaje de grasa")}
+        descripcion={t("Es una guía de apoyo, no una medición: toma el rango que más se parezca.")}
       >
         <img
           src="/referencia-grasa.jpg"
-          alt="Cuerpos de mujer y de hombre agrupados por porcentaje de grasa, del 1 % al 50 %."
+          alt={t("Cuerpos de mujer y de hombre agrupados por porcentaje de grasa, del 1 % al 50 %.")}
           className="w-full rounded-marco border border-linea"
         />
       </Dialogo>
@@ -473,7 +478,7 @@ export function Validacion() {
             // plan, y volver al listado obliga a buscarla otra vez para seguir.
             void navegar(`/coach/plan/${alumnaUlid}`);
           } catch (causa) {
-            setFallo(causa instanceof ErrorApi ? causa.message : "No se pudo guardar.");
+            setFallo(causa instanceof ErrorApi ? causa.message : t("No se pudo guardar."));
           }
         }}
       />
@@ -496,6 +501,7 @@ function DialogoAccion({
   onCerrar: () => void;
   onListo: (feedback: string, justificacion: string, motivo: string) => void | Promise<void>;
 }) {
+  const { t } = useIdioma();
   const [feedback, setFeedback] = useState("");
   const [justificacion, setJustificacion] = useState("");
   const [motivo, setMotivo] = useState("");
@@ -510,12 +516,12 @@ function DialogoAccion({
     <Dialogo
       abierto
       onCambio={(v) => !v && onCerrar()}
-      etiqueta={validando ? "Validar chequeo" : "Rechazar con causa"}
+      etiqueta={validando ? t("Validar chequeo") : t("Rechazar con causa")}
       titulo={nombre}
       pie={
         <>
           <Boton tono="contorno" medida="chica" onClick={onCerrar}>
-            Cancelar
+            {t("Cancelar")}
           </Boton>
           <Boton
             tono={validando ? "solido" : "peligro"}
@@ -523,7 +529,7 @@ function DialogoAccion({
             disabled={bloqueado}
             onClick={() => void onListo(feedback, justificacion, motivo)}
           >
-            {validando ? "Validar y enviar feedback" : "Rechazar y avisar"}
+            {validando ? t("Validar y enviar feedback") : t("Rechazar y avisar")}
           </Boton>
         </>
       }
@@ -531,25 +537,24 @@ function DialogoAccion({
       {validando ? (
         <>
           {!revisionCompleta ? (
-            <Aviso tono="atencion" titulo="No marcaste toda la revisión manual">
-              Postura, vestimenta y entorno son lo que el sistema no puede juzgar. Puedes validar
-              igual, pero conviene revisarlas.
+            <Aviso tono="atencion" titulo={t("No marcaste toda la revisión manual")}>
+              {t("Postura, vestimenta y entorno son lo que el sistema no puede juzgar. Puedes validar igual, pero conviene revisarlas.")}
             </Aviso>
           ) : null}
 
           {conOutlier ? (
             <>
-              <Aviso tono="error" titulo="Sobrescribes una alerta de outlier">
-                La justificación es obligatoria y queda en el expediente.
+              <Aviso tono="error" titulo={t("Sobrescribes una alerta de outlier")}>
+                {t("La justificación es obligatoria y queda en el expediente.")}
               </Aviso>
-              <Campo id="v-justif" etiqueta="Justificación técnica">
+              <Campo id="v-justif" etiqueta={t("Justificación técnica")}>
                 <textarea
                   id="v-justif"
                   rows={3}
                   value={justificacion}
                   onChange={(e) => setJustificacion(e.target.value)}
                   className="w-full rounded-marco border border-linea bg-fondo px-3 py-2 text-cuerpo leading-relaxed focus:border-tinta focus:outline-none"
-                  placeholder="Por qué consideras que el cambio es real"
+                  placeholder={t("Por qué consideras que el cambio es real")}
                 />
               </Campo>
             </>
@@ -557,8 +562,8 @@ function DialogoAccion({
 
           <Campo
             id="v-feedback"
-            etiqueta="Feedback para la alumna"
-            ayuda="Es lo primero que va a leer. Concreto y sin juicio."
+            etiqueta={t("Feedback para la alumna")}
+            ayuda={t("Es lo primero que va a leer. Concreto y sin juicio.")}
           >
             <textarea
               id="v-feedback"
@@ -566,24 +571,23 @@ function DialogoAccion({
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
               className="w-full rounded-marco border border-linea bg-fondo px-3 py-2 text-cuerpo leading-relaxed focus:border-tinta focus:outline-none"
-              placeholder="Qué ves, qué cambia y por qué"
+              placeholder={t("Qué ves, qué cambia y por qué")}
             />
           </Campo>
         </>
       ) : (
         <>
           <Apoyo>
-            Regresa a borrador para que vuelva a capturar. El motivo es obligatorio y ella lo ve
-            tal cual: escríbelo como se lo dirías de frente.
+            {t("Regresa a borrador para que vuelva a capturar. El motivo es obligatorio y ella lo ve tal cual: escríbelo como se lo dirías de frente.")}
           </Apoyo>
-          <Campo id="r-detalle" etiqueta="Qué debe corregir">
+          <Campo id="r-detalle" etiqueta={t("Qué debe corregir")}>
             <textarea
               id="r-detalle"
               rows={4}
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
               className="w-full rounded-marco border border-linea bg-fondo px-3 py-2 text-cuerpo leading-relaxed focus:border-tinta focus:outline-none"
-              placeholder="En la foto de perfil metiste el abdomen. Repítela relajada."
+              placeholder={t("En la foto de perfil metiste el abdomen. Repítela relajada.")}
             />
           </Campo>
         </>

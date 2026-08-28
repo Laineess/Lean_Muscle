@@ -5,11 +5,15 @@
  *  de su coach: una alumna en Tijuana no debe perder su chequeo por la medianoche de Mérida.
  */
 
-const LOCALE = "es-MX";
+import { idiomaGuardado } from "./idioma";
+
+function locale(): string {
+  return idiomaGuardado() === "en" ? "en-US" : "es-MX";
+}
 
 export function fecha(iso: string, opciones?: Intl.DateTimeFormatOptions): string {
   const d = new Date(iso.length === 10 ? `${iso}T12:00:00` : iso);
-  return d.toLocaleDateString(LOCALE, opciones ?? { day: "numeric", month: "long", year: "numeric" });
+  return d.toLocaleDateString(locale(), opciones ?? { day: "numeric", month: "long", year: "numeric" });
 }
 
 export function fechaCorta(iso: string): string {
@@ -20,10 +24,16 @@ export function diaSemana(iso: string): string {
   return fecha(iso, { weekday: "long", day: "numeric", month: "long" });
 }
 
+export function hoyIso(): string {
+  const d = new Date();
+  const dos = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
+}
+
 /** La hora en la zona de quien mira. Cortar el ISO mostraba la de UTC, no la suya.
  *  En 24 h, como el resto de la agenda: alineadas unas debajo de otras se comparan mejor. */
 export function horaLocal(iso: string): string {
-  return new Date(iso).toLocaleTimeString(LOCALE, {
+  return new Date(iso).toLocaleTimeString(locale(), {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -32,14 +42,14 @@ export function horaLocal(iso: string): string {
 
 export function num(valor: number | null | undefined, decimales = 1): string {
   if (valor === null || valor === undefined || Number.isNaN(valor)) return "—";
-  return valor.toLocaleString(LOCALE, {
+  return valor.toLocaleString(locale(), {
     minimumFractionDigits: decimales,
     maximumFractionDigits: decimales,
   });
 }
 
 export function pesos(valor: number): string {
-  return valor.toLocaleString(LOCALE, { style: "currency", currency: "MXN" });
+  return valor.toLocaleString(locale(), { style: "currency", currency: "MXN" });
 }
 
 export function porcentaje(fraccion: number, decimales = 1): string {

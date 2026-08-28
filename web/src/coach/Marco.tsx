@@ -11,9 +11,11 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { Limite } from "@/componentes/Limite";
 import { Buscador, DisparadorBuscador } from "@/coach/Buscador";
+import { BotonDeIdioma } from "@/componentes/Idioma";
 import { useBuscador } from "@/lib/usarBuscador";
 import { MenuDeCuenta } from "@/coach/MenuDeCuenta";
 import { urlDeFotoDeCoach, urlDeLogo } from "@/lib/api";
+import { useIdioma } from "@/lib/idioma";
 import { usarVersionDeMarca } from "@/lib/marca";
 import { coach } from "@/lib/datos";
 import { actorGuardado } from "@/lib/sesion";
@@ -29,7 +31,7 @@ interface Seccion {
 
 const SECCIONES: Seccion[] = [
   { a: "/coach", rotulo: "Panel", exacto: true, Icono: LayoutDashboard },
-  { a: "/coach/alumnas", rotulo: "Alumnas", exacto: false, Icono: Users },
+  { a: "/coach/alumnas", rotulo: "Pacientes", exacto: false, Icono: Users },
   { a: "/coach/agenda", rotulo: "Agenda", exacto: false, Icono: CalendarDays },
   { a: "/coach/finanzas", rotulo: "Finanzas", exacto: false, Icono: Wallet },
 ];
@@ -45,6 +47,7 @@ const AJUSTES: Seccion = {
 
 export function MarcoCoach() {
   const { abierto, setAbierto } = useBuscador();
+  const { t } = useIdioma();
   const [menu, setMenu] = useState(false);
   const [cuenta, setCuenta] = useState(false);
   const [logoRoto, setLogoRoto] = useState(false);
@@ -97,10 +100,10 @@ export function MarcoCoach() {
                 className={({ isActive }) =>
                   cn(
                     "flex items-center gap-2 border-b-2 py-5 text-menor font-medium",
-                    "transition-colors duration-[var(--mov-rapido)] ease-suave",
+                    "rounded-marco px-2 transition-[background-color,box-shadow,color] duration-[var(--mov-rapido)] ease-suave",
                     isActive
-                      ? "border-acento text-tinta"
-                      : "border-transparent text-tinta-suave hover:text-tinta",
+                      ? "border-acento bg-fondo-sutil text-tinta shadow-[0_0_14px_2px_rgba(12,12,12,0.08)] dark:shadow-[0_0_14px_2px_rgba(255,255,255,0.18)]"
+                      : "border-transparent text-tinta-suave hover:bg-fondo-sutil hover:text-tinta hover:shadow-[0_0_12px_1px_rgba(12,12,12,0.06)] dark:hover:shadow-[0_0_12px_1px_rgba(255,255,255,0.12)]",
                   )
                 }
               >
@@ -113,7 +116,7 @@ export function MarcoCoach() {
                       className="size-4 shrink-0"
                       strokeWidth={isActive ? 2.2 : 1.6}
                     />
-                    {s.rotulo}
+                    {t(s.rotulo)}
                   </>
                 )}
               </NavLink>
@@ -132,8 +135,8 @@ export function MarcoCoach() {
               onClick={() => setCuenta((v) => !v)}
               aria-expanded={cuenta}
               aria-haspopup="menu"
-              title={`${nombre} · tu cuenta`}
-              aria-label={`${nombre}. Tu cuenta`}
+              title={t("{nombre} · tu cuenta", { nombre })}
+              aria-label={t("{nombre}. Tu cuenta", { nombre })}
               className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full border border-linea-fuerte text-micro font-semibold transition-colors hover:bg-fondo-sutil"
             >
               {retratoRoto ? (
@@ -154,7 +157,7 @@ export function MarcoCoach() {
           <button
             onClick={() => setMenu((v) => !v)}
             aria-expanded={menu}
-            aria-label={menu ? "Cerrar menú" : "Abrir menú"}
+            aria-label={menu ? t("Cerrar menú") : t("Abrir menú")}
             className="hunde grid size-9 place-items-center rounded-marco border border-linea transition-colors duration-[var(--mov-rapido)] ease-suave hover:border-tinta lg:hidden"
           >
             {/* Las dos aspas viven encima una de otra y se cruzan girando: así el botón
@@ -197,10 +200,10 @@ export function MarcoCoach() {
                       className={({ isActive }) =>
                         cn(
                           "flex items-center gap-3 border-l-2 py-3 pl-3 text-cuerpo font-medium",
-                          "transition-colors duration-[var(--mov-rapido)] ease-suave",
+                          "rounded-marco transition-[background-color,box-shadow,color] duration-[var(--mov-rapido)] ease-suave",
                           isActive
-                            ? "border-acento text-tinta"
-                            : "border-transparent text-tinta-media hover:text-tinta",
+                            ? "border-acento bg-fondo-sutil text-tinta shadow-[0_0_14px_2px_rgba(12,12,12,0.08)] dark:shadow-[0_0_14px_2px_rgba(255,255,255,0.18)]"
+                            : "border-transparent text-tinta-media hover:bg-fondo-sutil hover:text-tinta hover:shadow-[0_0_12px_1px_rgba(12,12,12,0.06)] dark:hover:shadow-[0_0_12px_1px_rgba(255,255,255,0.12)]",
                         )
                       }
                     >
@@ -211,12 +214,15 @@ export function MarcoCoach() {
                             className="size-4 shrink-0"
                             strokeWidth={isActive ? 2.2 : 1.6}
                           />
-                          {s.rotulo}
+                          {t(s.rotulo)}
                         </>
                       )}
                     </NavLink>
                   ))}
                 </nav>
+                <div className="mt-3 border-t border-linea pt-3">
+                  <BotonDeIdioma />
+                </div>
               </div>
             </div>
           </div>

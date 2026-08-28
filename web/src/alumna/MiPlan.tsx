@@ -25,6 +25,7 @@ import { ErrorApi, api, descargarPdf, type PlanApi, type PlanesDeAlumnaApi } fro
 import { FotosDeComida } from "@/alumna/FotosDeComida";
 import { ciclo, historialClinico, planEntrenamiento, planNutricion } from "@/lib/datos";
 import { fecha } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApiConRespaldo } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
 
@@ -67,33 +68,40 @@ const RESPALDO: PlanesDeAlumnaApi = {
 };
 
 export function MiPlan() {
+  const { t } = useIdioma();
   const [pestana, setPestana] = useState<Pestana>("nutricion");
   const { datos, cargando, sinServidor, mensaje } = usarApiConRespaldo<PlanesDeAlumnaApi>(
     (senal) => api.alumna.plan(senal),
     RESPALDO,
   );
 
-  if (cargando) return <CargandoPantalla que="tu plan" cifras={3} filas={5} />;
+  if (cargando) return <CargandoPantalla que={t("tu plan")} cifras={3} filas={5} />;
+
+  if (sinServidor) {
+    return <AvisoSinServidor mensaje={mensaje} />;
+  }
 
   if (datos.bloqueadoPorPago) {
     const porPago = datos.motivoBloqueo === "pago" || datos.motivoBloqueo === null;
     return (
       <div className="flex max-w-md flex-col gap-6">
-        <Etiqueta>Ciclo {datos.nutricion?.ciclo ?? ciclo.numero}</Etiqueta>
+        <Etiqueta>
+          {t("Ciclo {n}", { n: datos.nutricion?.ciclo ?? ciclo.numero })}
+        </Etiqueta>
         <Portada>
-          {datos.motivoBloqueo === "ciclo_vencido" ? "Tu ciclo terminó" : "Tu plan está en pausa"}
+          {datos.motivoBloqueo === "ciclo_vencido" ? t("Tu ciclo terminó") : t("Tu plan está en pausa")}
         </Portada>
         <Apoyo>
           {datos.motivoBloqueo === "ciclo_vencido"
-            ? "Tu plan se libera otra vez cuando empiece el ciclo nuevo. Habla con tu coach para renovarlo."
+            ? t("Tu plan se libera otra vez cuando empiece el ciclo nuevo. Habla con tu coach para renovarlo.")
             : datos.motivoBloqueo === "sin_ciclo"
-              ? "Todavía no tienes un ciclo abierto. Tu coach lo activa al darte de alta."
-              : "Tu comprobante todavía no ha sido validado. En cuanto tu coach lo confirme, tu plan se desbloquea solo."}
+              ? t("Todavía no tienes un ciclo abierto. Tu coach lo activa al darte de alta.")
+              : t("Tu comprobante todavía no ha sido validado. En cuanto tu coach lo confirme, tu plan se desbloquea solo.")}
         </Apoyo>
         {porPago ? (
           <div>
             <Boton asChild>
-              <Link to="/inicio">Subir comprobante</Link>
+              <Link to="/inicio">{t("Subir comprobante")}</Link>
             </Boton>
           </div>
         ) : null}
@@ -109,13 +117,19 @@ export function MiPlan() {
 
       <header className="flex flex-col gap-3">
         <Etiqueta>
-          Ciclo {activo?.ciclo ?? ciclo.numero}
-          {activo?.publicadoEn ? ` · publicado el ${fecha(activo.publicadoEn.slice(0, 10))}` : ""}
+          {t("Ciclo {n}", { n: activo?.ciclo ?? ciclo.numero })}
+          {activo?.publicadoEn
+            ? t(" · publicado el {fecha}", { fecha: fecha(activo.publicadoEn.slice(0, 10)) })
+            : ""}
         </Etiqueta>
-        <Portada>Mi plan</Portada>
+        <Portada>{t("Mi plan")}</Portada>
       </header>
 
-      <div role="tablist" aria-label="Tipo de plan" className="flex gap-6 border-b border-linea">
+      <div
+        role="tablist"
+        aria-label={t("Tipo de plan")}
+        className="flex gap-6 border-b border-linea"
+      >
         {(
           [
             ["nutricion", "Nutrición", UtensilsCrossed],
@@ -136,14 +150,14 @@ export function MiPlan() {
             )}
           >
             <Icono aria-hidden className="size-4 shrink-0" strokeWidth={pestana === id ? 2.2 : 1.6} />
-            {rotulo}
+            {t(rotulo)}
           </button>
         ))}
       </div>
 
       {activo === null ? (
         <Vacio>
-          Tu coach todavía no publica este plan. Te avisamos en cuanto esté.
+          {t("Tu coach todavía no publica este plan. Te avisamos en cuanto esté.")}
         </Vacio>
       ) : pestana === "nutricion" ? (
         <>
@@ -160,6 +174,7 @@ export function MiPlan() {
 }
 
 function Nutricion({ plan, restricciones }: { plan: PlanApi; restricciones: string | null }) {
+  const { t } = useIdioma();
   const kcal = plan.kcalObjetivo ?? 0;
   const kp = (plan.proteinaG ?? 0) * 4;
   const kc = (plan.carbohidratoG ?? 0) * 4;
@@ -172,7 +187,7 @@ function Nutricion({ plan, restricciones }: { plan: PlanApi; restricciones: stri
       {/* Cifra grande primero: es lo que ella busca al abrir. */}
       <section className="flex flex-col gap-5">
         <div className="flex flex-col gap-1">
-          <Etiqueta icono={Target}>Tu objetivo del día</Etiqueta>
+          <Etiqueta icono={Target}>{t("Tu objetivo del día")}</Etiqueta>
           <p className="cifra text-cifra font-semibold tracking-[-0.03em]">
             {kcal}
             <span className="ml-2 text-guia font-medium text-tinta-suave">kcal</span>
@@ -194,7 +209,7 @@ function Nutricion({ plan, restricciones }: { plan: PlanApi; restricciones: stri
           ).map(([rotulo, gramos, kcalMacro, color]) => (
             <div key={rotulo} className="flex items-center gap-2">
               <span className={cn("size-2 rounded-full", color)} />
-              <dt className="text-tinta-media">{rotulo}</dt>
+              <dt className="text-tinta-media">{t(rotulo)}</dt>
               <dd className="cifra font-semibold">
                 {gramos} g · {Math.round((kcalMacro / total) * 100)} %
               </dd>
@@ -206,17 +221,19 @@ function Nutricion({ plan, restricciones }: { plan: PlanApi; restricciones: stri
       <Regla />
 
       <section className="flex flex-col gap-8">
-        {tiempos.map((t) => (
-          <article key={t.nombre} className="flex flex-col gap-3">
+        {tiempos.map((tiempo) => (
+          <article key={tiempo.nombre} className="flex flex-col gap-3">
             <div className="flex items-baseline justify-between gap-4">
               <h3 className="text-guia font-semibold">
-                {t.nombre}
-                <span className="ml-1 text-menor font-normal text-tinta-suave">{t.hora}</span>
+                {tiempo.nombre}
+                <span className="ml-1 text-menor font-normal text-tinta-suave">
+                  {tiempo.hora}
+                </span>
               </h3>
-              <Chip>{t.kcal} kcal</Chip>
+              <Chip>{tiempo.kcal} kcal</Chip>
             </div>
             <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
-              {t.alimentos.map((a) => (
+              {tiempo.alimentos.map((a) => (
                 <li key={a.nombre} className="flex items-baseline justify-between gap-4 py-2.5">
                   <span className="text-cuerpo">{a.nombre}</span>
                   <span className="cifra shrink-0 text-menor text-tinta-media">
@@ -231,14 +248,14 @@ function Nutricion({ plan, restricciones }: { plan: PlanApi; restricciones: stri
 
       {plan.contenido.notas ? (
         <Tarjeta acentuada className="flex flex-col gap-2">
-          <Etiqueta icono={NotebookPen}>Notas de tu coach</Etiqueta>
+          <Etiqueta icono={NotebookPen}>{t("Notas de tu coach")}</Etiqueta>
           <p className="medida text-cuerpo leading-relaxed">{plan.contenido.notas}</p>
         </Tarjeta>
       ) : null}
 
       {restricciones ? (
-        <Aviso tono="info" titulo="Tus restricciones">
-          {restricciones} Salen de tu cuestionario; si cambian, actualízalas en tu cuenta.
+        <Aviso tono="info" titulo={t("Tus restricciones")}>
+          {restricciones} {t("Salen de tu cuestionario; si cambian, actualízalas en tu cuenta.")}
         </Aviso>
       ) : null}
 
@@ -265,6 +282,7 @@ function BotonPdf({
   rotulo: string;
   ayuda: string;
 }) {
+  const { t } = useIdioma();
   const [bajando, setBajando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -284,24 +302,29 @@ function BotonPdf({
     <div className="flex flex-col gap-2">
       <div>
         <Boton tono="contorno" disabled={bajando} onClick={() => void bajar()}>
-          {bajando ? "Generando…" : rotulo}
+          {bajando ? t("Generando…") : t(rotulo)}
         </Boton>
       </div>
-      {error ? <Aviso tono="error">{error}</Aviso> : <p className="text-micro text-tinta-suave">{ayuda}</p>}
+      {error ? (
+        <Aviso tono="error">{t(error)}</Aviso>
+      ) : (
+        <p className="text-micro text-tinta-suave">{t(ayuda)}</p>
+      )}
     </div>
   );
 }
 
 function Entrenamiento({ plan, lesiones }: { plan: PlanApi; lesiones: string | null }) {
+  const { t } = useIdioma();
   const dias = plan.contenido.dias ?? [];
 
   return (
     <div className="flex flex-col gap-10">
       {plan.contenido.plantilla ? (
         <div className="flex flex-col gap-1">
-          <Etiqueta icono={Dumbbell}>Plantilla base</Etiqueta>
+          <Etiqueta icono={Dumbbell}>{t("Plantilla base")}</Etiqueta>
           <Titulo>{plan.contenido.plantilla}</Titulo>
-          <Apoyo>{dias.length} días por semana</Apoyo>
+          <Apoyo>{t("{n} días por semana", { n: dias.length })}</Apoyo>
         </div>
       ) : null}
 
@@ -310,7 +333,7 @@ function Entrenamiento({ plan, lesiones }: { plan: PlanApi; lesiones: string | n
           <article key={d.nombre} className="flex flex-col gap-3">
             <div className="flex items-baseline justify-between gap-4">
               <h3 className="text-guia font-semibold">{d.nombre}</h3>
-              {i === 0 ? <Chip tono="espera">Hoy</Chip> : null}
+              {i === 0 ? <Chip tono="espera">{t("Hoy")}</Chip> : null}
             </div>
             <ul className="escalona flex flex-col divide-y divide-linea border-y border-linea">
               {d.ejercicios.map((e) => (
@@ -331,14 +354,14 @@ function Entrenamiento({ plan, lesiones }: { plan: PlanApi; lesiones: string | n
 
       {plan.contenido.notas ? (
         <Tarjeta acentuada className="flex flex-col gap-2">
-          <Etiqueta icono={NotebookPen}>Notas de ejecución</Etiqueta>
+          <Etiqueta icono={NotebookPen}>{t("Notas de ejecución")}</Etiqueta>
           <p className="medida text-cuerpo leading-relaxed">{plan.contenido.notas}</p>
         </Tarjeta>
       ) : null}
 
       {lesiones ? (
-        <Aviso tono="error" titulo="Ojo con esto">
-          {lesiones} Si duele, para.
+        <Aviso tono="error" titulo={t("Ojo con esto")}>
+          {lesiones} {t("Si duele, para.")}
         </Aviso>
       ) : null}
 

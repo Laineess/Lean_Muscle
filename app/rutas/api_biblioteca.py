@@ -24,6 +24,7 @@ from app.rutas.esquemas import (
     AlimentoNuevo,
     ChequeoDelConstructor,
     EjercicioCatalogo,
+    EjercicioNuevo,
     ExpedienteDeConstructor,
     ParametrosDeCiclo,
     PlanGuardado,
@@ -115,6 +116,37 @@ def crear_alimento(
         carbo=alimento.carbo,
         grasa=alimento.grasa,
         grupo=alimento.grupo_equivalente,
+        propio=True,
+    )
+
+
+@ruteador.post("/ejercicios", response_model=EjercicioCatalogo, status_code=201)
+def crear_ejercicio(
+    cuerpo: EjercicioNuevo,
+    actor: Annotated[Actor, Depends(solo_coach)],
+    s: Annotated[Session, Depends(datos)],
+) -> EjercicioCatalogo:
+    """Ejercicio propio de la coach. Igual que el alimento: no entra a la base pública."""
+    if not cuerpo.nombre.strip():
+        raise ErrorDeDominio(Codigo.CONCEPTO_REQUERIDO)
+
+    ejercicio = Ejercicio(
+        coach_id=actor.coach_id,
+        nombre=cuerpo.nombre.strip(),
+        grupo=cuerpo.grupo,
+        equipo=cuerpo.equipo,
+        patron=cuerpo.patron,
+    )
+    s.add(ejercicio)
+    s.flush()
+    return EjercicioCatalogo(
+        ulid=ejercicio.ulid,
+        nombre=ejercicio.nombre,
+        grupo=ejercicio.grupo,
+        equipo=ejercicio.equipo,
+        patron=ejercicio.patron,
+        tiene_video=ejercicio.video_key is not None,
+        contraindicaciones=ejercicio.contraindicaciones,
         propio=True,
     )
 

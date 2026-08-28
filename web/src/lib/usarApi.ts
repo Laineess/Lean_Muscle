@@ -68,6 +68,22 @@ export function usarApi<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...dependencias, intento]);
 
+  // La coach puede publicar o validar un pago desde otro dispositivo mientras la paciente
+  // mantiene abierta esta pestaña. Al volver a ella se revalida sin borrar los datos visibles.
+  useEffect(() => {
+    const alEnfocar = () => recargar();
+    const alHacerseVisible = () => {
+      if (document.visibilityState === "visible") recargar();
+    };
+
+    window.addEventListener("focus", alEnfocar);
+    document.addEventListener("visibilitychange", alHacerseVisible);
+    return () => {
+      window.removeEventListener("focus", alEnfocar);
+      document.removeEventListener("visibilitychange", alHacerseVisible);
+    };
+  }, [recargar]);
+
   return { datos, cargando, error, recargar };
 }
 

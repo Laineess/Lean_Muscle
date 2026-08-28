@@ -24,6 +24,7 @@ import {
 } from "@/componentes/primitivas";
 import { ErrorApi, api, type CitaDeAlumnaApi, type HuecoApi } from "@/lib/api";
 import { diaSemana, horaLocal } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 
 const MODALIDADES: [string, string][] = [
@@ -49,6 +50,7 @@ function porDia(huecos: HuecoApi[]): [string, HuecoApi[]][] {
 }
 
 export function Reservar() {
+  const { t } = useIdioma();
   const carga = usarApi<HuecoApi[]>((s) => api.alumna.huecos(s));
   const [elegido, setElegido] = useState<HuecoApi | null>(null);
   const [modalidad, setModalidad] = useState("video");
@@ -74,26 +76,25 @@ export function Reservar() {
   }
 
   if (reservada) return <Confirmada cita={reservada} />;
-  if (carga.cargando) return <CargandoPantalla que="los horarios libres" filas={4} />;
+  if (carga.cargando) return <CargandoPantalla que={t("los horarios libres")} filas={4} />;
 
   const dias = porDia(carga.datos ?? []);
 
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-3">
-        <Etiqueta>Con tu coach</Etiqueta>
-        <Portada>Reserva tu consulta</Portada>
-        <Apoyo>Elige la hora que te acomode. Queda agendada al momento.</Apoyo>
+        <Etiqueta>{t("Con tu coach")}</Etiqueta>
+        <Portada>{t("Reserva tu consulta")}</Portada>
+        <Apoyo>{t("Elige la hora que te acomode. Queda agendada al momento.")}</Apoyo>
       </header>
 
-      {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
+      {fallo ? <Aviso tono="error">{t(fallo)}</Aviso> : null}
 
       {carga.error ? (
         <Vacio>{carga.error.message}</Vacio>
       ) : dias.length === 0 ? (
         <Vacio>
-          Ahora mismo no hay horarios libres. Tu coach abre más conforme se acerquen las
-          fechas.
+          {t("Ahora mismo no hay horarios libres. Tu coach abre más conforme se acerquen las fechas.")}
         </Vacio>
       ) : (
         <div className="flex flex-col gap-8">
@@ -123,7 +124,7 @@ export function Reservar() {
       <div>
         <Boton asChild tono="discreto">
           <Link to="/inicio">
-            <ArrowLeft className="size-4" /> Volver a inicio
+            <ArrowLeft className="size-4" /> {t("Volver a inicio")}
           </Link>
         </Boton>
       </div>
@@ -132,24 +133,26 @@ export function Reservar() {
         <Dialogo
           abierto
           onCambio={(v) => !v && setElegido(null)}
-          etiqueta="Confirma tu consulta"
+          etiqueta={t("Confirma tu consulta")}
           titulo={`${diaSemana(elegido.iniciaEn)}, ${horaLocal(elegido.iniciaEn)}`}
           pie={
             <>
               <Boton tono="contorno" medida="chica" onClick={() => setElegido(null)}>
-                Cancelar
+                {t("Cancelar")}
               </Boton>
               <Boton medida="chica" disabled={ocupado} onClick={() => void reservar()}>
-                Reservar
+                {t("Reservar")}
               </Boton>
             </>
           }
         >
           <Apoyo>
-            Termina a las {horaLocal(elegido.terminaEn)}. Las horas están en tu zona horaria.
+            {t("Termina a las {hora}. Las horas están en tu zona horaria.", {
+              hora: horaLocal(elegido.terminaEn),
+            })}
           </Apoyo>
 
-          <Campo id="rs-modalidad" etiqueta="Cómo prefieres la consulta">
+          <Campo id="rs-modalidad" etiqueta={t("Cómo prefieres la consulta")}>
             <Selector
               id="rs-modalidad"
               value={modalidad}
@@ -157,13 +160,13 @@ export function Reservar() {
             >
               {MODALIDADES.map(([valor, rotulo]) => (
                 <option key={valor} value={valor}>
-                  {rotulo}
+                  {t(rotulo)}
                 </option>
               ))}
             </Selector>
           </Campo>
 
-          <Etiqueta>Si te surge algo, escríbele a tu coach para moverla.</Etiqueta>
+          <Etiqueta>{t("Si te surge algo, escríbele a tu coach para moverla.")}</Etiqueta>
         </Dialogo>
       ) : null}
     </div>
@@ -171,25 +174,26 @@ export function Reservar() {
 }
 
 function Confirmada({ cita }: { cita: CitaDeAlumnaApi }) {
+  const { t } = useIdioma();
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-3">
-        <Etiqueta>Listo</Etiqueta>
-        <Portada>Tu consulta quedó agendada</Portada>
+        <Etiqueta>{t("Listo")}</Etiqueta>
+        <Portada>{t("Tu consulta quedó agendada")}</Portada>
       </header>
 
       <Aviso tono="exito" titulo={`${diaSemana(cita.iniciaEn)}, ${horaLocal(cita.iniciaEn)}`}>
         <span className="flex items-center gap-2">
-          <Check className="size-4" /> {ROTULO[cita.modalidad] ?? cita.modalidad} · termina a las{" "}
-          {horaLocal(cita.terminaEn)}
+          <Check className="size-4" /> {t(ROTULO[cita.modalidad] ?? cita.modalidad)} ·{" "}
+          {t("termina a las {hora}", { hora: horaLocal(cita.terminaEn) })}
         </span>
       </Aviso>
 
       <div className="flex flex-wrap items-center gap-3">
         <Boton asChild>
-          <Link to="/inicio">Ir a mi inicio</Link>
+          <Link to="/inicio">{t("Ir a mi inicio")}</Link>
         </Boton>
-        <Chip>Te llega el recordatorio un día antes</Chip>
+        <Chip>{t("Te llega el recordatorio un día antes")}</Chip>
       </div>
     </div>
   );

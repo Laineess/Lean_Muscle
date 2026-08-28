@@ -41,9 +41,17 @@ def alumna_de_usuario(s: Session, usuario_id: int) -> Alumna | None:
     return s.scalars(select(Alumna).where(Alumna.usuario_id == usuario_id)).first()
 
 
-def ciclo_vigente(s: Session, alumna_id: int) -> Ciclo | None:
+def ciclo_vigente(s: Session, alumna_id: int, hoy: date | None = None) -> Ciclo | None:
+    """Devuelve el ciclo que contiene hoy; si no existe, el último que ya empezó."""
+    dia = hoy or date.today()
     return s.scalars(
-        select(Ciclo).where(Ciclo.alumna_id == alumna_id).order_by(Ciclo.numero.desc())
+        select(Ciclo)
+        .where(Ciclo.alumna_id == alumna_id, Ciclo.inicia_en <= dia, Ciclo.termina_en > dia)
+        .order_by(Ciclo.numero.desc())
+    ).first() or s.scalars(
+        select(Ciclo)
+        .where(Ciclo.alumna_id == alumna_id, Ciclo.inicia_en <= dia)
+        .order_by(Ciclo.numero.desc())
     ).first()
 
 
@@ -189,12 +197,21 @@ def pago_del_ciclo(s: Session, ciclo_ids: list[int]) -> dict[int, Pago]:
     return {p.ciclo_id: p for p in s.scalars(select(Pago).where(Pago.ciclo_id.in_(ciclo_ids)))}
 
 
-def ciclos_vigentes(s: Session, alumna_ids: list[int]) -> dict[int, Ciclo]:
+def ciclos_vigentes(s: Session, alumna_ids: list[int], hoy: date | None = None) -> dict[int, Ciclo]:
     if not alumna_ids:
         return {}
+    dia = hoy or date.today()
+    ciclos = s.scalars(
+        select(Ciclo)
+        .where(Ciclo.alumna_id.in_(alumna_ids), Ciclo.inicia_en <= dia)
+        .order_by(Ciclo.numero.desc())
+    ).all()
     vigentes: dict[int, Ciclo] = {}
-    for c in s.scalars(select(Ciclo).where(Ciclo.alumna_id.in_(alumna_ids)).order_by(Ciclo.numero)):
-        vigentes[c.alumna_id] = c
+    for c in ciclos:
+        if c.alumna_id not in vigentes and c.inicia_en <= dia < c.termina_en:
+            vigentes[c.alumna_id] = c
+    for c in ciclos:
+        vigentes.setdefault(c.alumna_id, c)
     return vigentes
 
 

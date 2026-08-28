@@ -19,40 +19,57 @@ import {
 } from "@/lib/api";
 import { usarApi } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
+import { useIdioma } from "@/lib/idioma";
 
-export function Hoja({ alumnaUlid }: { alumnaUlid: string }) {
+const TABLAS_OCULTAS = new Set([
+  "Base del cálculo de proteína",
+  "Proyección de aumento de músculo",
+  "Ecuación de la tasa metabólica basal",
+  "Constantes",
+]);
+
+export function Hoja({
+  alumnaUlid,
+  soloTablas = false,
+}: {
+  alumnaUlid: string;
+  soloTablas?: boolean;
+}) {
+  const { t } = useIdioma();
   const carga = usarApi<HojaDeCalculoApi>((s) => api.coach.hoja(alumnaUlid, s), [alumnaUlid]);
   const [formulas, setFormulas] = useState(false);
   const [tablas, setTablas] = useState(false);
 
-  if (carga.cargando) return <Vacio>Calculando…</Vacio>;
+  if (carga.cargando) return <Vacio>{t("Calculando…")}</Vacio>;
   const d = carga.datos;
   if (!d) {
-    return <Aviso tono="error">No se pudo abrir la calculadora.</Aviso>;
+    return <Aviso tono="error">{t("No se pudo abrir la calculadora.")}</Aviso>;
   }
   if (d.falta) {
     return (
       <section className="flex flex-col gap-3">
-        <Titulo icono={Calculator}>Calculadora</Titulo>
-        <Aviso tono="atencion" titulo="Todavía no hay con qué calcular">
+        <Titulo icono={Calculator}>{t("Calculadora")}</Titulo>
+        <Aviso tono="atencion" titulo={t("Todavía no hay con qué calcular")}>
           {d.falta}
         </Aviso>
       </section>
     );
   }
 
+  if (soloTablas) return <TablasHoja datos={d} />;
+
   return (
     <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <Titulo icono={Calculator}>Calculadora</Titulo>
+          <Titulo icono={Calculator}>{t("Calculadora")}</Titulo>
         </div>
         <div className="flex flex-wrap gap-2">
           <Boton tono="contorno" medida="chica" onClick={() => setFormulas((v) => !v)}>
-            {formulas ? "Ocultar fórmulas" : "Ver fórmulas"}
+            {formulas ? t("Ocultar fórmulas") : t("Ver fórmulas")}
           </Boton>
           <Boton tono="contorno" medida="chica" onClick={() => setTablas((v) => !v)}>
-            {tablas ? "Ocultar tablas" : "Ver tablas"}
+            {tablas ? t("Ocultar tablas") : t("Ver tablas")}
           </Boton>
         </div>
       </div>
@@ -63,25 +80,30 @@ export function Hoja({ alumnaUlid }: { alumnaUlid: string }) {
         ))}
       </div>
 
-      {tablas ? (
-        <div className="flex flex-col gap-8 entra">
-          {d.escalaImc.length > 0 ? <EscalaDeImc tramos={d.escalaImc} /> : null}
-          <div className="grid gap-8 lg:grid-cols-2">
-            {d.tablas.map((t) => (
-              <TablaDeConsulta key={t.titulo} t={t} />
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {tablas ? <TablasHoja datos={d} /> : null}
     </section>
   );
 }
 
+function TablasHoja({ datos }: { datos: HojaDeCalculoApi }) {
+  return (
+    <div className="flex flex-col gap-8 entra">
+      {datos.escalaImc.length > 0 ? <EscalaDeImc tramos={datos.escalaImc} /> : null}
+      <div className="grid gap-8 lg:grid-cols-2">
+        {datos.tablas.filter((tabla) => !TABLAS_OCULTAS.has(tabla.titulo)).map((tabla) => (
+          <TablaDeConsulta key={tabla.titulo} tabla={tabla} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function BloqueHoja({ b, formulas }: { b: BloqueDeHojaApi; formulas: boolean }) {
+  const { t } = useIdioma();
   return (
     <article className="flex flex-col gap-2 rounded-marco border border-linea p-4">
       <div className="flex items-baseline justify-between gap-2">
-        <Etiqueta>{b.titulo}</Etiqueta>
+        <Etiqueta>{t(b.titulo)}</Etiqueta>
         <span className="cifra text-micro text-tinta-suave">{b.rango}</span>
       </div>
       <ul className="flex flex-col divide-y divide-linea/60">
@@ -98,10 +120,10 @@ function BloqueHoja({ b, formulas }: { b: BloqueDeHojaApi; formulas: boolean }) 
               >
                 {c.celda}
               </span>
-              <span className="min-w-0 flex-1 text-menor">{c.rotulo}</span>
-              <span className="cifra text-menor font-semibold">{c.valor}</span>
+              <span className="min-w-0 flex-1 text-menor">{t(c.rotulo)}</span>
+              <span className="cifra text-menor font-semibold">{t(c.valor)}</span>
               {c.unidad ? (
-                <span className="w-12 text-micro text-tinta-suave">{c.unidad}</span>
+                <span className="w-12 text-micro text-tinta-suave">{t(c.unidad)}</span>
               ) : (
                 <span className="w-12" />
               )}
@@ -113,8 +135,8 @@ function BloqueHoja({ b, formulas }: { b: BloqueDeHojaApi; formulas: boolean }) 
         ))}
       </ul>
       <Chip className="w-fit">
-        {b.celdas.filter((c) => c.capturado).length} capturados ·{" "}
-        {b.celdas.filter((c) => !c.capturado).length} calculados
+        {b.celdas.filter((c) => c.capturado).length} {t("capturados")} ·{" "}
+        {b.celdas.filter((c) => !c.capturado).length} {t("calculados")}
       </Chip>
     </article>
   );
@@ -129,40 +151,41 @@ function BloqueHoja({ b, formulas }: { b: BloqueDeHojaApi; formulas: boolean }) 
  *  clasificación de arriba. Los números siguen todos, el nombre no.
  */
 function EscalaDeImc({ tramos }: { tramos: TramoDeImcApi[] }) {
+  const { t } = useIdioma();
   return (
     <section className="flex flex-col gap-3">
-      <Etiqueta>Clasificación por índice de masa corporal</Etiqueta>
+      <Etiqueta>{t("Clasificación por índice de masa corporal")}</Etiqueta>
       <div className="grid gap-x-8 sm:grid-cols-2">
-        {tramos.map((t) => (
+        {tramos.map((tr) => (
           <div
-            key={t.nombre}
+            key={tr.nombre}
             className="flex flex-col gap-1.5 border-b border-linea py-3 last:border-b-0 sm:last:border-b"
           >
             <div className="flex items-baseline justify-between gap-3">
               <span
                 className={cn(
                   "text-menor font-semibold",
-                  t.suyo ? "text-acento-texto" : "text-tinta",
+                  tr.suyo ? "text-acento-texto" : "text-tinta",
                 )}
               >
-                {t.nombre}
+                {t(tr.nombre)}
               </span>
               <span className="cifra text-micro text-tinta-suave">
-                {t.desde} – {t.hasta}
+                {tr.desde} – {tr.hasta}
               </span>
             </div>
             <div className="flex flex-wrap gap-1">
-              {Array.from({ length: t.hasta - t.desde + 1 }, (_, i) => t.desde + i).map((v) => (
+              {Array.from({ length: tr.hasta - tr.desde + 1 }, (_, i) => tr.desde + i).map((v) => (
                 <span
                   key={v}
-                  aria-current={v === t.valor ? "true" : undefined}
+                  aria-current={v === tr.valor ? "true" : undefined}
                   className={cn(
                     "cifra min-w-7 rounded-marco border px-1.5 py-0.5 text-center text-micro font-medium",
                     // Solo el entero donde cae. Encender el tramo entero diría que está en
                     // sus seis valores a la vez.
-                    v === t.valor
+                    v === tr.valor
                       ? "border-acento bg-acento text-[#0c0c0c] font-bold"
-                      : t.suyo
+                      : tr.suyo
                         ? "border-acento/40 text-acento-texto"
                         : "border-linea text-tinta-media",
                   )}
@@ -178,31 +201,38 @@ function EscalaDeImc({ tramos }: { tramos: TramoDeImcApi[] }) {
   );
 }
 
-function TablaDeConsulta({ t }: { t: TablaDeHojaApi }) {
+function TablaDeConsulta({ tabla }: { tabla: TablaDeHojaApi }) {
+  const { t } = useIdioma();
+  // El refeeds es dinámico ("Con el día bajo al 12 %."): se corta el número y se
+  // vuelve a armar con la clave con marcador, en vez de cambiar cada porcentaje.
+  const coincideNota = tabla.nota.match(/^Con el día bajo al (.+) %\.$/);
+  const nota = coincideNota
+    ? t("Con el día bajo al {pct} %", { pct: coincideNota[1] ?? "" })
+    : t(tabla.nota);
   return (
     <section className="flex flex-col gap-2">
-      <Etiqueta>{t.titulo}</Etiqueta>
+      <Etiqueta>{t(tabla.titulo)}</Etiqueta>
       <div className="overflow-x-auto">
         <table className="w-full text-menor">
           <thead>
             <tr className="border-b border-linea">
-              {t.encabezados.map((h, j) => (
+              {tabla.encabezados.map((h, j) => (
                 <th
                   key={h || j}
                   scope="col"
                   className={cn(
                     "py-1.5 text-micro font-semibold uppercase tracking-[0.08em]",
                     j === 0 ? "text-left" : "pl-3 text-right",
-                    j === t.columnaSuya ? "text-acento-texto" : "text-tinta-suave",
+                    j === tabla.columnaSuya ? "text-acento-texto" : "text-tinta-suave",
                   )}
                 >
-                  {h}
+                  {t(h)}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {t.filas.map((fila) => (
+            {tabla.filas.map((fila) => (
               <tr
                 key={fila.celdas[0]}
                 className={cn(
@@ -221,12 +251,12 @@ function TablaDeConsulta({ t }: { t: TablaDeHojaApi }) {
                       fila.fuera && "font-semibold text-peligro",
                       !fila.suya && !fila.fuera && j > 0 && "text-tinta-media",
                       // Cuando lo suyo es la columna, solo esa se resalta.
-                      j === t.columnaSuya && "font-semibold text-acento-texto",
+                      j === tabla.columnaSuya && "font-semibold text-acento-texto",
                       j === 0 && fila.suya && "border-l-2 border-l-acento pl-2",
                       j === 0 && fila.fuera && "border-l-2 border-l-peligro pl-2",
                     )}
                   >
-                    {celda}
+                    {j === 0 ? t(celda) : celda}
                   </td>
                 ))}
               </tr>
@@ -234,7 +264,7 @@ function TablaDeConsulta({ t }: { t: TablaDeHojaApi }) {
           </tbody>
         </table>
       </div>
-      {t.nota ? <p className="text-micro text-tinta-suave">{t.nota}</p> : null}
+      {tabla.nota ? <p className="text-micro text-tinta-suave">{nota}</p> : null}
     </section>
   );
 }

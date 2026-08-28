@@ -34,6 +34,7 @@ import {
 } from "@/lib/api";
 import { BotonSalir } from "@/componentes/Seguridad";
 import { num } from "@/lib/formato";
+import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
 
@@ -52,6 +53,7 @@ const CAMPOS_CLINICOS: [keyof NucleoClinicoApi, string, string][] = [
 ];
 
 export function Bienvenida() {
+  const { t } = useIdioma();
   const navegar = useNavigate();
   const presentacion = usarApi<PresentacionApi>((s) => api.alumna.presentacion(s));
   const cuestionario = usarApi<CuestionarioApi>((s) => api.alumna.cuestionario(s));
@@ -61,14 +63,14 @@ export function Bienvenida() {
   const [paso, setPaso] = useState<"presentacion" | "cuestionario">("presentacion");
 
   if (presentacion.cargando || cuestionario.cargando || solicitud.cargando)
-    return <Vacio>Un momento…</Vacio>;
+    return <Vacio>{t("Un momento…")}</Vacio>;
 
   const p = presentacion.datos;
   const c = cuestionario.datos;
   if (!c) {
     return (
-      <Aviso tono="error" titulo="No se pudo abrir el cuestionario">
-        Vuelve a intentarlo en un momento.
+      <Aviso tono="error" titulo={t("No se pudo abrir el cuestionario")}>
+        {t("Vuelve a intentarlo en un momento.")}
       </Aviso>
     );
   }
@@ -98,6 +100,7 @@ export function Bienvenida() {
 /* ------------------------------------------------------------ Presentación --- */
 
 function Presentacion({ p, onSeguir }: { p: PresentacionApi; onSeguir: () => void }) {
+  const { t } = useIdioma();
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8">
       <header className="flex flex-col items-center gap-5 text-center">
@@ -110,7 +113,7 @@ function Presentacion({ p, onSeguir }: { p: PresentacionApi; onSeguir: () => voi
         ) : null}
         <div className="flex flex-col gap-2">
           <Etiqueta>{p.marca}</Etiqueta>
-          <Portada>{p.titulo || "Bienvenida"}</Portada>
+          <Portada>{p.titulo || t("Bienvenida")}</Portada>
         </div>
       </header>
 
@@ -143,7 +146,7 @@ function Presentacion({ p, onSeguir }: { p: PresentacionApi; onSeguir: () => voi
 
       <div className="flex justify-center pt-2">
         <Boton onClick={onSeguir}>
-          Empezar <ArrowRight className="size-4" />
+          {t("Empezar")} <ArrowRight className="size-4" />
         </Boton>
       </div>
 
@@ -168,6 +171,7 @@ function Cuestionario({
   esSolicitud: boolean;
   onListo: () => void;
 }) {
+  const { t } = useIdioma();
   const [nucleo, setNucleo] = useState<NucleoClinicoApi>(c.nucleo);
   const [plan, setPlan] = useState<string | null>(c.planElegido);
   const [respuestas, setRespuestas] = useState<Record<string, string>>(() =>
@@ -178,7 +182,7 @@ function Cuestionario({
   const [fallo, setFallo] = useState<string | null>(null);
 
   const faltanConsentimientos = c.consentimientosPendientes.filter(
-    (t) => !aceptados.includes(t),
+    (tipo) => !aceptados.includes(tipo),
   );
   const faltanObligatorias = c.preguntas.filter(
     (q) => q.obligatoria && !(respuestas[q.ulid] ?? "").trim(),
@@ -213,30 +217,29 @@ function Cuestionario({
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8">
       <header className="flex flex-col gap-3">
-        <Etiqueta>Antes de empezar</Etiqueta>
-        <Portada>Cuéntale a tu coach</Portada>
+        <Etiqueta>{t("Antes de empezar")}</Etiqueta>
+        <Portada>{t("Cuéntale a tu coach")}</Portada>
         <Apoyo>
-          De esto depende que tu plan sea seguro. Si algo cambia después, lo puedes editar
-          desde tu cuenta.
+          {t("De esto depende que tu plan sea seguro. Si algo cambia después, lo puedes editar desde tu cuenta.")}
         </Apoyo>
       </header>
 
       {/* ---- Núcleo clínico ---- */}
       <section className="flex flex-col gap-5">
-        <Titulo>Tu salud</Titulo>
+        <Titulo>{t("Tu salud")}</Titulo>
         {CAMPOS_CLINICOS.map(([clave, rotulo, ejemplo]) => (
-          <Campo key={clave} id={`cu-${clave}`} etiqueta={rotulo}>
+          <Campo key={clave} id={`cu-${clave}`} etiqueta={t(rotulo)}>
             <textarea
               id={`cu-${clave}`}
               rows={2}
               value={nucleo[clave] ?? ""}
               onChange={(e) => setNucleo((v) => ({ ...v, [clave]: e.target.value }))}
-              placeholder={ejemplo}
+              placeholder={t(ejemplo)}
               className="w-full rounded-marco border border-linea bg-fondo px-3 py-2 text-cuerpo leading-relaxed focus:border-tinta focus:outline-none"
             />
           </Campo>
         ))}
-        <Apoyo>Si no aplica, déjalo vacío. Es mejor eso que escribir «nada».</Apoyo>
+        <Apoyo>{t("Si no aplica, déjalo vacío. Es mejor eso que escribir «nada».")}</Apoyo>
       </section>
 
       {/* ---- Preguntas de la coach ---- */}
@@ -244,7 +247,7 @@ function Cuestionario({
         <>
           <Regla />
           <section className="flex flex-col gap-5">
-            <Titulo>Lo que tu coach quiere saber</Titulo>
+            <Titulo>{t("Lo que tu coach quiere saber")}</Titulo>
             {c.preguntas.map((q) => (
               <Pregunta
                 key={q.ulid}
@@ -263,39 +266,38 @@ function Cuestionario({
           <Regla />
           <section className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <Titulo>Qué plan quieres</Titulo>
+              <Titulo>{t("Qué plan quieres")}</Titulo>
               <Apoyo>
-                Es lo que le pides a tu coach. Ella lo confirma al aceptarte, y de ahí sale
-                tu primer ciclo.
+                {t("Es lo que le pides a tu coach. Ella lo confirma al aceptarte, y de ahí sale tu primer ciclo.")}
               </Apoyo>
             </div>
             <div className="flex flex-col gap-2">
-              {c.planes.map((t) => (
+              {c.planes.map((tarifa) => (
                 <label
-                  key={t.ulid}
-                  htmlFor={`pl-${t.ulid}`}
+                  key={tarifa.ulid}
+                  htmlFor={`pl-${tarifa.ulid}`}
                   className={cn(
                     "flex cursor-pointer items-start gap-3 rounded-marco border p-4 transition-colors",
-                    plan === t.ulid ? "border-acento bg-acento-sutil" : "border-linea hover:border-tinta",
+                    plan === tarifa.ulid ? "border-acento bg-acento-sutil" : "border-linea hover:border-tinta",
                   )}
                 >
                   <input
-                    id={`pl-${t.ulid}`}
+                    id={`pl-${tarifa.ulid}`}
                     type="radio"
                     name="plan"
-                    checked={plan === t.ulid}
-                    onChange={() => setPlan(t.ulid)}
+                    checked={plan === tarifa.ulid}
+                    onChange={() => setPlan(tarifa.ulid)}
                     className="mt-0.5 size-5 shrink-0 accent-[var(--acento-texto)]"
                   />
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="text-menor font-semibold">{t.nombre}</span>
+                      <span className="text-menor font-semibold">{tarifa.nombre}</span>
                       <span className="cifra text-menor">
-                        ${num(t.precio)} · {t.dias} días
+                        ${num(tarifa.precio)} · {t("{dias} días", { dias: tarifa.dias })}
                       </span>
                     </span>
-                    {t.descripcion ? (
-                      <span className="text-micro text-tinta-suave">{t.descripcion}</span>
+                    {tarifa.descripcion ? (
+                      <span className="text-micro text-tinta-suave">{tarifa.descripcion}</span>
                     ) : null}
                   </span>
                 </label>
@@ -311,10 +313,9 @@ function Cuestionario({
           <Regla />
           <section className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <Titulo>Permisos</Titulo>
+              <Titulo>{t("Permisos")}</Titulo>
               <Apoyo>
-                Guardamos la fecha y el texto exacto que aceptas. Puedes revocarlos cuando
-                quieras desde tu cuenta.
+                {t("Guardamos la fecha y el texto exacto que aceptas. Puedes revocarlos cuando quieras desde tu cuenta.")}
               </Apoyo>
             </div>
             {c.consentimientosPendientes.map((tipo) => {
@@ -323,7 +324,7 @@ function Cuestionario({
                 <Casilla
                   key={tipo}
                   id={`cu-c-${tipo}`}
-                  titulo={`Acepto ${rotulo}`}
+                  titulo={t("Acepto {rotulo}", { rotulo: t(rotulo) })}
                   checked={aceptados.includes(tipo)}
                   onChange={(e) =>
                     setAceptados((v) =>
@@ -332,7 +333,7 @@ function Cuestionario({
                   }
                 >
                   <Link to={ruta} className="underline underline-offset-2">
-                    Leerlo antes de aceptar
+                    {t("Leerlo antes de aceptar")}
                   </Link>
                 </Casilla>
               );
@@ -341,17 +342,17 @@ function Cuestionario({
         </>
       ) : null}
 
-      {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
+      {fallo ? <Aviso tono="error">{t(fallo)}</Aviso> : null}
 
       <div className="flex flex-col gap-2">
         <Boton disabled={!listo || enviando} onClick={() => void enviar()}>
-          <Check className="size-4" /> {enviando ? "Guardando…" : "Listo"}
+          <Check className="size-4" /> {enviando ? t("Guardando…") : t("Listo")}
         </Boton>
         {!listo ? (
           <Apoyo>
             {faltanObligatorias.length > 0
-              ? `Falta contestar: ${faltanObligatorias[0]!.texto}`
-              : "Falta aceptar los permisos para poder continuar."}
+              ? t("Falta contestar: {texto}", { texto: faltanObligatorias[0]!.texto })
+              : t("Falta aceptar los permisos para poder continuar.")}
           </Apoyo>
         ) : null}
       </div>
@@ -368,6 +369,7 @@ function Pregunta({
   valor: string;
   onCambio: (valor: string) => void;
 }) {
+  const { t } = useIdioma();
   const etiqueta = q.obligatoria ? `${q.texto} *` : q.texto;
 
   if (q.tipo === "texto_largo") {
@@ -389,10 +391,10 @@ function Pregunta({
     return (
       <Campo id={`q-${q.ulid}`} etiqueta={etiqueta} {...(q.ayuda ? { ayuda: q.ayuda } : {})}>
         <Selector id={`q-${q.ulid}`} value={valor} onChange={(e) => onCambio(e.target.value)}>
-          <option value="">Elige una</option>
+          <option value="">{t("Elige una")}</option>
           {opciones.map((o) => (
             <option key={o} value={o}>
-              {o}
+              {t(o)}
             </option>
           ))}
         </Selector>
