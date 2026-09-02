@@ -24,7 +24,7 @@ if (-not (Test-Path .venv)) {
     Write-Host "   entorno virtual creado"
 }
 & .\.venv\Scripts\python.exe -m pip install --quiet --upgrade pip
-& .\.venv\Scripts\python.exe -m pip install --quiet -r requirements-dev.txt
+& .\.venv\Scripts\python.exe -m pip install --quiet -r requirements.txt
 Write-Host "   dependencias al día"
 
 # --- Configuración ----------------------------------------------------------
