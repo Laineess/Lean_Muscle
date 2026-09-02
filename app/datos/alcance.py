@@ -45,6 +45,8 @@ def crear_motor(url: str | None = None) -> Engine:
         url or ajustes().bd_url,
         pool_pre_ping=True,
         pool_recycle=1800,
+        pool_size=ajustes().bd_pool,
+        max_overflow=ajustes().bd_overflow,
         future=True,
     )
 

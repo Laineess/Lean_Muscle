@@ -311,7 +311,7 @@ def correr() -> Resultado:
                     "nombre": candidata.nombre.split(" ")[0],
                     "coach": coach.marca or coach.nombre,
                     "pendiente": PENDIENTE_DE[paso],
-                    "dias": reg.AVISO_ANTES_DE_BORRAR.days,
+                    "dias": reg.AVISO_BORRADO.days,
                 },
                 destinatario_id=usuario.id,
             ):

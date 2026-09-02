@@ -17,26 +17,26 @@ from app.compartido.errores import Codigo, ErrorDeDominio
 from app.compartido.fechas import a_utc
 
 #: Cuánto vale el código que llega al correo. Corto: es una prueba de que el buzón es suyo.
-VIGENCIA_DEL_CODIGO = timedelta(minutes=15)
+CODIGO_VIVE = timedelta(minutes=15)
 
 #: Intentos antes de invalidarlo. Seis dígitos son un millón de combinaciones; cinco tiros
 #: dejan margen a un dedazo y no a probar a ciegas.
-INTENTOS_DE_CODIGO = 5
+CODIGO_INTENTOS = 5
 
 #: Lo que hay que esperar para pedir otro código. Sin freno, la liga de la coach sería
 #: una forma cómoda de mandarle correo a cualquiera.
-ESPERA_ENTRE_CODIGOS = timedelta(seconds=60)
+CODIGO_ESPERA = timedelta(seconds=60)
 
 #: Lo que vive una solicitud sin terminar. Pasado eso se borra entera, con su cuenta.
-VIDA_DE_SOLICITUD = timedelta(days=7)
+SOLICITUD_VIVE = timedelta(days=7)
 
 #: Cuánto antes de borrarla se le recuerda que la dejó a medias.
-AVISO_ANTES_DE_BORRAR = timedelta(days=2)
+AVISO_BORRADO = timedelta(days=2)
 
 #: Lo que sobrevive una solicitud descartada. No es para la coach —ya decidió— sino para que
 #: un clic equivocado tenga vuelta atrás, y para que a quien descartaron no se le borre el
 #: expediente en el mismo segundo en que le llega el correo.
-GRACIA_TRAS_DESCARTAR = timedelta(days=7)
+GRACIA_DESCARTE = timedelta(days=7)
 
 
 class Estado(StrEnum):
@@ -105,7 +105,7 @@ def termino_su_parte(paso: Paso) -> bool:
 
 def codigo_utilizable(vence_en: datetime, intentos: int, ahora: datetime) -> bool:
     """Si el código todavía sirve. Caducado o quemado obliga a pedir otro."""
-    return intentos < INTENTOS_DE_CODIGO and a_utc(ahora) < a_utc(vence_en)
+    return intentos < CODIGO_INTENTOS and a_utc(ahora) < a_utc(vence_en)
 
 
 def exigir_codigo_utilizable(vence_en: datetime, intentos: int, ahora: datetime) -> None:
@@ -115,13 +115,13 @@ def exigir_codigo_utilizable(vence_en: datetime, intentos: int, ahora: datetime)
 
 def exigir_espera_entre_codigos(vence_en: datetime, ahora: datetime) -> None:
     """Un código recién mandado no se reemite."""
-    emitido_en = a_utc(vence_en) - VIGENCIA_DEL_CODIGO
-    if a_utc(ahora) - emitido_en < ESPERA_ENTRE_CODIGOS:
+    emitido_en = a_utc(vence_en) - CODIGO_VIVE
+    if a_utc(ahora) - emitido_en < CODIGO_ESPERA:
         raise ErrorDeDominio(Codigo.DEMASIADOS_REGISTROS)
 
 
 def vence_el(creada_en: datetime) -> datetime:
-    return a_utc(creada_en) + VIDA_DE_SOLICITUD
+    return a_utc(creada_en) + SOLICITUD_VIVE
 
 
 def borra_el(estado: Estado, creada_en: datetime, decidida_en: datetime | None) -> datetime | None:
@@ -133,7 +133,7 @@ def borra_el(estado: Estado, creada_en: datetime, decidida_en: datetime | None) 
     if estado in ABANDONABLES:
         return vence_el(creada_en)
     if estado is Estado.DESCARTADA and decidida_en is not None:
-        return a_utc(decidida_en) + GRACIA_TRAS_DESCARTAR
+        return a_utc(decidida_en) + GRACIA_DESCARTE
     return None
 
 
@@ -158,7 +158,7 @@ def toca_recordar(estado: Estado, creada_en: datetime, ahora: datetime, ya_envia
     """
     if ya_enviado or estado not in ABANDONABLES:
         return False
-    return a_utc(ahora) >= vence_el(creada_en) - AVISO_ANTES_DE_BORRAR
+    return a_utc(ahora) >= vence_el(creada_en) - AVISO_BORRADO
 
 
 def exigir_abierto(abierto: bool, servicios_de_inscripcion: int) -> None:

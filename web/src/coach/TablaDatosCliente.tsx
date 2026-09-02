@@ -9,7 +9,7 @@
  *  La paleta de estilos y colores respeta 100 % el sistema de diseño del resto de la aplicación.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   ACTIVIDAD,
@@ -64,25 +64,55 @@ export function TablaDatosCliente({
   const [inputEstatura, setInputEstatura] = useState(num(estaturaCm / 100, 2));
   const [inputAjuste, setInputAjuste] = useState(String(ajustePct));
 
+  // Mientras un campo tiene foco no se deja que su valor de la prop lo sobreescriba, para que
+  // se pueda teclear con libertad (aplicando en vivo) sin que el texto "salte" al normalizarse.
+  const enfocadoEdad = useRef(false);
+  const enfocadoPeso = useRef(false);
+  const enfocadoGrasa = useRef(false);
+  const enfocadoEstatura = useRef(false);
+  const enfocadoAjuste = useRef(false);
+
   useEffect(() => {
-    setInputEdad(String(edad));
+    if (!enfocadoEdad.current) setInputEdad(String(edad));
   }, [edad]);
 
   useEffect(() => {
-    setInputPeso(num(comp.pesoKg, 2));
+    if (!enfocadoPeso.current) setInputPeso(num(comp.pesoKg, 2));
   }, [comp.pesoKg]);
 
   useEffect(() => {
-    setInputGrasa(num(comp.porcentajeGrasa * 100, 1));
+    if (!enfocadoGrasa.current) setInputGrasa(num(comp.porcentajeGrasa * 100, 1));
   }, [comp.porcentajeGrasa]);
 
   useEffect(() => {
-    setInputEstatura(num(estaturaCm / 100, 2));
+    if (!enfocadoEstatura.current) setInputEstatura(num(estaturaCm / 100, 2));
   }, [estaturaCm]);
 
   useEffect(() => {
-    setInputAjuste(String(ajustePct));
+    if (!enfocadoAjuste.current) setInputAjuste(String(ajustePct));
   }, [ajustePct]);
+
+  // Al salir se quita la marca y se normaliza el campo desde su valor real.
+  const terminarEdad = () => {
+    enfocadoEdad.current = false;
+    aplicarEdad(inputEdad);
+  };
+  const terminarPeso = () => {
+    enfocadoPeso.current = false;
+    aplicarPeso(inputPeso);
+  };
+  const terminarGrasa = () => {
+    enfocadoGrasa.current = false;
+    aplicarGrasa(inputGrasa);
+  };
+  const terminarEstatura = () => {
+    enfocadoEstatura.current = false;
+    aplicarEstatura(inputEstatura);
+  };
+  const terminarAjuste = () => {
+    enfocadoAjuste.current = false;
+    aplicarAjuste(inputAjuste);
+  };
 
   // Manejadores
   const aplicarEdad = (valStr: string) => {
@@ -124,9 +154,16 @@ export function TablaDatosCliente({
         <input
           type="text"
           value={inputEdad}
-          onChange={(e) => setInputEdad(e.target.value)}
-          onBlur={() => aplicarEdad(inputEdad)}
-          onKeyDown={(e) => e.key === "Enter" && aplicarEdad(inputEdad)}
+          onChange={(e) => {
+            const s = e.target.value;
+            setInputEdad(s);
+            if (String(s).trim() !== "") aplicarEdad(s);
+          }}
+          onFocus={() => {
+            enfocadoEdad.current = true;
+          }}
+          onBlur={terminarEdad}
+          onKeyDown={(e) => e.key === "Enter" && terminarEdad()}
           className="cifra h-8 w-24 rounded-marco bg-fondo px-2 text-center text-menor font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
           title={t("Edad en años (editable)")}
         />
@@ -141,9 +178,16 @@ export function TablaDatosCliente({
         <input
           type="text"
           value={inputPeso}
-          onChange={(e) => setInputPeso(e.target.value)}
-          onBlur={() => aplicarPeso(inputPeso)}
-          onKeyDown={(e) => e.key === "Enter" && aplicarPeso(inputPeso)}
+          onChange={(e) => {
+            const s = e.target.value;
+            setInputPeso(s);
+            if (String(s).trim() !== "") aplicarPeso(s);
+          }}
+          onFocus={() => {
+            enfocadoPeso.current = true;
+          }}
+          onBlur={terminarPeso}
+          onKeyDown={(e) => e.key === "Enter" && terminarPeso()}
           className="cifra h-8 w-24 rounded-marco bg-fondo px-2 text-center text-menor font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
           title={t("Peso en kg (editable)")}
         />
@@ -159,9 +203,16 @@ export function TablaDatosCliente({
           <input
             type="text"
             value={inputGrasa}
-            onChange={(e) => setInputGrasa(e.target.value)}
-            onBlur={() => aplicarGrasa(inputGrasa)}
-            onKeyDown={(e) => e.key === "Enter" && aplicarGrasa(inputGrasa)}
+            onChange={(e) => {
+              const s = e.target.value;
+              setInputGrasa(s);
+              if (String(s).trim() !== "") aplicarGrasa(s);
+            }}
+            onFocus={() => {
+              enfocadoGrasa.current = true;
+            }}
+            onBlur={terminarGrasa}
+            onKeyDown={(e) => e.key === "Enter" && terminarGrasa()}
             className="cifra h-8 w-20 rounded-marco bg-fondo px-2 text-center text-menor font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
             title={t("Porcentaje de grasa estimado (editable)")}
           />
@@ -178,9 +229,16 @@ export function TablaDatosCliente({
         <input
           type="text"
           value={inputEstatura}
-          onChange={(e) => setInputEstatura(e.target.value)}
-          onBlur={() => aplicarEstatura(inputEstatura)}
-          onKeyDown={(e) => e.key === "Enter" && aplicarEstatura(inputEstatura)}
+          onChange={(e) => {
+            const s = e.target.value;
+            setInputEstatura(s);
+            if (String(s).trim() !== "") aplicarEstatura(s);
+          }}
+          onFocus={() => {
+            enfocadoEstatura.current = true;
+          }}
+          onBlur={terminarEstatura}
+          onKeyDown={(e) => e.key === "Enter" && terminarEstatura()}
           className="cifra h-8 w-24 rounded-marco bg-fondo px-2 text-center text-menor font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
           title={t("Estatura en metros (ej. 1.65, editable)")}
         />
@@ -274,9 +332,16 @@ export function TablaDatosCliente({
           <input
             type="text"
             value={inputAjuste}
-            onChange={(e) => setInputAjuste(e.target.value)}
-            onBlur={() => aplicarAjuste(inputAjuste)}
-            onKeyDown={(e) => e.key === "Enter" && aplicarAjuste(inputAjuste)}
+            onChange={(e) => {
+              const s = e.target.value;
+              setInputAjuste(s);
+              if (String(s).trim() !== "") aplicarAjuste(s);
+            }}
+            onFocus={() => {
+              enfocadoAjuste.current = true;
+            }}
+            onBlur={terminarAjuste}
+            onKeyDown={(e) => e.key === "Enter" && terminarAjuste()}
             className="cifra h-8 w-20 rounded-marco bg-fondo px-2 text-center text-menor font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
             title={t("% de ajuste calórico (negativo déficit, positivo superávit)")}
           />

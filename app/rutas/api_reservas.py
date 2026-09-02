@@ -165,19 +165,70 @@ def _avisar_a_la_coach(s: Session, coach_id: int, coach: Coach, alumna: Alumna, 
         return
 
     inicia = en_zona(cita.inicia_en, coach.zona_horaria)
+    fin = en_zona(cita.termina_en, coach.zona_horaria)
+    enc = _comprobante_para_la_coach(s, alumna.id)
+    contexto = {
+        "alumna": alumna.nombre,
+        "fecha": f"{inicia:%d/%m/%Y}",
+        "hora_inicio": f"{inicia:%H:%M}",
+        "hora_fin": f"{fin:%H:%M}",
+        "modalidad": _nombre_modalidad(cita.modalidad),
+        "whatsapp": alumna.whatsapp or "—",
+        "correo": _correo_de_alumna(s, alumna),
+        "comprobante_key": enc["comprobante_key"],
+        "comprobante_nombre": enc["comprobante_nombre"],
+        "comprobante_nota": enc["comprobante_nota"],
+    }
     cola.encolar(
         s,
         Aviso.CONSULTA_RESERVADA,
         coach_id=coach_id,
         llave=f"cita:{cita.ulid}:reservada",
         para=usuario.email,
-        contexto={
-            "alumna": alumna.nombre,
-            "fecha": f"{inicia:%d/%m/%Y}",
-            "hora_inicio": f"{inicia:%H:%M}",
-        },
+        contexto=contexto,
         destinatario_id=usuario.id,
     )
+
+
+def _nombre_modalidad(modalidad: str) -> str:
+    return {
+        "presencial": "Presencial",
+        "video": "Videollamada",
+        "telefono": "Por teléfono",
+    }.get(modalidad, modalidad)
+
+
+def _correo_de_alumna(s: Session, alumna: Alumna) -> str:
+    from app.datos.modelos import Usuario
+
+    if alumna.usuario_id is None:  # pragma: no cover - defensivo
+        return "—"
+    usuario = s.get(Usuario, alumna.usuario_id)
+    return usuario.email if usuario is not None else "—"
+
+
+def _comprobante_para_la_coach(s: Session, alumna_id: int) -> dict[str, str]:
+    """Metadatos del comprobante más reciente de la alumna, para adjuntarlo en el correo.
+
+    El archivo mismo lo lee el emisor desde el almacén con la `comprobante_key`: aquí solo
+    se copia la llave y un nombre para el adjunto. Si todavía no hay comprobante, el correo
+    lo dice en lugar de enchinar la cola con una llave vacía.
+    """
+    ultimo = None
+    for c in q.cobros_de(s, alumna_id):
+        if c.comprobante_key:
+            ultimo = c
+    if ultimo is None or ultimo.comprobante_key is None:
+        return {"comprobante_key": "", "comprobante_nombre": "", "comprobante_nota": "Todavía no subió comprobante."}
+
+    llave = ultimo.comprobante_key
+    extension = llave.rsplit(".", 1)[-1].lower()
+    nombre = f"comprobante.{extension}"
+    return {
+        "comprobante_key": llave,
+        "comprobante_nombre": nombre,
+        "comprobante_nota": "Su comprobante va adjunto.",
+    }
 
 
 @ruteador.get("/mi/huecos", response_model=list[HuecoPublico])
@@ -194,7 +245,12 @@ def huecos_libres(
     libres = h.libres(
         bloques, _ocupadas(s), _reglas(coach), coach.zona_horaria, ahora_utc(), TOPE_DE_HUECOS
     )
-    return [HuecoPublico(inicia_en=x.inicia_en, termina_en=x.termina_en) for x in libres]
+    return [
+        HuecoPublico(
+            inicia_en=x.inicia_en, termina_en=x.termina_en, datos_bancarios=coach.datos_bancarios
+        )
+        for x in libres
+    ]
 
 
 @ruteador.post("/mi/citas", response_model=CitaDeAlumna, status_code=201)

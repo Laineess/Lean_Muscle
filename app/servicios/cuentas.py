@@ -155,11 +155,10 @@ def dar_de_alta(
     )
 
     # Los cobros nacen con ella: el flujo de pagos cuelga del cobro y no del ciclo, así que
-    # sin estas filas veía que debía pagar sin tener contra qué subir su comprobante.
+    # sin esta fila veía que debía pagar sin tener contra qué subir su comprobante.
     #
-    # Son dos y no uno. La inscripción se paga una vez al entrar y la mensualidad cada ciclo;
-    # juntarlas en una fila etiquetada «Inscripción» por el precio del ciclo cobraba de menos
-    # y dejaba la inscripción sin registrar en ningún lado.
+    # El alta cobra solo la inscripción: con ella se libera el primer ciclo, y la primera
+    # mensualidad se cobra hasta el ciclo 2 (ver `_estado_pago_del_ciclo` en api_alumna).
     inscripcion = next(
         (
             x
@@ -178,19 +177,6 @@ def dar_de_alta(
                 motivo="inscripcion",
                 concepto=inscripcion.nombre,
                 monto=inscripcion.precio,
-                estado="pendiente",
-            )
-        )
-
-    if precio > 0:
-        s.add(
-            CobroProgramado(
-                coach_id=coach_id,
-                alumna_id=alumna.id,
-                fecha=hoy,
-                motivo="mensualidad",
-                concepto=f"Ciclo 1 · {plan.nombre}" if plan is not None else "Ciclo 1",
-                monto=precio,
                 estado="pendiente",
             )
         )

@@ -33,6 +33,7 @@ import { fecha, horaLocal, num } from "@/lib/formato";
 import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
 import { cn } from "@/lib/utils";
+import { DatosBancarios } from "@/alumna/DatosBancarios";
 
 interface Escalon {
   paso: PasoDeSolicitud;
@@ -41,6 +42,11 @@ interface Escalon {
 }
 
 const ESCALONES: Escalon[] = [
+  {
+    paso: "correo",
+    titulo: "Verifica tu correo",
+    detalle: "Te enviamos un código de 6 dígitos. Introdúcelo para continuar.",
+  },
   {
     paso: "cuestionario",
     titulo: "Conoce a tu coach y contesta",
@@ -120,8 +126,11 @@ export function Solicitud() {
       <ol className="flex flex-col divide-y divide-linea border-y border-linea">
         {ESCALONES.map((escalon, i) => {
           const hecho = hechos.has(escalon.paso);
-          const puedeElegir = hecho || s.paso === escalon.paso;
-          const actual = !termino && pasoActivo === escalon.paso;
+          // Un paso incompleto se puede retomar; uno completo queda de lectura.
+          const pendiente =
+            escalon.paso === "correo" ? s.paso === "correo" : !hecho;
+          const puedeElegir = pendiente && !termino;
+          const actual = !termino && puedeElegir && pasoActivo === escalon.paso;
           return (
             <li key={escalon.paso} className="flex items-start gap-4 py-4">
               <span
@@ -191,6 +200,13 @@ export function Solicitud() {
 
 function AccionDelPaso({ paso, onHecho }: { paso: PasoDeSolicitud; onHecho: () => void }) {
   const { t } = useIdioma();
+
+  if (paso === "correo") {
+    return (
+      <ReenviarCodigo />
+    );
+  }
+
   if (paso === "cuestionario") {
     return (
       <span className="mt-2">
@@ -264,7 +280,38 @@ function SubirInscripcion({ onHecho }: { onHecho: () => void }) {
           }}
         />
       </span>
+      <DatosBancarios texto={inscripcion.datosBancarios} />
       {error ? <Aviso tono="error">{error}</Aviso> : null}
+    </span>
+  );
+}
+
+/* --------------------------------------------------------- Reenviar Código --- */
+
+function ReenviarCodigo() {
+  const { t } = useIdioma();
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function reenviar() {
+    setError(null);
+    setEnviando(true);
+    try {
+      await api.alumna.reenviarCodigo();
+      setError(t("Código enviado. Revisa tu correo."));
+    } catch (causa) {
+      setError(causa instanceof ErrorApi ? causa.message : t("No se pudo reenviar el código."));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <span className="mt-2 flex flex-col gap-2">
+      <Boton cargando={enviando} onClick={() => void reenviar()}>
+        {t("Reenviar código")}
+      </Boton>
+      {error ? <Aviso tono={error.includes("enviado") ? "exito" : "error"}>{error}</Aviso> : null}
     </span>
   );
 }

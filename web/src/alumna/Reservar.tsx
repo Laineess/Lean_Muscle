@@ -26,6 +26,7 @@ import { ErrorApi, api, type CitaDeAlumnaApi, type HuecoApi } from "@/lib/api";
 import { diaSemana, horaLocal } from "@/lib/formato";
 import { useIdioma } from "@/lib/idioma";
 import { usarApi } from "@/lib/usarApi";
+import { DatosBancarios } from "@/alumna/DatosBancarios";
 
 const MODALIDADES: [string, string][] = [
   ["video", "Por video"],
@@ -151,6 +152,8 @@ export function Reservar() {
               hora: horaLocal(elegido.terminaEn),
             })}
           </Apoyo>
+
+          <DatosBancarios texto={elegido.datosBancarios} />
 
           <Campo id="rs-modalidad" etiqueta={t("Cómo prefieres la consulta")}>
             <Selector

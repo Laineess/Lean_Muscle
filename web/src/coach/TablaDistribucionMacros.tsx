@@ -12,7 +12,7 @@
  */
 
 import { AlertCircle, CheckCircle2, RotateCcw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Chip } from "@/componentes/primitivas";
 import {
@@ -51,18 +51,14 @@ export function TablaDistribucionMacros({
 }: TablaDistribucionMacrosProps) {
   const { t } = useIdioma();
 
-  // Inputs locales para edición fluida
+  // Inputs locales para edición fluida (solo los porcentajes son capturados)
   const [inputCarboPct, setInputCarboPct] = useState(String(reparto.carbohidrato));
   const [inputProtPct, setInputProtPct] = useState(String(reparto.proteina));
   const [inputGrasaPct, setInputGrasaPct] = useState(String(reparto.grasa));
 
-  const [inputCarboG, setInputCarboG] = useState("");
-  const [inputProtG, setInputProtG] = useState("");
-  const [inputGrasaG, setInputGrasaG] = useState("");
-
-  const [inputCarboGkg, setInputCarboGkg] = useState("");
-  const [inputProtGkg, setInputProtGkg] = useState("");
-  const [inputGrasaGkg, setInputGrasaGkg] = useState("");
+  const enfocadoCarboPct = useRef(false);
+  const enfocadoProtPct = useRef(false);
+  const enfocadoGrasaPct = useRef(false);
 
   const kcalAjustadas = energia.ajustadasKcal;
   const peso = comp.pesoKg;
@@ -81,69 +77,35 @@ export function TablaDistribucionMacros({
   const sumaReparto = Math.round(reparto.carbohidrato + reparto.proteina + reparto.grasa);
   const repartoCuadra = sumaReparto === 100;
 
-  // Sincronizar inputs locales con estado
+  // Sincronizar inputs locales con estado (saltando mientras el campo está enfocado)
   useEffect(() => {
-    setInputCarboPct(String(reparto.carbohidrato));
+    if (!enfocadoCarboPct.current) setInputCarboPct(String(reparto.carbohidrato));
   }, [reparto.carbohidrato]);
 
   useEffect(() => {
-    setInputProtPct(String(reparto.proteina));
+    if (!enfocadoProtPct.current) setInputProtPct(String(reparto.proteina));
   }, [reparto.proteina]);
 
   useEffect(() => {
-    setInputGrasaPct(String(reparto.grasa));
+    if (!enfocadoGrasaPct.current) setInputGrasaPct(String(reparto.grasa));
   }, [reparto.grasa]);
-
-  useEffect(() => {
-    setInputCarboG(String(Math.round(carboG)));
-  }, [carboG]);
-
-  useEffect(() => {
-    setInputProtG(String(Math.round(protG)));
-  }, [protG]);
-
-  useEffect(() => {
-    setInputGrasaG(String(Math.round(grasaG)));
-  }, [grasaG]);
-
-  useEffect(() => {
-    setInputCarboGkg(num(carboGkg, 1));
-  }, [carboGkg]);
-
-  useEffect(() => {
-    setInputProtGkg(num(protGkg, 1));
-  }, [protGkg]);
-
-  useEffect(() => {
-    setInputGrasaGkg(num(grasaGkg, 1));
-  }, [grasaGkg]);
 
   // Manejadores de cambios en Porcentajes
   const aplicarPct = (macro: Macro, valStr: string) => {
     const val = Math.max(0, Math.min(100, Math.round(Number(valStr.replace(",", ".")) || 0)));
     onReparto((prev) => ({ ...prev, [macro]: val }));
   };
-
-  // Manejadores de cambios en Gramos directos
-  const aplicarGramos = (macro: Macro, valStr: string) => {
-    const g = Math.max(0, Number(valStr.replace(",", ".")) || 0);
-    if (kcalAjustadas <= 0) return;
-    const factorKcal = macro === "grasa" ? 9 : 4;
-    const kcalMacro = g * factorKcal;
-    const nuevoPct = Math.round((kcalMacro / kcalAjustadas) * 100);
-    onReparto((prev) => ({ ...prev, [macro]: nuevoPct }));
+  const terminarCarboPct = () => {
+    enfocadoCarboPct.current = false;
+    aplicarPct("carbohidrato", inputCarboPct);
   };
-
-  // Manejadores de cambios en g/kg
-  const aplicarGkg = (macro: Macro, valStr: string) => {
-    const gkg = Math.max(0, Number(valStr.replace(",", ".")) || 0);
-    if (kcalAjustadas <= 0) return;
-    const baseKg = macro === "proteina" ? refProteina : peso;
-    const g = gkg * baseKg;
-    const factorKcal = macro === "grasa" ? 9 : 4;
-    const kcalMacro = g * factorKcal;
-    const nuevoPct = Math.round((kcalMacro / kcalAjustadas) * 100);
-    onReparto((prev) => ({ ...prev, [macro]: nuevoPct }));
+  const terminarProtPct = () => {
+    enfocadoProtPct.current = false;
+    aplicarPct("proteina", inputProtPct);
+  };
+  const terminarGrasaPct = () => {
+    enfocadoGrasaPct.current = false;
+    aplicarPct("grasa", inputGrasaPct);
   };
 
   // Restablecer a 50 / 28 / 22 (por defecto en Excel)
@@ -220,11 +182,16 @@ export function TablaDistribucionMacros({
                     <input
                       type="text"
                       value={inputCarboPct}
-                      onChange={(e) => setInputCarboPct(e.target.value)}
-                      onBlur={() => aplicarPct("carbohidrato", inputCarboPct)}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" && aplicarPct("carbohidrato", inputCarboPct)
-                      }
+                      onChange={(e) => {
+                        const s = e.target.value;
+                        setInputCarboPct(s);
+                        if (String(s).trim() !== "") aplicarPct("carbohidrato", s);
+                      }}
+                      onFocus={() => {
+                        enfocadoCarboPct.current = true;
+                      }}
+                      onBlur={terminarCarboPct}
+                      onKeyDown={(e) => e.key === "Enter" && terminarCarboPct()}
                       className="cifra h-9 w-20 rounded-marco bg-fondo px-2 text-center text-guia font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
                       title={t("Porcentaje de carbohidratos (editable)")}
                     />
@@ -237,9 +204,16 @@ export function TablaDistribucionMacros({
                     <input
                       type="text"
                       value={inputProtPct}
-                      onChange={(e) => setInputProtPct(e.target.value)}
-                      onBlur={() => aplicarPct("proteina", inputProtPct)}
-                      onKeyDown={(e) => e.key === "Enter" && aplicarPct("proteina", inputProtPct)}
+                      onChange={(e) => {
+                        const s = e.target.value;
+                        setInputProtPct(s);
+                        if (String(s).trim() !== "") aplicarPct("proteina", s);
+                      }}
+                      onFocus={() => {
+                        enfocadoProtPct.current = true;
+                      }}
+                      onBlur={terminarProtPct}
+                      onKeyDown={(e) => e.key === "Enter" && terminarProtPct()}
                       className="cifra h-9 w-20 rounded-marco bg-acento-sutil/40 px-2 text-center text-guia font-bold text-acento-texto transition-all hover:bg-acento-sutil focus:border focus:border-acento focus:bg-fondo focus:text-tinta focus:outline-none"
                       title={t("Porcentaje de proteínas (editable)")}
                     />
@@ -252,9 +226,16 @@ export function TablaDistribucionMacros({
                     <input
                       type="text"
                       value={inputGrasaPct}
-                      onChange={(e) => setInputGrasaPct(e.target.value)}
-                      onBlur={() => aplicarPct("grasa", inputGrasaPct)}
-                      onKeyDown={(e) => e.key === "Enter" && aplicarPct("grasa", inputGrasaPct)}
+                      onChange={(e) => {
+                        const s = e.target.value;
+                        setInputGrasaPct(s);
+                        if (String(s).trim() !== "") aplicarPct("grasa", s);
+                      }}
+                      onFocus={() => {
+                        enfocadoGrasaPct.current = true;
+                      }}
+                      onBlur={terminarGrasaPct}
+                      onKeyDown={(e) => e.key === "Enter" && terminarGrasaPct()}
                       className="cifra h-9 w-20 rounded-marco bg-fondo px-2 text-center text-guia font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
                       title={t("Porcentaje de grasas (editable)")}
                     />
@@ -311,39 +292,23 @@ export function TablaDistribucionMacros({
                 {/* Gramos */}
                 <td className="border-r border-linea p-1.5 text-center">
                   <div className="flex items-center justify-center gap-1">
-                    <input
-                      type="text"
-                      value={inputCarboG}
-                      onChange={(e) => setInputCarboG(e.target.value)}
-                      onBlur={() => aplicarGramos("carbohidrato", inputCarboG)}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" && aplicarGramos("carbohidrato", inputCarboG)
-                      }
-                      className="cifra h-9 w-24 rounded-marco bg-fondo px-2 text-center text-menor font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
-                      title={t("Gramos de carbohidratos (editable)")}
-                    />
+                    <span className="cifra h-9 px-2 text-center text-menor font-bold text-tinta">
+                      {num(carboG, 0)}
+                    </span>
                     <span className="text-micro font-medium text-tinta-suave">g</span>
                   </div>
                 </td>
                 {/* g / kg */}
                 <td className="border-r border-linea p-1.5 text-center">
                   <div className="flex items-center justify-center gap-1.5">
-                    <input
-                      type="text"
-                      value={inputCarboGkg}
-                      onChange={(e) => setInputCarboGkg(e.target.value)}
-                      onBlur={() => aplicarGkg("carbohidrato", inputCarboGkg)}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" && aplicarGkg("carbohidrato", inputCarboGkg)
-                      }
+                    <span
                       className={cn(
-                        "cifra h-9 w-20 rounded-marco px-2 text-center text-menor font-bold transition-all focus:border focus:border-acento focus:bg-fondo focus:outline-none",
-                        fueraCarbo
-                          ? "bg-peligro-sutil text-peligro"
-                          : "bg-fondo text-tinta hover:bg-fondo-sutil",
+                        "cifra h-9 px-2 text-center text-menor font-bold",
+                        fueraCarbo ? "text-peligro" : "text-tinta",
                       )}
-                      title={t("Carbohidratos por kg de peso corporal (editable)")}
-                    />
+                    >
+                      {num(carboGkg, 1)}
+                    </span>
                     {fueraCarbo ? (
                       <Chip tono="error" className="text-[10px] py-0 px-1">
                         {t("fuera")}
@@ -362,37 +327,23 @@ export function TablaDistribucionMacros({
                 {/* Gramos */}
                 <td className="border-r border-linea p-1.5 text-center">
                   <div className="flex items-center justify-center gap-1">
-                    <input
-                      type="text"
-                      value={inputProtG}
-                      onChange={(e) => setInputProtG(e.target.value)}
-                      onBlur={() => aplicarGramos("proteina", inputProtG)}
-                      onKeyDown={(e) => e.key === "Enter" && aplicarGramos("proteina", inputProtG)}
-                      className="cifra h-9 w-24 rounded-marco bg-fondo px-2 text-center text-menor font-bold text-acento-texto transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:text-tinta focus:outline-none"
-                      title={t("Gramos de proteína (editable)")}
-                    />
+                    <span className="cifra h-9 px-2 text-center text-menor font-bold text-acento-texto">
+                      {num(protG, 0)}
+                    </span>
                     <span className="text-micro font-medium text-acento-texto">g</span>
                   </div>
                 </td>
                 {/* g / kg */}
                 <td className="border-r border-linea p-1.5 text-center">
                   <div className="flex items-center justify-center gap-1.5">
-                    <input
-                      type="text"
-                      value={inputProtGkg}
-                      onChange={(e) => setInputProtGkg(e.target.value)}
-                      onBlur={() => aplicarGkg("proteina", inputProtGkg)}
-                      onKeyDown={(e) => e.key === "Enter" && aplicarGkg("proteina", inputProtGkg)}
+                    <span
                       className={cn(
-                        "cifra h-9 w-20 rounded-marco px-2 text-center text-menor font-bold transition-all focus:border focus:border-acento focus:bg-fondo focus:outline-none",
-                        fueraProt
-                          ? "bg-peligro-sutil text-peligro"
-                          : "bg-fondo text-acento-texto hover:bg-fondo-sutil",
+                        "cifra h-9 px-2 text-center text-menor font-bold",
+                        fueraProt ? "text-peligro" : "text-acento-texto",
                       )}
-                      title={t("Proteína por kg de {base} (editable)", {
-                          base: baseProteina === "masa_libre_de_grasa" ? t("MLG") : t("peso total"),
-                        })}
-                    />
+                    >
+                      {num(protGkg, 1)}
+                    </span>
                     {fueraProt ? (
                       <Chip tono="error" className="text-[10px] py-0 px-1">
                         {t("fuera")}
@@ -411,35 +362,23 @@ export function TablaDistribucionMacros({
                 {/* Gramos */}
                 <td className="border-r border-linea p-1.5 text-center">
                   <div className="flex items-center justify-center gap-1">
-                    <input
-                      type="text"
-                      value={inputGrasaG}
-                      onChange={(e) => setInputGrasaG(e.target.value)}
-                      onBlur={() => aplicarGramos("grasa", inputGrasaG)}
-                      onKeyDown={(e) => e.key === "Enter" && aplicarGramos("grasa", inputGrasaG)}
-                      className="cifra h-9 w-24 rounded-marco bg-fondo px-2 text-center text-menor font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
-                      title={t("Gramos de grasa (editable)")}
-                    />
+                    <span className="cifra h-9 px-2 text-center text-menor font-bold text-tinta">
+                      {num(grasaG, 0)}
+                    </span>
                     <span className="text-micro font-medium text-tinta-suave">g</span>
                   </div>
                 </td>
                 {/* g / kg */}
                 <td className="border-r border-linea p-1.5 text-center">
                   <div className="flex items-center justify-center gap-1.5">
-                    <input
-                      type="text"
-                      value={inputGrasaGkg}
-                      onChange={(e) => setInputGrasaGkg(e.target.value)}
-                      onBlur={() => aplicarGkg("grasa", inputGrasaGkg)}
-                      onKeyDown={(e) => e.key === "Enter" && aplicarGkg("grasa", inputGrasaGkg)}
+                    <span
                       className={cn(
-                        "cifra h-9 w-20 rounded-marco px-2 text-center text-menor font-bold transition-all focus:border focus:border-acento focus:bg-fondo focus:outline-none",
-                        fueraGrasa
-                          ? "bg-peligro-sutil text-peligro"
-                          : "bg-fondo text-tinta hover:bg-fondo-sutil",
+                        "cifra h-9 px-2 text-center text-menor font-bold",
+                        fueraGrasa ? "text-peligro" : "text-tinta",
                       )}
-                      title={t("Grasas por kg de peso corporal (editable)")}
-                    />
+                    >
+                      {num(grasaGkg, 1)}
+                    </span>
                     {fueraGrasa ? (
                       <Chip tono="error" className="text-[10px] py-0 px-1">
                         {t("fuera")}

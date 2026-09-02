@@ -926,6 +926,7 @@ def ver_marca(
         color_acento=coach.color_acento,
         color_secundario=coach.color_secundario,
         tiene_logo=coach.logo_key is not None,
+        datos_bancarios=coach.datos_bancarios,
     )
 
 
@@ -951,6 +952,7 @@ def editar_marca(
     coach.marca = cuerpo.marca.strip()[:120]
     coach.color_acento = cuerpo.color_acento
     coach.color_secundario = cuerpo.color_secundario
+    coach.datos_bancarios = (cuerpo.datos_bancarios or "").strip() or None
     s.flush()
 
     return MarcaPublica(
@@ -959,6 +961,7 @@ def editar_marca(
         color_acento=coach.color_acento,
         color_secundario=coach.color_secundario,
         tiene_logo=coach.logo_key is not None,
+        datos_bancarios=coach.datos_bancarios,
     )
 
 
@@ -976,6 +979,8 @@ async def subir_logo(
 
     try:
         contenido = imagenes.logo(await archivo.read())
+    except imagenes.ArchivoDemasiadoGrande as causa:
+        raise HTTPException(413, str(causa)) from causa
     except imagenes.ImagenInvalida as causa:
         raise HTTPException(422, str(causa)) from causa
 
@@ -990,6 +995,7 @@ async def subir_logo(
         color_acento=coach.color_acento,
         color_secundario=coach.color_secundario,
         tiene_logo=True,
+        datos_bancarios=coach.datos_bancarios,
     )
 
 

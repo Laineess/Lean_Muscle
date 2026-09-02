@@ -95,12 +95,13 @@ async function pedir<T>(ruta: string, opciones: Opciones = {}): Promise<T> {
 
   if (!respuesta.ok) {
     const d = (datos ?? {}) as { codigo?: string; mensaje?: string; detail?: unknown; detalle?: Record<string, unknown> };
-    revisarSesion(respuesta.status, codigoDe(d));
+    const codigo = codigoDe(d);
+    revisarSesion(respuesta.status, codigo);
     const mensaje =
       d.mensaje ??
       (typeof d.detail === "string" ? d.detail : null) ??
       "Algo salió mal. Vuelve a intentarlo.";
-    throw new ErrorApi(respuesta.status, d.codigo ?? null, mensaje, d.detalle);
+    throw new ErrorApi(respuesta.status, codigo, mensaje, d.detalle);
   }
 
   return datos as T;
@@ -131,12 +132,13 @@ async function subir<T>(
 
   if (!respuesta.ok) {
     const d = (datos ?? {}) as { codigo?: string; mensaje?: string; detail?: unknown };
-    revisarSesion(respuesta.status, codigoDe(d));
+    const codigo = codigoDe(d);
+    revisarSesion(respuesta.status, codigo);
     const mensaje =
       d.mensaje ??
       (typeof d.detail === "string" ? d.detail : null) ??
       "No se pudo subir el archivo.";
-    throw new ErrorApi(respuesta.status, d.codigo ?? null, mensaje);
+    throw new ErrorApi(respuesta.status, codigo, mensaje);
   }
 
   return datos as T;
@@ -168,12 +170,13 @@ async function subirConCampos<T>(
 
   if (!respuesta.ok) {
     const d = (datos ?? {}) as { codigo?: string; mensaje?: string; detail?: unknown };
-    revisarSesion(respuesta.status, codigoDe(d));
+    const codigo = codigoDe(d);
+    revisarSesion(respuesta.status, codigo);
     const mensaje =
       d.mensaje ??
       (typeof d.detail === "string" ? d.detail : null) ??
       "No se pudo subir el archivo.";
-    throw new ErrorApi(respuesta.status, d.codigo ?? null, mensaje);
+    throw new ErrorApi(respuesta.status, codigo, mensaje);
   }
 
   return datos as T;
@@ -192,6 +195,10 @@ export interface ActorPublico {
   debeCambiarContrasena: boolean;
   /** Preferencia de idioma de la cuenta ("es" | "en"): no es del dispositivo. */
   idioma: string;
+  /** Preferencia de tema de la cuenta ("sistema" | "claro" | "oscuro"). */
+  tema: string;
+  /** Slug de la liga de registro de su coach. Solo para alumnas. */
+  slugLiga?: string | null;
 }
 
 export interface ChequeoApi {
@@ -502,6 +509,8 @@ export interface PlanesDeAlumnaApi {
   bloqueadoPorPago: boolean;
   /** Por qué: `pago`, `ciclo_vencido`, `sin_ciclo`. Nulo si no está bloqueado. */
   motivoBloqueo: "pago" | "ciclo_vencido" | "sin_ciclo" | null;
+  /** Número del ciclo vigente aunque esté bloqueado (nulo sin ciclo). */
+  ciclo: number | null;
   restricciones: string | null;
   lesiones: string | null;
 }
@@ -984,6 +993,8 @@ export interface CobroApi2 {
   tieneComprobante: boolean;
   /** Por qué se rechazó el comprobante anterior. La alumna lo lee tal cual. */
   motivoRechazo: string | null;
+  /** Cuenta de la coach para pagar. Texto libre. Nulo si no la declaró. */
+  datosBancarios?: string | null;
 }
 
 export interface ComprobantePorRevisarApi {
@@ -1063,6 +1074,8 @@ export interface HorarioDeCoachApi {
 export interface HuecoApi {
   iniciaEn: string;
   terminaEn: string;
+  /** Cuenta de la coach para pagar la consulta. Texto libre. Nulo si no la declaró. */
+  datosBancarios?: string | null;
 }
 
 export interface LigaDeRegistroApi {
@@ -1166,6 +1179,8 @@ export interface MarcaApi {
   colorAcento: string;
   colorSecundario: string;
   tieneLogo: boolean;
+  /** Cuenta para pagar. Texto libre. Nulo hasta que la coach la escriba. */
+  datosBancarios?: string | null;
 }
 
 export interface ChequeoDeValidacionApi {
@@ -1224,6 +1239,9 @@ export const api = {
     /** Guarda el idioma de la cuenta en el servidor y devuelve el actor fresco. */
     idioma: (idioma: string) =>
       pedir<ActorPublico>("/auth/idioma", { metodo: "PUT", cuerpo: { idioma } }),
+    /** Guarda el tema de la cuenta en el servidor y devuelve el actor fresco. */
+    tema: (tema: string) =>
+      pedir<ActorPublico>("/auth/tema", { metodo: "PUT", cuerpo: { tema } }),
   },
 
   alumna: {
@@ -1274,6 +1292,8 @@ export const api = {
     huecos: (senal?: AbortSignal) => pedir<HuecoApi[]>("/mi/huecos", senal ? { senal } : {}),
     solicitud: (senal?: AbortSignal) =>
       pedir<EstadoDeSolicitudApi>("/mi/solicitud", senal ? { senal } : {}),
+    reenviarCodigo: () =>
+      pedir<RegistroAceptadoApi>("/mi/codigo/reenviar", { metodo: "POST", cuerpo: {} }),
     reservar: (iniciaEn: string, modalidad: string) =>
       pedir<CitaDeAlumnaApi>("/mi/citas", { metodo: "POST", cuerpo: { iniciaEn, modalidad } }),
 
@@ -1490,6 +1510,7 @@ export const api = {
       marca: string;
       colorAcento: string;
       colorSecundario: string;
+      datosBancarios?: string | null;
     }) =>
       pedir<MarcaApi>("/coach/marca", { metodo: "PUT", cuerpo: m }),
     subirLogo: (archivo: File) => subir<MarcaApi>("/coach/logo", archivo, "PUT"),

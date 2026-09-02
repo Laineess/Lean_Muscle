@@ -11,7 +11,7 @@
  */
 
 import { RotateCcw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Aviso } from "@/componentes/primitivas";
 import type { Composicion, Energia } from "@/lib/calculadora";
@@ -24,7 +24,6 @@ interface TablaProyeccionPerdidaProps {
   porcentajeGrasaObjetivo: number;
   onPorcentajeGrasaObjetivo?: (pct: number) => void;
   ajustePct: number;
-  onAjustePct?: (pct: number) => void;
 }
 
 export function TablaProyeccionPerdida({
@@ -33,20 +32,13 @@ export function TablaProyeccionPerdida({
   porcentajeGrasaObjetivo,
   onPorcentajeGrasaObjetivo,
   ajustePct,
-  onAjustePct,
 }: TablaProyeccionPerdidaProps) {
   const { t } = useIdioma();
 
-  // Estado para overrides opcionales de límites de recomendación
-  const [customRecMin, setCustomRecMin] = useState<string | null>(null);
-  const [customRecMax, setCustomRecMax] = useState<string | null>(null);
-
-  // Estados temporales de entrada para edición fluida
-  const [inputKgBajar, setInputKgBajar] = useState<string>("");
-  const [inputPerdidaSemanal, setInputPerdidaSemanal] = useState<string>("");
-  const [inputPctSemanal, setInputPctSemanal] = useState<string>("");
-  const [inputDias, setInputDias] = useState<string>("");
+  // Único campo capturado de esta tabla: la meta de grasa. El resto son derivados y se
+  // muestran en solo-lectura para que no cambien solos ni pisen lo capturado.
   const [inputGrasaObj, setInputGrasaObj] = useState<string>("");
+  const enfocadoGrasaObj = useRef(false);
 
   // Fórmulas exactas de Excel (Calculadora del Fitness.xlsm)
   const peso = comp.pesoKg;
@@ -62,11 +54,8 @@ export function TablaProyeccionPerdida({
   const proteinaPura = kgMlgQueSePierden * 0.3;
   const kcalTotales = (grasaPura * 9 + proteinaPura * 4) * 1000; // H113
 
-  const recMinDefecto = peso * 0.005; // H7: C7 * 0.5%
-  const recMaxDefecto = peso * 0.01; // I7: C7 * 1.0%
-
-  const recMin = customRecMin !== null && !isNaN(Number(customRecMin)) ? Number(customRecMin) : recMinDefecto;
-  const recMax = customRecMax !== null && !isNaN(Number(customRecMax)) ? Number(customRecMax) : recMaxDefecto;
+  const recMin = peso * 0.005; // H7: C7 * 0.5%
+  const recMax = peso * 0.01; // I7: C7 * 1.0%
 
   const deficitPctEfectivo = ajustePct < 0 ? Math.abs(ajustePct) / 100 : 0.28;
   const deficitDiario =
@@ -83,83 +72,48 @@ export function TablaProyeccionPerdida({
   // Días para bajar grasa objetivo según déficit (H10)
   const diasEstimados = deficitDiario > 0 ? kcalTotales / deficitDiario : 0;
 
-  // Sincronizar inputs cuando cambian los cálculos base
   useEffect(() => {
-    setInputKgBajar(num(kgTotalesPorBajar, 3));
-  }, [kgTotalesPorBajar]);
-
-  useEffect(() => {
-    setInputPerdidaSemanal(perdidaSemanalKg > 0 ? `-${num(perdidaSemanalKg, 3)}` : "0.000");
-  }, [perdidaSemanalKg]);
-
-  useEffect(() => {
-    setInputPctSemanal(pctSemanal > 0 ? `-${num(pctSemanal, 2)}%` : "0.00%");
-  }, [pctSemanal]);
-
-  useEffect(() => {
-    setInputDias(diasEstimados > 0 ? `-${Math.round(diasEstimados)}` : "0");
-  }, [diasEstimados]);
-
-  useEffect(() => {
-    setInputGrasaObj(num(porcentajeGrasaObjetivo * 100, 1));
+    if (!enfocadoGrasaObj.current) setInputGrasaObj(num(porcentajeGrasaObjetivo * 100, 1));
   }, [porcentajeGrasaObjetivo]);
 
-  // Manejo de edición de Kilos aproximados por bajar
-  const aplicarKgBajar = (valStr: string) => {
-    const val = parseFloat(valStr.replace(",", "."));
-    if (isNaN(val) || val <= 0 || !onPorcentajeGrasaObjetivo) return;
-    // Si H6 = 1.2 * (MG - MG_obj) => MG_obj = MG - (H6 / 1.2)
-    const nuevaGrasaPorBajar = val / 1.2;
-    const nuevaMasaGrasaObj = Math.max(0, masaGrasaActual - nuevaGrasaPorBajar);
-    const nuevoPctObj = nuevaMasaGrasaObj / peso;
-    onPorcentajeGrasaObjetivo(Math.min(grasaActualFraccion - 0.005, Math.max(0.03, nuevoPctObj)));
-  };
-
-  // Manejo de edición de % Grasa Objetivo directamente
+  // Manejo de edición de % Grasa Objetivo (único campo capturado de esta tabla)
   const aplicarPctGrasaObj = (valStr: string) => {
     const val = parseFloat(valStr.replace(",", "."));
     if (isNaN(val) || val <= 0 || !onPorcentajeGrasaObjetivo) return;
     onPorcentajeGrasaObjetivo(Math.min(grasaActualFraccion - 0.005, Math.max(0.03, val / 100)));
   };
-
-  // Manejo de edición de Pérdida Semanal
-  const aplicarPerdidaSemanal = (valStr: string) => {
-    const val = Math.abs(parseFloat(valStr.replace(",", ".")));
-    if (isNaN(val) || val <= 0 || !onAjustePct || energia.mantenimientoKcal <= 0) return;
-    const dias = (kgTotalesPorBajar / val) * 7;
-    const deficitDiarioReq = kcalTotales / dias;
-    const nuevoAjuste = -Math.round((deficitDiarioReq / energia.mantenimientoKcal) * 100);
-    onAjustePct(Math.min(-1, Math.max(-50, nuevoAjuste)));
+  const terminarGrasaObj = () => {
+    enfocadoGrasaObj.current = false;
+    aplicarPctGrasaObj(inputGrasaObj);
   };
 
-  // Manejo de edición de % de Pérdida Semanal
-  const aplicarPctSemanal = (valStr: string) => {
-    const val = Math.abs(parseFloat(valStr.replace("%", "").replace(",", ".")));
-    if (isNaN(val) || val <= 0 || !onAjustePct || energia.mantenimientoKcal <= 0) return;
-    const kgSemanal = (val / 100) * peso;
-    const dias = (kgTotalesPorBajar / kgSemanal) * 7;
-    const deficitDiarioReq = kcalTotales / dias;
-    const nuevoAjuste = -Math.round((deficitDiarioReq / energia.mantenimientoKcal) * 100);
-    onAjustePct(Math.min(-1, Math.max(-50, nuevoAjuste)));
-  };
-
-  // Manejo de edición de Días Estimados
-  const aplicarDias = (valStr: string) => {
-    const val = Math.abs(parseFloat(valStr.replace("-", "").replace(",", ".")));
-    if (isNaN(val) || val <= 0 || !onAjustePct || energia.mantenimientoKcal <= 0) return;
-    const deficitDiarioReq = kcalTotales / val;
-    const nuevoAjuste = -Math.round((deficitDiarioReq / energia.mantenimientoKcal) * 100);
-    onAjustePct(Math.min(-1, Math.max(-50, nuevoAjuste)));
-  };
-
-  // Restablecer límites y cálculos
+  // Restablecer solo la meta de grasa a su valor orientativo (75 % de la grasa actual).
+  // No toca el ajuste global: el déficit se edita en el panel «Ajuste calórico».
   const restablecer = () => {
-    setCustomRecMin(null);
-    setCustomRecMax(null);
-    if (onAjustePct) onAjustePct(-28);
+    if (onPorcentajeGrasaObjetivo && grasaActualFraccion > 0) {
+      onPorcentajeGrasaObjetivo(
+        Math.min(grasaActualFraccion - 0.005, Math.max(0.03, grasaActualFraccion * 0.75)),
+      );
+    }
   };
 
   const dentroDeLoRecomendado = perdidaSemanalKg >= recMin && perdidaSemanalKg <= recMax;
+
+  // Solo se proyecta pérdida cuando el ajuste global es efectivamente déficit (ajustePct < 0).
+  // Si no, es una hipótesis inventada (0.28) y se oculta la tabla para no confundir.
+  const enDeficit = ajustePct < 0;
+  if (!enDeficit) {
+    return (
+      <section className="flex flex-col gap-3">
+        <Aviso tono="info">
+          {t(
+            "Proyección de pérdida no disponible: el ajuste actual es de {pct} % (no es déficit). La pérdida solo se proyecta cuando el plan está en déficit.",
+            { pct: String(Math.round(ajustePct * 100)) },
+          )}
+        </Aviso>
+      </section>
+    );
+  }
 
   return (
     <section className="flex flex-col gap-3">
@@ -177,9 +131,16 @@ export function TablaProyeccionPerdida({
                 <input
                   type="text"
                   value={inputGrasaObj}
-                  onChange={(e) => setInputGrasaObj(e.target.value)}
-                  onBlur={() => aplicarPctGrasaObj(inputGrasaObj)}
-                  onKeyDown={(e) => e.key === "Enter" && aplicarPctGrasaObj(inputGrasaObj)}
+                  onChange={(e) => {
+                    const s = e.target.value;
+                    setInputGrasaObj(s);
+                    if (String(s).trim() !== "") aplicarPctGrasaObj(s);
+                  }}
+                  onFocus={() => {
+                    enfocadoGrasaObj.current = true;
+                  }}
+                  onBlur={terminarGrasaObj}
+                  onKeyDown={(e) => e.key === "Enter" && terminarGrasaObj()}
                   className="cifra h-6 w-14 rounded-marco border border-fondo/30 bg-fondo/10 px-1.5 text-center font-bold text-fondo placeholder:text-fondo/50 focus:border-acento focus:bg-fondo focus:text-tinta focus:outline-none dark:border-tinta/30 dark:bg-tinta/10 dark:text-tinta"
                   title={t("Porcentaje de grasa objetivo")}
                 />
@@ -210,15 +171,9 @@ export function TablaProyeccionPerdida({
                   {t("Kilos aproximados X bajar para llegar % grasa objetivo:")}
                 </th>
                 <td colSpan={2} className="border-r border-linea p-1.5 text-center">
-                  <input
-                    type="text"
-                    value={inputKgBajar}
-                    onChange={(e) => setInputKgBajar(e.target.value)}
-                    onBlur={() => aplicarKgBajar(inputKgBajar)}
-                    onKeyDown={(e) => e.key === "Enter" && aplicarKgBajar(inputKgBajar)}
-                    className="cifra h-9 w-full rounded-marco bg-fondo px-2 text-center text-menor font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
-                    title={t("Kilos totales estimados a bajar (editable)")}
-                  />
+                  <span className="cifra inline-block h-9 px-2 text-center text-menor font-bold text-tinta">
+                    {num(kgTotalesPorBajar, 3)}
+                  </span>
                 </td>
                 <td className="w-12 border-r border-linea bg-fondo-sutil/40 p-3 text-center font-medium text-tinta-suave">
                   Kg
@@ -235,22 +190,14 @@ export function TablaProyeccionPerdida({
                   {t("Reducción de peso semanal recomendada (0.5 a 1.0%)")}
                 </th>
                 <td className="border-r border-linea p-1.5 text-center">
-                  <input
-                    type="text"
-                    value={customRecMin !== null ? customRecMin : num(recMin, 3)}
-                    onChange={(e) => setCustomRecMin(e.target.value)}
-                    className="cifra h-9 w-full rounded-marco bg-acento-sutil/60 px-2 text-center text-menor font-bold text-acento-texto transition-all hover:bg-acento-sutil focus:border focus:border-acento focus:bg-fondo focus:text-tinta focus:outline-none"
-                    title={t("Mínimo recomendado (0.5% del peso semanal, editable)")}
-                  />
+                  <span className="cifra inline-block h-9 px-2 text-center text-menor font-bold text-acento-texto">
+                    {num(recMin, 3)}
+                  </span>
                 </td>
                 <td className="border-r border-linea p-1.5 text-center">
-                  <input
-                    type="text"
-                    value={customRecMax !== null ? customRecMax : num(recMax, 3)}
-                    onChange={(e) => setCustomRecMax(e.target.value)}
-                    className="cifra h-9 w-full rounded-marco bg-acento-sutil/60 px-2 text-center text-menor font-bold text-acento-texto transition-all hover:bg-acento-sutil focus:border focus:border-acento focus:bg-fondo focus:text-tinta focus:outline-none"
-                    title={t("Máximo recomendado (1.0% del peso semanal, editable)")}
-                  />
+                  <span className="cifra inline-block h-9 px-2 text-center text-menor font-bold text-acento-texto">
+                    {num(recMax, 3)}
+                  </span>
                 </td>
                 <td className="border-r border-linea bg-fondo-sutil/40 p-3 text-center font-medium text-tinta-suave">
                   Kg
@@ -267,15 +214,9 @@ export function TablaProyeccionPerdida({
                   {t("Pérdida de peso semanal según déficit")}
                 </th>
                 <td colSpan={2} className="border-r border-linea p-1.5 text-center">
-                  <input
-                    type="text"
-                    value={inputPerdidaSemanal}
-                    onChange={(e) => setInputPerdidaSemanal(e.target.value)}
-                    onBlur={() => aplicarPerdidaSemanal(inputPerdidaSemanal)}
-                    onKeyDown={(e) => e.key === "Enter" && aplicarPerdidaSemanal(inputPerdidaSemanal)}
-                    className="cifra h-9 w-full rounded-marco bg-acento-sutil px-2 text-center text-menor font-bold text-acento-texto transition-all hover:bg-acento-sutil/80 focus:border focus:border-acento focus:bg-fondo focus:text-tinta focus:outline-none"
-                    title={t("Pérdida semanal en Kg según déficit (editable: ajusta el déficit del plan)")}
-                  />
+                  <span className="cifra inline-block h-9 px-2 text-center text-menor font-bold text-acento-texto">
+                    {num(perdidaSemanalKg, 3)}
+                  </span>
                 </td>
                 <td className="border-r border-linea bg-fondo-sutil/40 p-3 text-center font-medium text-tinta-suave">
                   Kg
@@ -292,15 +233,9 @@ export function TablaProyeccionPerdida({
                   {t("% de pérdida de peso semanal según déficit")}
                 </th>
                 <td colSpan={2} className="border-r border-linea p-1.5 text-center">
-                  <input
-                    type="text"
-                    value={inputPctSemanal}
-                    onChange={(e) => setInputPctSemanal(e.target.value)}
-                    onBlur={() => aplicarPctSemanal(inputPctSemanal)}
-                    onKeyDown={(e) => e.key === "Enter" && aplicarPctSemanal(inputPctSemanal)}
-                    className="cifra h-9 w-full rounded-marco bg-exito-sutil px-2 text-center text-menor font-bold text-exito transition-all hover:bg-exito-sutil/80 focus:border focus:border-exito focus:bg-fondo focus:text-tinta focus:outline-none"
-                    title={t("Porcentaje de pérdida semanal relativo al peso (editable)")}
-                  />
+                  <span className="cifra inline-block h-9 px-2 text-center text-menor font-bold text-exito">
+                    {num(pctSemanal, 2)}%
+                  </span>
                 </td>
                 <td className="border-r border-linea bg-fondo-sutil/40 p-3 text-center font-medium text-tinta-suave">
                   Kg
@@ -317,15 +252,9 @@ export function TablaProyeccionPerdida({
                   {t("Días para bajar grasa objetivo  según déficit:")}
                 </th>
                 <td colSpan={2} className="border-r border-linea p-1.5 text-center">
-                  <input
-                    type="text"
-                    value={inputDias}
-                    onChange={(e) => setInputDias(e.target.value)}
-                    onBlur={() => aplicarDias(inputDias)}
-                    onKeyDown={(e) => e.key === "Enter" && aplicarDias(inputDias)}
-                    className="cifra h-9 w-full rounded-marco bg-fondo px-2 text-center text-menor font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
-                    title={t("Días estimados para alcanzar el objetivo (editable: ajusta el déficit)")}
-                  />
+                  <span className="cifra inline-block h-9 px-2 text-center text-menor font-bold text-tinta">
+                    {Math.round(diasEstimados)}
+                  </span>
                 </td>
                 <td className="border-r border-linea bg-fondo-sutil/40 p-3 text-center font-medium text-tinta-suave">
                   -

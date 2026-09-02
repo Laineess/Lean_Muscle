@@ -98,7 +98,7 @@ def precio_de_inscripcion(s: Session) -> Servicio:
 def _emitir_codigo(solicitud: SolicitudDeRegistro) -> str:
     codigo = codigo_de_verificacion()
     solicitud.codigo_hash = hash_de_token(codigo)
-    solicitud.codigo_vence_en = ahora_utc() + dom.VIGENCIA_DEL_CODIGO
+    solicitud.codigo_vence_en = ahora_utc() + dom.CODIGO_VIVE
     solicitud.intentos = 0
     return codigo
 
@@ -272,7 +272,7 @@ def mandar_codigo(marca: str, correo: str, codigo: str) -> None:
         {
             "coach": marca,
             "codigo": codigo,
-            "minutos": int(dom.VIGENCIA_DEL_CODIGO.total_seconds() // 60),
+            "minutos": int(dom.CODIGO_VIVE.total_seconds() // 60),
         },
     )
     emisor().enviar(Correo(para=correo, asunto=asunto, cuerpo_texto=texto, cuerpo_html=html))
@@ -360,19 +360,9 @@ def aceptar(
     )
     s.add(ciclo)
 
-    # Sin esta fila vería que debe pagar su ciclo y no tendría contra qué subir nada.
-    if precio > 0:
-        s.add(
-            CobroProgramado(
-                coach_id=solicitud.coach_id,
-                alumna_id=alumna.id,
-                fecha=hoy,
-                motivo="mensualidad",
-                concepto=f"Mensualidad · {tarifa.nombre}" if tarifa is not None else "Mensualidad",
-                monto=precio,
-                estado="pendiente",
-            )
-        )
+    # El primer ciclo se libera con la inscripción, que la alumna ya pagó y la coach validó
+    # al aceptar la solicitud (ver `_estado_pago_del_ciclo` en api_alumna). La primera
+    # mensualidad se cobra hasta el ciclo 2, así que aquí no nace ningún cobro nuevo.
 
     solicitud.estado = dom.Estado.ACEPTADA.value
     solicitud.decidida_en = ahora_utc()

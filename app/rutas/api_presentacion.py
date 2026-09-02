@@ -112,6 +112,8 @@ async def subir_foto(
 
     try:
         contenido = imagenes.logo(await archivo.read())
+    except imagenes.ArchivoDemasiadoGrande as causa:
+        raise HTTPException(413, str(causa)) from causa
     except imagenes.ImagenInvalida as causa:
         raise HTTPException(422, str(causa)) from causa
 

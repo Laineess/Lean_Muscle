@@ -24,6 +24,11 @@ class Ajustes(BaseSettings):
 
     bd_url: str = "mysql+pymysql://root@127.0.0.1:3306/leanmuscle?charset=utf8mb4"
 
+    #: Tamaño del pool de conexiones por proceso uvicorn. Con varios workers, multiplicar.
+    bd_pool: int = 10
+    #: Conexiones de rebase por encima de `bd_pool` bajo carga punta.
+    bd_overflow: int = 20
+
     secreto_sesion: str = "inseguro-solo-para-local"
     sesion_horas: int = 720
 
@@ -66,6 +71,10 @@ class Ajustes(BaseSettings):
 
     #: Con la que nace toda cuenta. Se configura para poder rotarla sin desplegar.
     contrasena_inicial: str = "Myfittplan2026"
+
+    #: Tope del cuerpo de una petición, por encima del límite de imagen para dar margen
+    #: al `multipart`. El servidor web corta antes; aquí el que corta somos nosotros.
+    cuerpo_maximo_bytes: int = 28 * 1024 * 1024
 
     @property
     def es_produccion(self) -> bool:

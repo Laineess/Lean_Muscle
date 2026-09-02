@@ -61,6 +61,7 @@ def _falla(codigo: Codigo) -> HTTPException:
 
 
 def actor_actual(
+    peticion: Request,
     lm_sesion: Annotated[str | None, Cookie(alias=NOMBRE_COOKIE)] = None,
 ) -> Actor:
     """Resuelve la sesion. Se consulta sin alcance a proposito: todavia no sabemos cual es."""
@@ -86,12 +87,16 @@ def actor_actual(
         if usuario.estado != "activo":
             raise _falla(Codigo.SIN_PERMISO)
 
-        return Actor(
+        actor = Actor(
             usuario_id=usuario.id,
             coach_id=usuario.coach_id,
             rol=usuario.rol,
             debe_cambiar_contrasena=usuario.debe_cambiar_contrasena,
         )
+        # Lo anota la sesion para que el registro de actividad del servidor (middleware)
+        # sepa quien hizo la peticion sin volver a consultar la base.
+        peticion.state.actor = actor
+        return actor
 
 
 def actor_establecido(actor: Annotated[Actor, Depends(actor_actual)]) -> Actor:

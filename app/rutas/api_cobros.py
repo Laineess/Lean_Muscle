@@ -260,7 +260,7 @@ def _validar_servicio(cuerpo: ServicioNuevo) -> None:
 # ---------------------------------------------------------------------------
 
 
-def cobro_publico(c: CobroProgramado, hoy: date) -> CobroDeAlumna:
+def cobro_publico(c: CobroProgramado, hoy: date, datos_bancarios: str | None = None) -> CobroDeAlumna:
     return CobroDeAlumna(
         ulid=c.ulid,
         fecha=c.fecha,
@@ -277,6 +277,7 @@ def cobro_publico(c: CobroProgramado, hoy: date) -> CobroDeAlumna:
         # cobrarle dos veces la misma gestión.
         tiene_comprobante=c.comprobante_key is not None or c.comprobante_purgado_en is not None,
         motivo_rechazo=c.motivo_rechazo,
+        datos_bancarios=datos_bancarios,
     )
 
 
@@ -334,6 +335,14 @@ def programar_cobro(
         raise ErrorDeDominio(Codigo.MONTO_INVALIDO)
     if cuerpo.motivo not in MOTIVOS:
         raise HTTPException(422, f"Motivo desconocido: {cuerpo.motivo}")
+
+    # No se amontona más deuda sobre una alumna ya bloqueada: hasta que salde lo que debe,
+    # programarle otro cobro solo engordaría lo que tardará en reactivarse.
+    if q.adeudos_vencidos(s, alumna.id, ahora_utc().date()):
+        raise HTTPException(
+            409,
+            "Esa alumna tiene un adeudo. Salda lo que debe antes de programarle otro cobro.",
+        )
 
     cobro = CobroProgramado(
         coach_id=actor.coach_id,

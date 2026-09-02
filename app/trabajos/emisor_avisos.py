@@ -41,6 +41,28 @@ def _adjuntos_de(aviso: Aviso, contexto: dict[str, object], s: Session) -> list[
     Se genera al enviar y no al encolar: un recibo pesa, y guardarlo en la cola multiplicaría
     el tamaño de la tabla por nada.
     """
+    # El comprobante se adjunta a los avisos que van a la coach: lo subió la alumna y el
+    # emisor lo lee del almacén con la llave, que es lo único que se guardó en la cola.
+    llave = str(contexto.get("comprobante_key") or "")
+    if llave:
+        from app.servicios.almacenamiento import almacen
+
+        extension = llave.rsplit(".", 1)[-1].lower() if "." in llave else "jpg"
+        nombre = str(contexto.get("comprobante_nombre") or f"comprobante.{extension}")
+        tipo = {
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "png": "image/png",
+            "pdf": "application/pdf",
+            "heic": "image/heic",
+            "webp": "image/webp",
+        }.get(extension, "image/jpeg")
+        try:
+            return [Adjunto(nombre=nombre, contenido=almacen().leer(llave), tipo=tipo)]
+        except Exception:
+            # Sin adjunto, pero el aviso sale: mejor una notificación sin foto que nada.
+            return []
+
     if not lleva_adjunto(aviso):
         return []
 

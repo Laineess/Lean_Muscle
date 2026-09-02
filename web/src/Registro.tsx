@@ -53,7 +53,7 @@ function registroGuardado(slug: string): { slug: string; correo: string; verific
   }
 }
 
-function guardarRegistro(slug: string, correo: string, verificado = false): void {
+export function guardarRegistro(slug: string, correo: string, verificado = false): void {
   localStorage.setItem(LLAVE_REGISTRO, JSON.stringify({ slug, correo, verificado }));
 }
 

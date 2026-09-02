@@ -44,6 +44,13 @@ from app.rutas import (
 from app.rutas.plataforma import api as api_plataforma
 from app.rutas.traduccion import respuesta_para
 from app.servicios import correo, push
+from app.servicios.registro_archivo import (
+    configurar_logs_de_archivo,
+    etiqueta_actor,
+    ip_del_cliente,
+    registrar_actividad,
+    registrar_error,
+)
 
 if TYPE_CHECKING:
     from app.trabajos.emisor_avisos import Resultado
@@ -101,6 +108,10 @@ async def ciclo_de_vida(_: FastAPI) -> AsyncIterator[None]:
     ese temporizador no existe y la bienvenida, la clave temporal o el recibo se quedan
     esperando para siempre: parece roto el envío cuando lo que falta es quien vacíe la cola.
     """
+    # Los logs de actividad y de errores viven en archivos .txt bajo /logs; se atan al
+    # arrancar (antes de que cualquier petición pueda querer escribir).
+    configurar_logs_de_archivo()
+
     incoherencia = correo.remitente_incoherente()
     if incoherencia:
         _registro.warning("%s", incoherencia)
@@ -127,11 +138,19 @@ app = FastAPI(
 
 
 @app.exception_handler(ErrorDeDominio)
-async def traducir_error_de_dominio(_: Request, exc: ErrorDeDominio) -> JSONResponse:
+async def traducir_error_de_dominio(peticion: Request, exc: ErrorDeDominio) -> JSONResponse:
     """Único puente entre las reglas de negocio y HTTP.
 
     El dominio nunca construye una respuesta; devuelve un código y aquí se traduce.
     """
+    registrar_error(
+        "error de dominio en %s | ip=%s | %s | codigo=%s detalle=%r",
+        peticion.url.path,
+        ip_del_cliente(peticion),
+        etiqueta_actor(peticion),
+        exc.codigo.value,
+        exc.detalle,
+    )
     estado, mensaje = respuesta_para(exc.codigo)
     return JSONResponse(
         status_code=estado,
@@ -149,8 +168,64 @@ async def traducir_sin_alcance(peticion: Request, exc: SinAlcanceDeInquilino) ->
     nada, que es la peor combinación posible para encontrarlo.
     """
     _registro.exception("consulta sin alcance de inquilino en %s", peticion.url.path)
+    registrar_error(
+        "consulta sin alcance de inquilino en %s | ip=%s | %s",
+        peticion.url.path,
+        ip_del_cliente(peticion),
+        etiqueta_actor(peticion),
+        exc_info=True,
+    )
     estado, mensaje = respuesta_para(exc.codigo)
     return JSONResponse(status_code=estado, content={"mensaje": mensaje})
+
+
+@app.exception_handler(Exception)
+async def traducir_no_controlado(peticion: Request, exc: Exception) -> JSONResponse:
+    """Cualquier excepción que se le escapó a una ruta es un 500 del servidor.
+
+    FastAPI por sí solo responde «Internal Server Error» en texto plano; aquí se registra la
+    traza y se devuelve el mismo JSON que el resto, sin filtrar el detalle ni la pila.
+    """
+    _registro.exception("error no controlado en %s", peticion.url.path)
+    registrar_error(
+        "error no controlado en %s | ip=%s | %s",
+        peticion.url.path,
+        ip_del_cliente(peticion),
+        etiqueta_actor(peticion),
+        exc_info=True,
+    )
+    return JSONResponse(
+        status_code=500, content={"mensaje": "Error interno. Vuelve a intentarlo en un momento."}
+    )
+
+
+@app.middleware("http")
+async def bitacora_de_actividad(
+    request: Request, siguiente: Callable[[Request], Awaitable[object]]
+) -> object:
+    """Una línea por petición en `logs/actividad.txt`: IP, método, ruta y quién la hizo.
+
+    Corre detrás de `cuerpo_maximo` (que corta antes) y su propia excepción es tolerante:
+    una falla de logging no puede tumbar una petición valida.
+    """
+    inicio = asyncio.get_running_loop().time()
+    try:
+        respuesta = await siguiente(request)
+        estado = respuesta.status_code  # type: ignore[attr-defined]
+    except Exception:
+        estado = 500
+        raise
+    finally:
+        duracion_ms = int((asyncio.get_running_loop().time() - inicio) * 1000)
+        try:
+            registrar_actividad(
+                f"ip={ip_del_cliente(request)} "
+                f"metodo={request.method} ruta={request.url.path} "
+                f"{etiqueta_actor(request)} estado={estado} ms={duracion_ms}"
+            )
+        except Exception:  # pragma: no cover - el log no tumba la peticion
+            _registro.exception("no se pudo anotar la actividad de %s", request.url.path)
+    return respuesta
 
 
 @app.middleware("http")
@@ -165,6 +240,22 @@ async def cabeceras_de_seguridad(
     if ajustes().es_produccion:
         cabeceras["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return respuesta
+
+
+@app.middleware("http")
+async def cuerpo_maximo(
+    request: Request, siguiente: Callable[[Request], Awaitable[object]]
+) -> object:
+    """Rechaza cuerpos que excedan el tope antes de leerlos: un megapaquete no ocupa memoria.
+
+    Un GET sin `Content-Length` (poco habitual) se deja pasar: la falta de longitud no es
+    una novedad aquí, y responder 411 lo único que haría es romper clientes que no la mandan.
+    """
+    tope = ajustes().cuerpo_maximo_bytes
+    contenido = request.headers.get("content-length")
+    if contenido is not None and contenido != "" and int(contenido) > tope:
+        return JSONResponse(status_code=413, content={"mensaje": "La petición pesa demasiado."})
+    return await siguiente(request)
 
 
 app.include_router(auth.ruteador)

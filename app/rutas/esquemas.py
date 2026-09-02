@@ -75,10 +75,18 @@ class ActorPublico(Esquema):
     debe_cambiar_contrasena: bool = False
     #: Preferencia de idioma de la cuenta ("es" | "en").
     idioma: str = "es"
+    #: Preferencia de tema de la cuenta ("sistema" | "claro" | "oscuro").
+    tema: str = "sistema"
+    #: Slug de la liga de registro de su coach. Solo para alumnas.
+    slug_liga: str | None = None
 
 
 class IdiomaPreferido(Esquema):
     idioma: Literal["es", "en"]
+
+
+class TemaPreferido(Esquema):
+    tema: Literal["sistema", "claro", "oscuro"]
 
 
 # ---------------------------------------------------------------------------
@@ -200,6 +208,9 @@ class PlanesDeAlumna(Esquema):
     #: `pago`, `ciclo_vencido`, `sin_ciclo` o nulo. Sin distinguirlos, la pantalla le pedía
     #: comprobante a quien ya había pagado y solo tenía el ciclo terminado.
     motivo_bloqueo: str | None
+    #: Número del ciclo vigente (1, 2, ...) aunque esté bloqueado: la pantalla lo enseña y
+    #: no debe inventar uno.
+    ciclo: int | None
     restricciones: str | None
     lesiones: str | None
 
@@ -885,6 +896,8 @@ class MarcaPublica(Esquema):
     color_secundario: str
     #: Nulo mientras no haya subido logo. La interfaz cae a las iniciales.
     tiene_logo: bool
+    #: Cuenta para pagar. Nulo hasta que la coach la escriba. Texto libre.
+    datos_bancarios: str | None = None
 
 
 class EdicionDeMarca(Esquema):
@@ -895,6 +908,8 @@ class EdicionDeMarca(Esquema):
     color_secundario: Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")] = (
         "#C9A227"
     )
+    #: Cuenta para pagar, texto libre. Vacío la deja en blanco.
+    datos_bancarios: TextoLargo | None = None
 
 
 class DatoDeFicha(Esquema):
@@ -1063,6 +1078,8 @@ class HorarioDeCoach(Esquema):
 class HuecoPublico(Esquema):
     inicia_en: datetime
     termina_en: datetime
+    #: Cuenta de la coach para pagar la consulta. Texto libre. Nulo si no la declaró.
+    datos_bancarios: str | None = None
 
 
 class ReservaDeConsulta(Esquema):
@@ -1429,6 +1446,8 @@ class CobroDeAlumna(Esquema):
     tiene_comprobante: bool
     #: Por qué se rechazó el comprobante anterior, si lo hubo. La alumna lo lee tal cual.
     motivo_rechazo: str | None = None
+    #: Cuenta de la coach para pagar. Texto libre. Nulo si no la declaró.
+    datos_bancarios: str | None = None
 
 
 class CobroNuevoProgramado(Esquema):

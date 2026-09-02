@@ -32,6 +32,15 @@ web/dist/
 Calculadora del Fitness.xlsm
 *.xlsm
 
+# --- Logs de servidor ---
+# Llevan IP de clientes e ids de usuario: no deben versionarse ni llegar al repositorio.
+/logs/
+
+# --- Volcados con datos ---
+# Generados por `herramientas/volcar_datos.py` para verlos en el editor. Llevan datos reales
+# (hashes de contrasena, nombres de alumnas): no deben versionarse ni llegar al VPS.
+/volcado_datos.sql
+
 # --- Sistema ---
 .DS_Store
 Thumbs.db

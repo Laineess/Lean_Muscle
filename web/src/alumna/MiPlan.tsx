@@ -63,6 +63,7 @@ const RESPALDO: PlanesDeAlumnaApi = {
   },
   bloqueadoPorPago: ciclo.estadoPago !== "validado",
   motivoBloqueo: ciclo.estadoPago !== "validado" ? "pago" : null,
+  ciclo: 1,
   restricciones: historialClinico.restricciones,
   lesiones: historialClinico.lesiones,
 };
@@ -86,7 +87,9 @@ export function MiPlan() {
     return (
       <div className="flex max-w-md flex-col gap-6">
         <Etiqueta>
-          {t("Ciclo {n}", { n: datos.nutricion?.ciclo ?? ciclo.numero })}
+          {datos.ciclo != null
+            ? t("Ciclo {n}", { n: datos.ciclo })
+            : t("Sin ciclo todavía")}
         </Etiqueta>
         <Portada>
           {datos.motivoBloqueo === "ciclo_vencido" ? t("Tu ciclo terminó") : t("Tu plan está en pausa")}
@@ -117,7 +120,7 @@ export function MiPlan() {
 
       <header className="flex flex-col gap-3">
         <Etiqueta>
-          {t("Ciclo {n}", { n: activo?.ciclo ?? ciclo.numero })}
+          {t("Ciclo {n}", { n: activo?.ciclo ?? datos.ciclo ?? 1 })}
           {activo?.publicadoEn
             ? t(" · publicado el {fecha}", { fecha: fecha(activo.publicadoEn.slice(0, 10)) })
             : ""}

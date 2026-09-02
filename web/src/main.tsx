@@ -6,6 +6,7 @@ import { App } from "./App";
 import { cuandoCaduqueLaSesion, cuandoFalteCambiarLaContrasena } from "./lib/api";
 import { IdiomaProvider } from "./lib/idioma.tsx";
 import { cerrarSesion } from "./lib/sesion";
+import { TemaProvider } from "./lib/tema.tsx";
 import "./index.css";
 
 const raiz = document.getElementById("root");
@@ -32,9 +33,11 @@ cuandoFalteCambiarLaContrasena(() => {
 createRoot(raiz).render(
   <StrictMode>
     <IdiomaProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <TemaProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </TemaProvider>
     </IdiomaProvider>
   </StrictMode>,
 );

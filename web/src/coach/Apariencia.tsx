@@ -40,6 +40,7 @@ export function Apariencia() {
   const [secundario, setSecundario] = useState(actor?.colorSecundario ?? "#c9a227");
   const [tieneLogo, setTieneLogo] = useState(false);
   const [versionLogo, setVersionLogo] = useState(0);
+  const [datosBancarios, setDatosBancarios] = useState("");
   const [guardado, setGuardado] = useState(false);
   const [fallo, setFallo] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -56,6 +57,7 @@ export function Apariencia() {
     setAcento(carga.datos.colorAcento);
     setSecundario(carga.datos.colorSecundario);
     setTieneLogo(carga.datos.tieneLogo);
+    setDatosBancarios(carga.datos.datosBancarios ?? "");
   }, [carga.datos]);
 
   function probar(color: string) {
@@ -77,6 +79,7 @@ export function Apariencia() {
         marca,
         colorAcento: acento,
         colorSecundario: secundario,
+        datosBancarios,
       });
       guardarActor({
         ...(actor ?? nueva),
@@ -169,6 +172,21 @@ export function Apariencia() {
             <Entrada id="aj-marca" value={marca} onChange={(e) => setMarca(e.target.value)} />
           </Campo>
         </div>
+
+        <Campo
+          id="aj-bancario"
+          etiqueta={t("Dónde te pagan")}
+          ayuda={t("Cuenta, CLABE, referencia… Lo que tus alumnas necesitan para pagarte. Se les muestra al agendar y al subir su comprobante.")}
+        >
+          <textarea
+            id="aj-bancario"
+            rows={5}
+            value={datosBancarios}
+            onChange={(e) => setDatosBancarios(e.target.value)}
+            placeholder={t("Banco · Titular · Cuenta o CLABE · Referencia")}
+            className="w-full rounded-marco border border-linea bg-fondo px-3 py-2 text-cuerpo leading-relaxed placeholder:text-tinta-suave focus:border-tinta focus:outline-none"
+          />
+        </Campo>
 
         <div className="grid gap-5 sm:grid-cols-2">
           <SelectorDeColor

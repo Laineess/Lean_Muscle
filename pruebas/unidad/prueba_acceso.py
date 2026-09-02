@@ -173,3 +173,37 @@ class TestCookieSegura:
         """Ahí no hay forma legítima de llegar por http, y la cabecera la pone quien sea."""
         monkeypatch.setattr("app.rutas.auth.ajustes", lambda: SimpleNamespace(es_produccion=True))
         assert _cookie_segura(_peticion()) is True
+
+
+class TestTemaDeLaCuenta:
+    """El tema vive en la cuenta, igual que el idioma, no en el dispositivo.
+
+    Si dos cuentas comparten navegador, cada una ve el suyo. El actor trae el valor guardado,
+    y el endpoint `/auth/tema` solo acepta los tres estados conocidos.
+    """
+
+    def test_el_actor_trae_tema_y_por_defecto_es_sistema(self) -> None:
+        from app.rutas.esquemas import ActorPublico
+
+        actor = ActorPublico(
+            rol="coach",
+            nombre="Mariana",
+            correo="mariana@ejemplo.mx",
+            color_acento="#000000",
+            color_secundario="#000000",
+            marca="MyFittPlan",
+            debe_cambiar_contrasena=False,
+            idioma="es",
+        )
+        assert actor.tema == "sistema"
+
+    def test_el_endpoint_solo_acepta_los_tres_estados(self) -> None:
+        from pydantic import ValidationError
+
+        from app.rutas.esquemas import TemaPreferido
+
+        assert TemaPreferido(tema="claro").tema == "claro"
+        assert TemaPreferido(tema="oscuro").tema == "oscuro"
+        assert TemaPreferido(tema="sistema").tema == "sistema"
+        with pytest.raises(ValidationError):
+            TemaPreferido(tema="morado")  # type: ignore[arg-type]

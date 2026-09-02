@@ -128,6 +128,42 @@ PLANTILLAS: dict[Aviso, Plantilla] = {
         ),
         boton=("Ver en mi cuenta", f"{SITIO}/inicio"),
     ),
+    # A la coach: un alumno nuevo tomó un hueco de su horario. Lleva sus datos de
+    # contacto y, si ya subió comprobante, este va adjunto.
+    Aviso.CONSULTA_RESERVADA: Plantilla(
+        asunto="Nueva consulta reservada · {alumna}",
+        texto=(
+            "Hola:\n\n"
+            "{alumna} agendó una consulta contigo.\n\n"
+            "Cuándo: {fecha}, de {hora_inicio} a {hora_fin}\n"
+            "Modalidad: {modalidad}\n\n"
+            "Contacto:\n"
+            "- Nombre: {alumna}\n"
+            "- WhatsApp: {whatsapp}\n"
+            "- Correo: {correo}\n\n"
+            "{comprobante_nota}\n\n"
+            "Entra a tu panel para revisarla y confirmarla."
+        ),
+        boton=("Ver en mi panel", f"{SITIO}/coach/agenda"),
+    ),
+    # A la coach: un alumno nuevo terminó su inscripción. Lleva sus datos, la cita y su
+    # comprobante adjunto, que es lo que ella valida al aceptar la solicitud.
+    Aviso.SOLICITUD_RECIBIDA: Plantilla(
+        asunto="Inscripción lista por revisar · {alumna}",
+        texto=(
+            "Hola:\n\n"
+            "{alumna} terminó su inscripción y dejó su comprobante.\n\n"
+            "{cita_linea}"
+            "Inscripción: {monto}\n\n"
+            "Contacto:\n"
+            "- Nombre: {alumna}\n"
+            "- WhatsApp: {whatsapp}\n"
+            "- Correo: {correo}\n\n"
+            "{comprobante_nota}\n\n"
+            "Revísala y decide desde tu panel."
+        ),
+        boton=("Revisar solicitudes", f"{SITIO}/coach/solicitudes"),
+    ),
     Aviso.PAGO_VALIDADO: Plantilla(
         asunto="Recibo de tu pago · {concepto}",
         texto=(

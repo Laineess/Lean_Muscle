@@ -8,7 +8,8 @@
  */
 
 import { ArrowLeft, Dumbbell, UtensilsCrossed } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, KeyboardEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import {
@@ -54,6 +55,7 @@ import {
 import {
   ACTIVIDAD,
   calcular,
+  deficitPromedioSemanal,
   ROTULO_MACRO,
   type BaseProteina,
   type IdActividad,
@@ -103,6 +105,130 @@ function contenidoDeEntrenamiento(plan: PlanApi | null) {
   };
 }
 
+/** Campo numérico con texto local: se escribe con libertad, se aplica en vivo (cada tecla recalcula
+ *  el resto de la calculadora) y se finaliza al salir o con Enter. El scroll del ratón/trackpad no
+ *  mueve el valor.
+ *
+ *  Mientras el campo tiene el foco no se deja que el valor de la prop lo sobreescriba, para que el
+ *  usuario pueda escribir decimales y borrar sin que el texto "salte". */
+function usarCampoNumero(real: number, aplicar: (n: number) => void) {
+  const [texto, setTexto] = useState(String(real ?? ""));
+  const enfocado = useRef(false);
+  useEffect(() => {
+    if (!enfocado.current) setTexto(String(real ?? ""));
+  }, [real]);
+  const finalizar = () => {
+    enfocado.current = false;
+    const n = Number(String(texto).replace(",", "."));
+    if (Number.isNaN(n)) {
+      setTexto(String(real ?? ""));
+    } else {
+      aplicar(n);
+    }
+  };
+  const alEnfocar = () => {
+    enfocado.current = true;
+  };
+  const alTeclear = (e: ChangeEvent<HTMLInputElement>) => {
+    const s = e.target.value;
+    setTexto(s);
+    // En vivo: si el texto ya es un número completo, propágalo al momento.
+    const n = Number(String(s).replace(",", "."));
+    if (String(s).trim() !== "" && !Number.isNaN(n)) aplicar(n);
+  };
+  const alTocarTecla = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") finalizar();
+  };
+  const alGirarRueda = (e: { currentTarget: { blur: () => void } }) => {
+    // Quita el foco al girar la rueda para que el navegador no suba/baje el número.
+    e.currentTarget.blur();
+  };
+  return {
+    value: texto,
+    onChange: alTeclear,
+    onBlur: finalizar,
+    onFocus: alEnfocar,
+    onWheel: alGirarRueda,
+    onKeyDown: alTocarTecla,
+  };
+}
+
+/** Campo de porcentaje editable con el patrón de texto local (libre al teclear). */
+function CampoPorcentaje({
+  id,
+  etiqueta,
+  minimo,
+  maximo,
+  valor,
+  onAplicar,
+  deshabilitado,
+}: {
+  id: string;
+  etiqueta: string;
+  minimo?: number;
+  maximo?: number;
+  valor: number;
+  onAplicar: (n: number) => void;
+  deshabilitado: boolean;
+}) {
+  const campo = usarCampoNumero(valor, onAplicar);
+  return (
+    <Campo id={id} etiqueta={etiqueta} sufijo="%">
+      <Entrada
+        id={id}
+        type="number"
+        step={1}
+        min={minimo}
+        max={maximo}
+        disabled={deshabilitado}
+        {...campo}
+        className="rounded-r-none"
+      />
+    </Campo>
+  );
+}
+
+/** Campo numérico editable sin el problema del «0 pegado»: aplica el valor al salir. */
+function CampoNumeroEditable({
+  id,
+  etiqueta,
+  ayuda,
+  sufijo,
+  minimo,
+  maximo,
+  paso,
+  valor,
+  onAplicar,
+  deshabilitado,
+}: {
+  id: string;
+  etiqueta: string;
+  ayuda?: string;
+  sufijo: string;
+  minimo?: number;
+  maximo?: number;
+  paso?: number;
+  valor: number;
+  onAplicar: (n: number) => void;
+  deshabilitado: boolean;
+}) {
+  const campo = usarCampoNumero(valor, onAplicar);
+  return (
+    <Campo id={id} etiqueta={etiqueta} sufijo={sufijo} ayuda={ayuda}>
+      <Entrada
+        id={id}
+        type="number"
+        step={paso}
+        min={minimo}
+        max={maximo}
+        disabled={deshabilitado}
+        {...campo}
+        className="rounded-r-none"
+      />
+    </Campo>
+  );
+}
+
 export function Constructor() {
   const { t } = useIdioma();
   const { alumnaUlid = "" } = useParams();
@@ -137,6 +263,9 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
   // Parámetros del ciclo, heredados del anterior. La coach los ajusta si hace falta.
   const [actividad, setActividad] = useState<IdActividad>(p.actividad as IdActividad);
   const [ajustePct, setAjustePct] = useState(Math.round(p.porcentajeAjuste * 100));
+  // Porcentaje del «día bajo» de la tabla de refeeds, independiente del ajuste calórico global:
+  // en la hoja son columnas distintas y tocar uno no debe recalcular el déficit del plan.
+  const [diaBajoPct, setDiaBajoPct] = useState(Math.abs(Math.round(p.porcentajeAjuste * 100)));
   const [reparto, setReparto] = useState({
     carbohidrato: Math.round(p.reparto.carbohidrato * 100),
     proteina: Math.round(p.reparto.proteina * 100),
@@ -145,11 +274,15 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
   const [baseProteina, setBaseProteina] = useState<BaseProteina>(p.baseProteina as BaseProteina);
   const [diasRefeed, setDiasRefeed] = useState(p.diasRefeed);
   const [refeedPct, setRefeedPct] = useState(Math.round(p.porcentajeDiaRefeed * 100));
-  const [pesoKg, setPesoKg] = useState<number>(chequeo?.pesoKg ?? 65);
-  const [grasaPct, setGrasaPct] = useState<number>(chequeo?.porcentajeGrasa ?? 0.26);
-  const [estaturaCm, setEstaturaCm] = useState<number>(exp.estaturaCm ?? 165);
+  // Sin chequeo validado no hay cuerpo real que calcular: no se siembran valores inventados
+  // (65 kg, 26 % grasa, 165 cm…) que la coach pudiera leer como si fueran del alumno. Hasta
+  // validar el primer chequeo, peso/estatura/edad quedan vacíos y la calculadora no arroja.
+  const chequeoValidado = chequeo?.estado === "validado";
+  const [pesoKg, setPesoKg] = useState<number>(chequeoValidado ? (chequeo?.pesoKg ?? 0) : 0);
+  const [grasaPct, setGrasaPct] = useState<number>(chequeoValidado ? (chequeo?.porcentajeGrasa ?? 0) : 0);
+  const [estaturaCm, setEstaturaCm] = useState<number>(chequeoValidado ? (exp.estaturaCm ?? 0) : 0);
   const [edadAnios, setEdadAnios] = useState<number>(
-    edadEn(exp.fechaNacimiento, new Date().toISOString().slice(0, 10)) || 30,
+    chequeoValidado ? (edadEn(exp.fechaNacimiento, new Date().toISOString().slice(0, 10)) || 0) : 0,
   );
   const [sexoCliente, setSexoCliente] = useState<Sexo>(
     exp.sexo === "M" ? "masculino" : "femenino",
@@ -157,7 +290,9 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
   const [semanasGanancia, setSemanasGanancia] = useState(SEMANAS_GANANCIA);
   const [grasaObjetivoPct, setGrasaObjetivoPct] = useState<number>(
     exp.porcentajeGrasaObjetivo ??
-      (chequeo?.porcentajeGrasa ? Math.round(chequeo.porcentajeGrasa * 0.75 * 100) / 100 : 0.15),
+      (chequeoValidado && chequeo?.porcentajeGrasa
+        ? Math.round(chequeo.porcentajeGrasa * 0.75 * 100) / 100
+        : 0),
   );
   const [seccion, setSeccion] = useState<SeccionExpediente>("expediente");
 
@@ -177,10 +312,19 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
 
   const sumaReparto = reparto.carbohidrato + reparto.proteina + reparto.grasa;
   const repartoCuadra = sumaReparto === 100;
-  const chequeoValidado = chequeo?.estado === "validado";
+  // Sin chequeo validado no hay peso/estatura reales: se cuelga el cálculo (guardaría un
+  // plan basado en un cuerpo inventado) y se enseña a validar primero.
+  const sinReferenciaReal = !chequeoValidado || pesoKg <= 0 || estaturaCm <= 0;
+
+  // Sin chequeo validado se muestran en 0, no los parámetros heredados del ciclo anterior:
+  // leerlos como del alumno sería lo mismo que presentar cifras inventadas.
+  const mActividad = sinReferenciaReal ? "" : actividad;
+  const mBase = sinReferenciaReal ? "peso_total" : baseProteina;
+  const mDiasRefeed = sinReferenciaReal ? 0 : diasRefeed;
 
   const r = useMemo(() => {
     if (!repartoCuadra) return null;
+    if (sinReferenciaReal) return null;
     return calcular({
       pesoKg,
       porcentajeGrasa: grasaPct,
@@ -203,6 +347,7 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
     });
   }, [
     repartoCuadra,
+    sinReferenciaReal,
     pesoKg,
     grasaPct,
     estaturaCm,
@@ -368,7 +513,7 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
       >
         <div className="flex flex-col gap-10">
           {/* ---- Composición: sale del chequeo, no se teclea ---- */}
-          {seccion === "expediente" ? <section className="flex flex-col gap-4">
+          {seccion === "expediente" && chequeoValidado ? <section className="flex flex-col gap-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div className="flex flex-col gap-1">
                 <Titulo>{t("Composición corporal")}</Titulo>
@@ -408,7 +553,22 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 {t("Estímalo al validar el chequeo. Es la entrada que manda toda la cadena de cálculo.")}
               </Aviso>
             )}
-          </section> : null}
+          </section> : seccion === "expediente" ? (
+            <section className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <Titulo>{t("Composición corporal")}</Titulo>
+                <Apoyo>{t("Sin chequeo validado todavía.")}</Apoyo>
+              </div>
+              <Aviso tono="atencion" titulo={t("Aún no hay composición que mostrar")}>
+                <p>
+                  {t("Aún no hay un chequeo validado del que salga el peso, las medidas y la composición")}
+                </p>
+                <Link to={`/coach/validar/${exp.alumnaUlid}`} className="underline underline-offset-2">
+                  {t("Ir a validar el chequeo")}
+                </Link>
+              </Aviso>
+            </section>
+          ) : null}
 
           {seccion === "expediente" ? <Regla /> : null}
 
@@ -429,11 +589,23 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
               </Apoyo>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            {sinReferenciaReal ? (
+              <Aviso tono="atencion" titulo={t("Falta el primer chequeo validado")}>
+                <p>
+                  {t("Sin un chequeo validado no hay peso real con qué calcular, así que la calculadora queda vacía. Valida el primer chequeo de este ciclo y aquí aparecerán sus cifras.")}
+                </p>
+                <Link to={`/coach/validar/${exp.alumnaUlid}`} className="underline underline-offset-2">
+                  {t("Ir a validar el chequeo")}
+                </Link>
+              </Aviso>
+            ) : null}
+
+            <div className="grid gap-3 sm:grid-cols-3">
               <Campo id="c-actividad" etiqueta={t("Nivel de actividad")}>
                 <Selector
                   id="c-actividad"
-                  value={actividad}
+                  value={mActividad}
+                  disabled={sinReferenciaReal}
                   onChange={(e) => setActividad(e.target.value as IdActividad)}
                 >
                   {ACTIVIDAD.map((n) => (
@@ -444,59 +616,46 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 </Selector>
               </Campo>
 
-              <Campo
+              <CampoNumeroEditable
                 id="c-ajuste"
                 etiqueta={t("Ajuste calórico")}
                 sufijo="%"
                 ayuda={t("Negativo es déficit, positivo es superávit.")}
-              >
-                <Entrada
-                  id="c-ajuste"
-                  type="number"
-                  step={1}
-                  min={-50}
-                  max={30}
-                  value={ajustePct}
-                  onChange={(e) => setAjustePct(Number(e.target.value))}
-                  className="rounded-r-none"
-                />
-              </Campo>
+                minimo={-50}
+                maximo={30}
+                valor={sinReferenciaReal ? 0 : ajustePct}
+                onAplicar={setAjustePct}
+                deshabilitado={sinReferenciaReal}
+              />
 
-              <Campo
+              <CampoNumeroEditable
                 id="c-grasa-obj"
                 etiqueta={t("% Grasa objetivo")}
                 sufijo="%"
                 ayuda={t("Meta para proyectar la pérdida.")}
-              >
-                <Entrada
-                  id="c-grasa-obj"
-                  type="number"
-                  step={0.5}
-                  min={3}
-                  max={50}
-                  value={Math.round(grasaObjetivoPct * 1000) / 10}
-                  onChange={(e) => setGrasaObjetivoPct(Number(e.target.value) / 100)}
-                  className="rounded-r-none"
-                />
-              </Campo>
+                paso={0.5}
+                minimo={3}
+                maximo={50}
+                valor={sinReferenciaReal ? 0 : Math.round(grasaObjetivoPct * 1000) / 10}
+                onAplicar={(n) => setGrasaObjetivoPct(Number(n) / 100)}
+                deshabilitado={sinReferenciaReal}
+              />
             </div>
 
             <div className="flex flex-col gap-2">
               <Etiqueta>{t("Reparto de macros — tiene que sumar 100 %")}</Etiqueta>
               <div className="grid gap-4 sm:grid-cols-3">
                 {MACROS.map((m) => (
-                  <Campo key={m} id={`c-r-${m}`} etiqueta={t(ROTULO_MACRO[m])} sufijo="%">
-                    <Entrada
-                      id={`c-r-${m}`}
-                      type="number"
-                      step={1}
-                      min={0}
-                      max={100}
-                      value={reparto[m]}
-                      onChange={(e) => setReparto((v) => ({ ...v, [m]: Number(e.target.value) }))}
-                      className="rounded-r-none"
-                    />
-                  </Campo>
+                  <CampoPorcentaje
+                    key={m}
+                    id={`c-r-${m}`}
+                    etiqueta={t(ROTULO_MACRO[m])}
+                    minimo={0}
+                    maximo={100}
+                    valor={sinReferenciaReal ? 0 : reparto[m]}
+                    onAplicar={(n) => setReparto((v) => ({ ...v, [m]: Number(n) }))}
+                    deshabilitado={sinReferenciaReal}
+                  />
                 ))}
               </div>
               {!repartoCuadra ? (
@@ -510,7 +669,8 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
               <Campo id="c-base" etiqueta={t("Proteína contra")}>
                 <Selector
                   id="c-base"
-                  value={baseProteina}
+                  value={mBase}
+                  disabled={sinReferenciaReal}
                   onChange={(e) => setBaseProteina(e.target.value as BaseProteina)}
                 >
                   <option value="masa_libre_de_grasa">{t("Masa libre de grasa")}</option>
@@ -521,7 +681,8 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
               <Campo id="c-refeed" etiqueta={t("Días de refeed")}>
                 <Selector
                   id="c-refeed"
-                  value={diasRefeed}
+                  value={mDiasRefeed}
+                  disabled={sinReferenciaReal}
                   onChange={(e) => setDiasRefeed(Number(e.target.value))}
                 >
                   <option value={0}>{t("Ninguno")}</option>
@@ -530,23 +691,29 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 </Selector>
               </Campo>
 
-              <Campo
+              <CampoNumeroEditable
+                id="c-dia-bajo"
+                etiqueta={t("Día bajo")}
+                sufijo="%"
+                ayuda={t("El déficit del día bajo de la semana, no confundir con el ajuste global.")}
+                minimo={1}
+                maximo={60}
+                valor={sinReferenciaReal ? 0 : diaBajoPct}
+                onAplicar={setDiaBajoPct}
+                deshabilitado={sinReferenciaReal}
+              />
+
+              <CampoNumeroEditable
                 id="c-refeed-pct"
                 etiqueta={t("Déficit del refeed")}
                 sufijo="%"
                 ayuda={t("Cero es mantenimiento, que es lo habitual.")}
-              >
-                <Entrada
-                  id="c-refeed-pct"
-                  type="number"
-                  step={1}
-                  min={0}
-                  max={40}
-                  value={refeedPct}
-                  onChange={(e) => setRefeedPct(Number(e.target.value))}
-                  className="rounded-r-none"
-                />
-              </Campo>
+                minimo={0}
+                maximo={40}
+                valor={sinReferenciaReal ? 0 : refeedPct}
+                onAplicar={setRefeedPct}
+                deshabilitado={sinReferenciaReal}
+              />
             </div>
           </section> : null}
 
@@ -597,17 +764,17 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
                 </div>
               </div>
 
-              {r.deficitPromedioSemanal !== null ? (
+              {diasRefeed > 0 ? (
                 <Aviso
                   tono="info"
                   titulo={t("Con {n} {dias} de refeed, el déficit real de la semana es {pct} %", {
                     n: String(diasRefeed),
                     dias: diasRefeed === 1 ? t("día") : t("días"),
-                    pct: num(r.deficitPromedioSemanal * 100),
+                    pct: num(deficitPromedioSemanal(diaBajoPct / 100, diasRefeed, refeedPct / 100) * 100),
                   })}
                 >
                   {t("El día bajo va al {pct} %, pero lo que manda sobre el resultado es el promedio semanal.", {
-                    pct: num(Math.abs(ajustePct)),
+                    pct: num(diaBajoPct),
                   })}
                 </Aviso>
               ) : null}
@@ -652,7 +819,6 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
               porcentajeGrasaObjetivo={grasaObjetivoPct}
               onPorcentajeGrasaObjetivo={setGrasaObjetivoPct}
               ajustePct={ajustePct}
-              onAjustePct={setAjustePct}
             />
           ) : null}
 
@@ -662,15 +828,13 @@ function Editor({ exp, clinico }: { exp: ExpedienteDeConstructorApi; clinico: Hi
               energia={r.energia}
               semanas={semanasGanancia}
               onSemanas={setSemanasGanancia}
-              ajustePct={ajustePct}
-              onAjustePct={setAjustePct}
             />
           ) : null}
 
           {seccion === "calculadora" && r ? (
             <TablaRefeeds
-              diaBajoPct={ajustePct}
-              onDiaBajoPct={setAjustePct}
+              diaBajoPct={diaBajoPct}
+              onDiaBajoPct={(v) => setDiaBajoPct(Math.abs(v))}
               diasRefeed={diasRefeed}
               onDiasRefeed={setDiasRefeed}
               refeedPct={refeedPct}

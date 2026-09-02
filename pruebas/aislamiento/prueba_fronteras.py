@@ -167,8 +167,9 @@ def test_toda_ruta_de_api_confirma_antes_de_responder() -> None:
 #: Lo que una solicitud del registro abierto **sí** puede usar antes de que la acepten: su
 #: propio recorrido, sus derechos ARCO y los avisos de la coach. Cada excepción va con su
 #: motivo, para que agregar una obligue a pensarlo.
-ABIERTAS_A_UNA_SOLICITUD = {
+SOLICITUD_ABIERTA = {
     "/api/mi/solicitud": "es la pantalla que le dice qué le falta",
+    "/api/mi/codigo/reenviar": "espera verificación hasta que el correo sea suyo",
     "/api/mi/presentacion": "conocer a la coach es el primer paso del recorrido",
     "/api/mi/cuestionario": "contestarlo es parte del registro",
     "/api/mi/huecos": "ahí elige la hora de su primera consulta",
@@ -208,13 +209,13 @@ def test_una_solicitud_no_alcanza_lo_que_es_de_una_alumna() -> None:
             continue
         if solo_alumna_aceptada.__name__ in usadas:
             continue
-        if ruta.path in ABIERTAS_A_UNA_SOLICITUD:
+        if ruta.path in SOLICITUD_ABIERTA:
             continue
         sueltas.append(ruta.path)
 
     assert not sueltas, (
         f"estos endpoints los alcanzaría una solicitud sin aceptar: {sorted(set(sueltas))}. "
-        "Si es a propósito, decláralo en ABIERTAS_A_UNA_SOLICITUD con su motivo."
+        "Si es a propósito, decláralo en SOLICITUD_ABIERTA con su motivo."
     )
 
 
@@ -223,5 +224,5 @@ def test_no_sobran_excepciones_declaradas() -> None:
     from app.main import app
 
     rutas = {r.path for r in _rutas_de(app)}
-    sobrantes = set(ABIERTAS_A_UNA_SOLICITUD) - rutas
+    sobrantes = set(SOLICITUD_ABIERTA) - rutas
     assert not sobrantes, f"excepciones sin endpoint: {sorted(sobrantes)}"

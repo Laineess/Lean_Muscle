@@ -11,6 +11,7 @@ import { Apoyo, Aviso, Boton, Campo, Casilla, Entrada, Etiqueta, Portada } from 
 import { ErrorApi, api, type ActorPublico } from "@/lib/api";
 import { useIdioma } from "@/lib/idioma";
 import { cerrarSesion, correoRecordado, guardarActor, recordarCorreo } from "@/lib/sesion";
+import { guardarRegistro } from "./Registro";
 
 export function Acceso() {
   const navegar = useNavigate();
@@ -33,7 +34,12 @@ export function Acceso() {
 
     try {
       const solicitud = await api.alumna.solicitud();
-      void navegar(solicitud.esSolicitud ? "/solicitud" : "/inicio", { replace: true });
+      if (solicitud.esSolicitud && solicitud.paso === "correo" && actor.slugLiga) {
+        guardarRegistro(actor.slugLiga, actor.correo);
+        void navegar(`/r/${encodeURIComponent(actor.slugLiga)}`, { replace: true });
+      } else {
+        void navegar(solicitud.esSolicitud ? "/solicitud" : "/inicio", { replace: true });
+      }
     } catch {
       void navegar("/inicio", { replace: true });
     }

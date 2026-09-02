@@ -30,6 +30,7 @@ import { delta, diaSemana, fecha, horaLocal, num } from "@/lib/formato";
 import { useIdioma } from "@/lib/idioma";
 import { usarApi, usarApiConRespaldo } from "@/lib/usarApi";
 import { ROTULO_ESTADO, type EstadoChequeo } from "@/lib/tipos";
+import { DatosBancarios } from "@/alumna/DatosBancarios";
 
 /** Datos de ejemplo para revisar la pantalla sin servidor. Desaparece con la API en pie. */
 const RESPALDO: InicioAlumnaApi = {
@@ -486,6 +487,8 @@ function SubirComprobante() {
           </li>
         ))}
       </ul>
+
+      <DatosBancarios texto={cobros[0]?.datosBancarios} />
 
       <input
         ref={entrada}

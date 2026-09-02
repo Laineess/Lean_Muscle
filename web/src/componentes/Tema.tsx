@@ -1,10 +1,10 @@
-/** Selector de tema. La lógica vive en `lib/tema.ts`; esto solo la enseña. */
+/** Selector de tema. La lógica vive en `lib/tema.tsx`; esto solo la enseña. */
 
 import { Monitor, Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
 
 import { useIdioma } from "@/lib/idioma";
-import { LLAVE_TEMA, aplicarTema, temaGuardado, type Tema } from "@/lib/tema";
+import type { Tema } from "@/lib/tema";
+import { useTema } from "@/lib/tema";
 import { cn } from "@/lib/utils";
 
 const OPCIONES: { id: Tema; rotulo: string; Icono: typeof Sun }[] = [
@@ -15,13 +15,7 @@ const OPCIONES: { id: Tema; rotulo: string; Icono: typeof Sun }[] = [
 
 export function InterruptorDeTema({ className }: { className?: string }) {
   const { t } = useIdioma();
-  const [tema, setTema] = useState<Tema>(temaGuardado);
-
-  useEffect(() => {
-    aplicarTema(tema);
-    if (tema === "sistema") localStorage.removeItem(LLAVE_TEMA);
-    else localStorage.setItem(LLAVE_TEMA, tema);
-  }, [tema]);
+  const { tema, fijar } = useTema();
 
   return (
     <div
@@ -36,7 +30,7 @@ export function InterruptorDeTema({ className }: { className?: string }) {
           aria-checked={tema === id}
           title={t(rotulo)}
           aria-label={t(rotulo)}
-          onClick={() => setTema(id)}
+          onClick={() => fijar(id)}
           className={cn(
             "grid size-7 place-items-center rounded-[calc(var(--radio)-1px)] transition-colors",
             tema === id ? "bg-fondo-sutil text-tinta" : "text-tinta-suave hover:text-tinta",

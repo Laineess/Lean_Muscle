@@ -29,11 +29,15 @@ UMBRAL_LUMINANCIA_MINIMA = Decimal("55")
 UMBRAL_LUMINANCIA_MAXIMA = Decimal("215")
 
 #: nginx corta antes, pero el servidor no confía en que lo haya hecho.
-BYTES_MAXIMOS = 12 * 1024 * 1024
+BYTES_MAXIMOS = 24 * 1024 * 1024
 
 
 class ImagenInvalida(ValueError):
     """Entrada corrupta, no error de negocio."""
+
+
+class ArchivoDemasiadoGrande(ImagenInvalida):
+    """Cabe en el límite del servidor pero no en el nuestro: es un 413, no un 422."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,7 +91,7 @@ def procesar(original: bytes) -> Procesada:
     if not original:
         raise ImagenInvalida("archivo vacío")
     if len(original) > BYTES_MAXIMOS:
-        raise ImagenInvalida(f"la imagen pesa más de {BYTES_MAXIMOS // 1024 // 1024} MB")
+        raise ArchivoDemasiadoGrande(f"la imagen pesa más de {BYTES_MAXIMOS // 1024 // 1024} MB")
 
     try:
         abierta = Image.open(io.BytesIO(original))
@@ -161,7 +165,7 @@ def logo(original: bytes) -> bytes:
     if not original:
         raise ImagenInvalida("archivo vacío")
     if len(original) > BYTES_MAXIMOS:
-        raise ImagenInvalida("el logo pesa demasiado")
+        raise ArchivoDemasiadoGrande("el logo pesa demasiado")
 
     try:
         imagen = Image.open(io.BytesIO(original))
@@ -193,7 +197,7 @@ def comida(original: bytes) -> bytes:
     if not original:
         raise ImagenInvalida("archivo vacío")
     if len(original) > BYTES_MAXIMOS:
-        raise ImagenInvalida(f"la imagen pesa más de {BYTES_MAXIMOS // 1024 // 1024} MB")
+        raise ArchivoDemasiadoGrande(f"la imagen pesa más de {BYTES_MAXIMOS // 1024 // 1024} MB")
 
     try:
         abierta = Image.open(io.BytesIO(original))

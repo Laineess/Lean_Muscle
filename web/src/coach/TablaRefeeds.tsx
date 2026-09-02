@@ -11,7 +11,7 @@
  */
 
 import { RotateCcw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { num } from "@/lib/formato";
 import { useIdioma } from "@/lib/idioma";
@@ -35,9 +35,10 @@ export function TablaRefeeds({
   const { t } = useIdioma();
   const diaBajoPositivo = Math.abs(diaBajoPct);
 
-  // Inputs locales
+  // Único campo capturado de esta tabla: el % de déficit del día bajo. El promedio semanal
+  // es un derivado y se muestra en solo-lectura para que no cambie solo ni pise lo capturado.
   const [inputDiaBajo, setInputDiaBajo] = useState<string>(String(diaBajoPositivo));
-  const [inputPromedio, setInputPromedio] = useState<string>("");
+  const enfocadoDiaBajo = useRef(false);
 
   // Cálculo del déficit promedio semanal: J14 = (G14*(7-H14) + H14*I14) / 7
   const diasBajos = Math.max(0, 7 - diasRefeed);
@@ -47,12 +48,8 @@ export function TablaRefeeds({
       : (diaBajoPositivo * diasBajos + refeedPct * diasRefeed) / 7;
 
   useEffect(() => {
-    setInputDiaBajo(String(diaBajoPositivo));
+    if (!enfocadoDiaBajo.current) setInputDiaBajo(String(diaBajoPositivo));
   }, [diaBajoPositivo]);
-
-  useEffect(() => {
-    setInputPromedio(num(promedioSemanal, 1));
-  }, [promedioSemanal]);
 
   // Manejo de edición de % déficit día bajo
   const aplicarDiaBajo = (valStr: string) => {
@@ -60,17 +57,9 @@ export function TablaRefeeds({
     if (isNaN(val)) return;
     onDiaBajoPct(-Math.round(val));
   };
-
-  // Manejo de edición de Promedio semanal (calcula el día bajo necesario)
-  const aplicarPromedio = (valStr: string) => {
-    const val = Math.abs(parseFloat(valStr.replace("%", "").replace(",", ".")));
-    if (isNaN(val)) return;
-    if (diasRefeed === 0 || diasBajos === 0) {
-      onDiaBajoPct(-Math.round(val));
-    } else {
-      const nuevoDiaBajo = (val * 7 - refeedPct * diasRefeed) / diasBajos;
-      onDiaBajoPct(-Math.round(Math.max(1, Math.min(60, nuevoDiaBajo))));
-    }
+  const terminarDiaBajo = () => {
+    enfocadoDiaBajo.current = false;
+    aplicarDiaBajo(inputDiaBajo);
   };
 
   // Restablecer a 1 día de refeed
@@ -124,9 +113,16 @@ export function TablaRefeeds({
                     <input
                       type="text"
                       value={inputDiaBajo}
-                      onChange={(e) => setInputDiaBajo(e.target.value)}
-                      onBlur={() => aplicarDiaBajo(inputDiaBajo)}
-                      onKeyDown={(e) => e.key === "Enter" && aplicarDiaBajo(inputDiaBajo)}
+                      onChange={(e) => {
+                        const s = e.target.value;
+                        setInputDiaBajo(s);
+                        if (String(s).trim() !== "") aplicarDiaBajo(s);
+                      }}
+                      onFocus={() => {
+                        enfocadoDiaBajo.current = true;
+                      }}
+                      onBlur={terminarDiaBajo}
+                      onKeyDown={(e) => e.key === "Enter" && terminarDiaBajo()}
                       className="cifra h-10 w-24 rounded-marco bg-fondo px-2 text-center text-guia font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
                       title={t("% de déficit en los días bajos (editable)")}
                     />
@@ -152,15 +148,9 @@ export function TablaRefeeds({
                 {/* Col 3: Déficit promedio semanal */}
                 <td className="bg-acento-sutil/40 p-2">
                   <div className="flex items-center justify-center">
-                    <input
-                      type="text"
-                      value={inputPromedio}
-                      onChange={(e) => setInputPromedio(e.target.value)}
-                      onBlur={() => aplicarPromedio(inputPromedio)}
-                      onKeyDown={(e) => e.key === "Enter" && aplicarPromedio(inputPromedio)}
-                      className="cifra h-10 w-24 rounded-marco bg-acento-sutil/60 px-2 text-center text-guia font-bold text-acento-texto transition-all hover:bg-acento-sutil focus:border focus:border-acento focus:bg-fondo focus:text-tinta focus:outline-none"
-                      title={t("Déficit promedio semanal calculado (editable: ajusta el día bajo)")}
-                    />
+                    <span className="cifra inline-block h-10 px-2 text-center text-guia font-bold text-acento-texto">
+                      {num(promedioSemanal, 1)}%
+                    </span>
                   </div>
                 </td>
               </tr>

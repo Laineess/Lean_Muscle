@@ -39,6 +39,12 @@ CONTEXTO = {
     "alumna": "Valeria Ruiz",
     "concepto": "Mensualidad de agosto",
     "vigencia": "Tu acceso queda activo hasta el 18/09/2026.",
+    # Avisos que van a la coach (cita e inscripción): datos de contacto del alumno nuevo.
+    "whatsapp": "+52 55 1234 5678",
+    "correo": "valeria@ejemplo.mx",
+    "comprobante_nota": "Su comprobante va adjunto.",
+    "cita_linea": "Cita: 24/08/2026 a las 09:00\n",
+    "hora_fin": "09:45",
 }
 
 POR_CORREO = [a for a in Aviso if Canal.CORREO in canales_de(a)]

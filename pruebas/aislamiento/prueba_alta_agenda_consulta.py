@@ -153,32 +153,67 @@ class TestLaVentanaDelChequeoAbreHoy:
         assert cita.inicia_en.date() >= ciclo.inicia_en
 
 
-class TestLosDosCobrosDelAlta:
-    """La inscripción y el primer ciclo son dos cargos, no uno.
+class TestElAltaCobraSoloLaInscripcion:
+    """El primer ciclo se libera con la inscripción, no se cobra mensualidad por separado.
 
-    Antes salía una sola fila etiquetada «Inscripción» por el precio del ciclo: cobraba de
-    menos y la inscripción no quedaba registrada en ninguna parte.
+    Solo nace una fila de cobro, la de inscripción: con su pago se desbloquea el ciclo 1, y
+    la primera mensualidad llega hasta el ciclo 2 (ver `_estado_pago_del_ciclo` en api_alumna).
     """
 
     def _cobros(self, coach_id: int) -> list[CobroProgramado]:
         with sesion_con_alcance(coach_id) as s:
             return list(s.scalars(select(CobroProgramado).order_by(CobroProgramado.id)).all())
 
-    def test_quedan_dos(self, alta_hecha: int) -> None:
-        assert len(self._cobros(alta_hecha)) == 2
+    def test_queda_solo_de_inscripcion(self, alta_hecha: int) -> None:
+        cobros = self._cobros(alta_hecha)
+        assert len(cobros) == 1
+        assert cobros[0].motivo == "inscripcion"
 
-    def test_uno_es_la_inscripcion_con_su_propio_precio(self, alta_hecha: int) -> None:
-        inscripcion = next(c for c in self._cobros(alta_hecha) if c.motivo == "inscripcion")
+    def test_la_inscripcion_tiene_su_propio_precio(self, alta_hecha: int) -> None:
+        inscripcion = self._cobros(alta_hecha)[0]
         assert inscripcion.monto == Decimal("500.00")
         assert inscripcion.concepto == "Inscripción"
 
-    def test_el_otro_es_el_ciclo_con_el_precio_de_la_tarifa(self, alta_hecha: int) -> None:
-        ciclo = next(c for c in self._cobros(alta_hecha) if c.motivo == "mensualidad")
-        assert ciclo.monto == Decimal("1200.00")
+    def test_no_se_cobra_la_mensualidad_del_ciclo_uno(self, alta_hecha: int) -> None:
+        assert all(c.motivo != "mensualidad" for c in self._cobros(alta_hecha))
 
-    def test_los_dos_nacen_pendientes(self, alta_hecha: int) -> None:
-        assert all(c.estado == "pendiente" for c in self._cobros(alta_hecha))
+    def test_nace_pendiente(self, alta_hecha: int) -> None:
+        assert self._cobros(alta_hecha)[0].estado == "pendiente"
 
-    def test_ninguno_cobra_el_ciclo_bajo_el_nombre_de_inscripcion(self, alta_hecha: int) -> None:
-        inscripcion = next(c for c in self._cobros(alta_hecha) if c.motivo == "inscripcion")
-        assert inscripcion.monto != Decimal("1200.00")
+
+class TestLaInscripcionDesbloqueaElCicloUno:
+    """Con la inscripción pagada, el plan deja de estar bloqueado por pago, y por eso la
+    pantalla deja de decir «ciclo 4» o «comprobante no validado» el día del alta.
+
+    Es la regla de `_estado_pago_del_ciclo` (api_alumna) cociéndose viva: hasta la validación
+    de la inscripción la alumna está bloqueada; en cuanto la coach la valida, el ciclo 1
+    queda liberado porque el alta ya solo cobró la inscripción, no la mensualidad.
+    """
+
+    def _alumna_y_ciclo(self, coach_id: int) -> tuple[Alumna, Ciclo]:
+        from app.datos.modelos import Ciclo
+
+        with sesion_con_alcance(coach_id) as s:
+            alumna = s.scalars(select(Alumna)).one()
+            ciclo = s.scalars(select(Ciclo)).one()
+            return alumna, ciclo
+
+    def test_hasta_que_no_se_valida_la_inscripcion_sigue_bloqueado(
+        self, alta_hecha: int
+    ) -> None:
+        from app.rutas.api_alumna import _estado_pago_del_ciclo
+
+        alumna, ciclo = self._alumna_y_ciclo(alta_hecha)
+        with sesion_con_alcance(alta_hecha) as s:
+            assert _estado_pago_del_ciclo(s, alumna.id, ciclo) == "pendiente"
+
+    def test_inscripcion_valida_deja_ver_el_plan(self, alta_hecha: int) -> None:
+        from app.rutas.api_alumna import _estado_pago_del_ciclo
+
+        alumna, ciclo = self._alumna_y_ciclo(alta_hecha)
+        with sesion_con_alcance(alta_hecha) as s:
+            cobro = s.scalars(select(CobroProgramado)).one()
+            cobro.estado = "pagado"
+            s.commit()
+        with sesion_con_alcance(alta_hecha) as s:
+            assert _estado_pago_del_ciclo(s, alumna.id, ciclo) == "validado"

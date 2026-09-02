@@ -383,7 +383,7 @@ export function Campo({
   );
 }
 
-export function Entrada({ className, ...props }: ComponentProps<"input">) {
+export function Entrada({ className, onWheel, ...props }: ComponentProps<"input">) {
   return (
     <input
       className={cn(
@@ -393,6 +393,11 @@ export function Entrada({ className, ...props }: ComponentProps<"input">) {
         props.type === "number" && "cifra",
         className,
       )}
+      // Girar la rueda sobre un número no debe subir/bajar su valor, solo hacer scroll.
+      onWheel={(e) => {
+        if (props.type === "number") e.currentTarget.blur();
+        onWheel?.(e);
+      }}
       {...props}
     />
   );

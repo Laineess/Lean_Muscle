@@ -18,7 +18,13 @@ from app.datos.alcance import motor, sesion_con_alcance
 from app.datos.modelos import Alumna, ClaveTemporal, Coach, Usuario
 from app.datos.modelos import Sesion as FilaSesion
 from app.dominio.avisos import Aviso as AvisoDominio
-from app.rutas.esquemas import ActorPublico, CambioDeContrasena, Credenciales, IdiomaPreferido
+from app.rutas.esquemas import (
+    ActorPublico,
+    CambioDeContrasena,
+    Credenciales,
+    IdiomaPreferido,
+    TemaPreferido,
+)
 from app.rutas.sesion import NOMBRE_COOKIE, Actor, RutaQueConfirma, actor_actual
 from app.servicios import avisos as cola
 from app.servicios import cuentas, limites
@@ -244,12 +250,29 @@ def cambiar_idioma(
     return actor_publico(actor.coach_id, actor.usuario_id, actor.rol, actor.debe_cambiar_contrasena)
 
 
+@ruteador.put("/tema", response_model=ActorPublico)
+def cambiar_tema(
+    cuerpo: TemaPreferido, actor: Annotated[Actor, Depends(actor_actual)]
+) -> ActorPublico:
+    """Guarda el tema de la cuenta, no del dispositivo: otra sesión en el mismo navegador
+    conserva el suyo. Devuelve el actor fresco para que el cliente actualice su copia."""
+    with sesion_con_alcance(actor.coach_id) as s:
+        usuario = s.get(Usuario, actor.usuario_id)
+        if usuario is None:
+            raise ErrorDeDominio(Codigo.SIN_PERMISO)
+        usuario.tema = cuerpo.tema
+        s.commit()
+
+    return actor_publico(actor.coach_id, actor.usuario_id, actor.rol, actor.debe_cambiar_contrasena)
+
+
 def actor_publico(
     coach_id: int, usuario_id: int, rol: str, debe_cambiar: bool = False
 ) -> ActorPublico:
     with sesion_con_alcance(coach_id) as s:
         coach = s.get(Coach, coach_id)
         nombre = coach.nombre if coach else ""
+        slug_liga = coach.slug if coach else None
 
         if rol == "alumna":
             alumna = s.scalars(select(Alumna).where(Alumna.usuario_id == usuario_id)).first()
@@ -267,4 +290,6 @@ def actor_publico(
             marca=(coach.marca or coach.nombre) if coach else "MyFittPlan",
             debe_cambiar_contrasena=debe_cambiar,
             idioma=usuario.idioma if usuario else "es",
+            tema=usuario.tema if usuario else "sistema",
+            slug_liga=slug_liga if rol == "alumna" else None,
         )

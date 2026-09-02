@@ -689,6 +689,14 @@ export const EN_COACH: Record<string, string> = {
   "Falta el porcentaje de grasa": "Body fat percentage is missing",
   "Estímalo al validar el chequeo. Es la entrada que manda toda la cadena de cálculo.":
     "Estimate it when reviewing the check-in. It's the input that drives the whole calculation chain.",
+  "Sin chequeo validado todavía.": "No validated check-in yet.",
+  "Aún no hay composición que mostrar": "There's no body composition to show yet",
+  "Aún no hay un chequeo validado del que salga el peso, las medidas y la composición":
+    "There's no validated check-in yet to draw the real weight, measurements, and body composition from.",
+  "Ir a validar el chequeo": "Go review the check-in",
+  "Falta el primer chequeo validado": "The first validated check-in is missing",
+  "Sin un chequeo validado no hay peso real con qué calcular, así que la calculadora queda vacía. Valida el primer chequeo de este ciclo y aquí aparecerán sus cifras.":
+    "Without a validated check-in there's no real weight to work with, so the calculator stays empty. Validate the first check-in of this cycle and its figures will appear here.",
   "Mueve cualquier campo y todo se recalcula. Estos parámetros quedan guardados en el ciclo, para poder entender después por qué un mes funcionó y otro no.":
     "Move any field and everything recalculates. These parameters are saved in the cycle, so you can later understand why one month worked and another didn't.",
   "Nivel de actividad": "Activity level",

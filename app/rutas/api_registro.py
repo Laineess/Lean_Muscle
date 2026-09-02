@@ -251,15 +251,64 @@ def _avisar_a_la_coach(s: Session, coach_id: int, alumna: Alumna) -> None:
     if usuario is None:  # pragma: no cover - defensivo
         return
 
+    cita = s.scalars(
+        select(Cita)
+        .where(Cita.alumna_id == alumna.id, Cita.estado != "cancelada")
+        .order_by(Cita.inicia_en)
+    ).first()
+    cobro = s.scalars(
+        select(CobroProgramado)
+        .where(
+            CobroProgramado.alumna_id == alumna.id,
+            CobroProgramado.motivo == "inscripcion",
+            CobroProgramado.estado.in_(("en_revision", "pagado")),
+        )
+    ).first()
+
+    cita_linea = ""
+    if cita is not None:
+        coach = s.get(Coach, coach_id)
+        zona = coach.zona_horaria if coach is not None else "America/Mexico_City"
+        local = en_zona(cita.inicia_en, zona)
+        cita_linea = f"Cita: {local:%d/%m/%Y} a las {local:%H:%M}\n"
+
+    texto_cobro = f"${cobro.monto:,.0f}" if cobro is not None else "—"
+
+    if cobro is not None and cobro.comprobante_key:
+        llave = cobro.comprobante_key
+        comprobante_key = llave
+        comprobante_nombre = f"comprobante.{llave.rsplit('.', 1)[-1].lower()}"
+        comprobante_nota = "Su comprobante va adjunto."
+    else:
+        comprobante_key = ""
+        comprobante_nombre = ""
+        comprobante_nota = "Todavía no subió comprobante."
+
+    contexto = {
+        "alumna": alumna.nombre,
+        "cita_linea": cita_linea,
+        "monto": texto_cobro,
+        "whatsapp": alumna.whatsapp or "—",
+        "correo": _correo_de_alumna(s, alumna),
+        "comprobante_key": comprobante_key,
+        "comprobante_nombre": comprobante_nombre,
+        "comprobante_nota": comprobante_nota,
+    }
+
     cola.encolar(
         s,
         Aviso.SOLICITUD_RECIBIDA,
         coach_id=coach_id,
         llave=f"solicitud:{alumna.ulid}:recibida",
         para=usuario.email,
-        contexto={"alumna": alumna.nombre},
+        contexto=contexto,
         destinatario_id=usuario.id,
     )
+
+
+def _correo_de_alumna(s: Session, alumna: Alumna) -> str:
+    usuario = s.get(Usuario, alumna.usuario_id)
+    return usuario.email if usuario is not None else "—"
 
 
 @ruteador.get("/mi/solicitud", response_model=EstadoDeSolicitud)
@@ -324,6 +373,40 @@ def mi_solicitud(
         comprobante_subido=comprobante is not None,
         vence_en=dom.vence_el(solicitud.creado_en),
         cita_inicia_en=cita.inicia_en if cita else None,
+    )
+
+
+@ruteador.post("/mi/codigo/reenviar", response_model=RegistroAceptado)
+def reenviar_codigo_autenticado(
+    actor: Annotated[Actor, Depends(solo_alumna)],
+    s: Annotated[Session, Depends(datos)],
+) -> RegistroAceptado:
+    """Reenvía el código de 6 dígitos si la alumna está en espera de verificación."""
+    alumna = q.alumna_de_usuario(s, actor.usuario_id)
+    if alumna is None:
+        raise ErrorDeDominio(Codigo.SIN_PERMISO)
+
+    solicitud = registro.solicitud_de_alumna(s, alumna.id)
+    if solicitud is None or dom.Estado(solicitud.estado) != dom.Estado.SIN_VERIFICAR:
+        raise ErrorDeDominio(Codigo.SOLICITUD_YA_DECIDIDA, "No hay solicitud para reenviar")
+
+    if dom.esta_vencida(dom.Estado(solicitud.estado), solicitud.creado_en, ahora_utc(), solicitud.decidida_en):
+        registro.borrar(s, solicitud)
+        raise ErrorDeDominio(Codigo.SOLICITUD_YA_DECIDIDA, "Ese registro venció. Empieza de nuevo.")
+
+    dom.exigir_espera_entre_codigos(solicitud.codigo_vence_en, ahora_utc())
+
+    coach = s.get(Coach, actor.coach_id)
+    marca = (coach.marca or coach.nombre) if coach else ""
+
+    usuario = s.get(Usuario, actor.usuario_id)
+    correo = usuario.email if usuario else ""
+    codigo = registro.reemitir_codigo(s, solicitud)
+    registro.mandar_codigo(marca, correo, codigo)
+
+    return RegistroAceptado(
+        correo=correo,
+        codigo=None if manda_de_verdad() else codigo,
     )
 
 
@@ -599,7 +682,7 @@ def _avisar_de_la_decision(
             "plan": tarifa.nombre if tarifa is not None else "el que acuerden",
             "cita": cuando,
             "motivo": motivo,
-            "dias": dom.GRACIA_TRAS_DESCARTAR.days,
+            "dias": dom.GRACIA_DESCARTE.days,
         },
         destinatario_id=usuario.id,
     )

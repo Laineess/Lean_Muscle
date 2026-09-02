@@ -89,8 +89,9 @@ CANALES: dict[Aviso, frozenset[Canal]] = {
     # pudiera llegarle una notificación.
     Aviso.CODIGO_DE_REGISTRO: frozenset({Canal.CORREO}),
     Aviso.REGISTRO_SIN_TERMINAR: frozenset({Canal.CORREO}),
-    # A la coach, dentro de la plataforma: es trabajo suyo, no algo que pueda perderse.
-    Aviso.SOLICITUD_RECIBIDA: frozenset({Canal.PUSH}),
+    # A la coach. Por correo se la empuja cuando alguien nuevo termina su inscripción: es la
+    # señal de que le toca decidir, y con su comprobante adjunto no se le pierde de vista.
+    Aviso.SOLICITUD_RECIBIDA: frozenset({Canal.PUSH, Canal.CORREO}),
     Aviso.CHEQUEO_LISTO: frozenset({Canal.PUSH}),
     # A la alumna, y por correo: que la acepten o no decide si tiene servicio.
     Aviso.SOLICITUD_ACEPTADA: frozenset({Canal.PUSH, Canal.CORREO}),
@@ -105,8 +106,9 @@ CANALES: dict[Aviso, frozenset[Canal]] = {
     Aviso.CITA_RECORDATORIO: frozenset({Canal.PUSH}),
     Aviso.CITA_CANCELADA: frozenset({Canal.PUSH, Canal.CORREO}),
     Aviso.CITA_REAGENDADA: frozenset({Canal.PUSH, Canal.CORREO}),
-    # A la coach, y solo por push: es su agenda, no es dinero ni acceso.
-    Aviso.CONSULTA_RESERVADA: frozenset({Canal.PUSH}),
+    # A la coach. Por correo se le deja constancia de la reserva de un alumno nuevo con su
+    # comprobante, para que no dependa de abrir la plataforma para enterarse.
+    Aviso.CONSULTA_RESERVADA: frozenset({Canal.PUSH, Canal.CORREO}),
     Aviso.PAGO_PROXIMO: frozenset({Canal.PUSH}),
     Aviso.PAGO_RECIBIDO: frozenset({Canal.PUSH}),
     Aviso.PAGO_VALIDADO: frozenset({Canal.PUSH, Canal.CORREO}),

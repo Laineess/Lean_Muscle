@@ -57,6 +57,10 @@ class Coach(Base):
     #: oscuro se ve sobre blanco y desaparece sobre negro, asi que el hex no basta.
     color_secundario: Mapped[str] = mapped_column(String(9), default="#C9A227", nullable=False)
 
+    #: Cuenta, CLABE y demás para que la alumna pague. Texto libre: cada banco se declara
+    #: distinto, así que un solo campo largo en vez de campos estructurados.
+    datos_bancarios: Mapped[str | None] = mapped_column(Text)
+
     precio_ciclo: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     dia_chequeo: Mapped[int] = mapped_column(TINYINT, default=1, nullable=False)
 
@@ -82,6 +86,7 @@ class Usuario(BaseMultiInquilino):
     __table_args__ = (
         CheckConstraint("rol in ('coach','alumna','admin_plataforma')", name="rol_valido"),
         CheckConstraint("idioma in ('es','en')", name="idioma_valido"),
+        CheckConstraint("tema in ('sistema','claro','oscuro')", name="tema_valido"),
         ARGS_DE_TABLA,
     )
 
@@ -94,6 +99,9 @@ class Usuario(BaseMultiInquilino):
     #: Preferencia de idioma de la cuenta, no del dispositivo: cada usuario ve la app en el
     #: suyo aunque comparta navegador con otra cuenta.
     idioma: Mapped[str] = mapped_column(String(2), default="es", nullable=False)
+    #: Tema de la interfaz, por cuenta: cada usuario ve la app en el suyo aunque comparta
+    #: navegador con otra cuenta.
+    tema: Mapped[str] = mapped_column(String(10), default="sistema", nullable=False)
 
 
 class Sesion(BaseMultiInquilino):

@@ -108,13 +108,24 @@ def _estado_pago_del_ciclo(s: Session, alumna_id: int, ciclo: Ciclo) -> str:
 
     # La bandeja actual salda CobroProgramado; se acepta cualquiera pagado por si hubo
     # reintentos o si el pago se confirmó desde la aceptación de un registro.
+    cobros = q.cobros_de(s, alumna_id)
     hay_cobro_pagado = any(
         c.motivo == "mensualidad"
         and c.estado == "pagado"
         and ciclo.inicia_en <= c.fecha < ciclo.termina_en
-        for c in q.cobros_de(s, alumna_id)
+        for c in cobros
     )
-    return "validado" if hay_cobro_pagado else "pendiente"
+    if hay_cobro_pagado:
+        return "validado"
+
+    # El primer ciclo se paga con la inscripción: la coach la valida al aceptar al alumno
+    # nuevo, y con eso el ciclo 1 queda liberado (la primera mensualidad llega hasta el 2).
+    if ciclo.numero == 1 and any(
+        c.motivo == "inscripcion" and c.estado == "pagado" for c in cobros
+    ):
+        return "validado"
+
+    return "pendiente"
 
 
 @ruteador.get("/inicio", response_model=InicioAlumna)
@@ -201,6 +212,7 @@ def plan(
             entrenamiento=None,
             bloqueado_por_pago=True,
             motivo_bloqueo="sin_ciclo",
+            ciclo=None,
             restricciones=historial.restricciones if historial else None,
             lesiones=historial.lesiones if historial else None,
         )
@@ -235,6 +247,7 @@ def plan(
         entrenamiento=_plan_publico(planes.get("entrenamiento"), ciclo.numero),
         bloqueado_por_pago=motivo is not None,
         motivo_bloqueo=motivo,
+        ciclo=ciclo.numero,
         restricciones=historial.restricciones if historial else None,
         lesiones=historial.lesiones if historial else None,
     )

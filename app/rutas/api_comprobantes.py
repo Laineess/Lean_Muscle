@@ -41,6 +41,11 @@ def _mi_alumna(s: Session, actor: Actor) -> Alumna:
     return alumna
 
 
+def _datos_bancarios_de(s: Session, coach_id: int) -> str | None:
+    coach = s.get(Coach, coach_id)
+    return coach.datos_bancarios if coach is not None else None
+
+
 # ---------------------------------------------------------------------------
 # Lado de la alumna
 # ---------------------------------------------------------------------------
@@ -54,7 +59,8 @@ def mis_cobros(
     """Lo que le toca pagar. Es la lista de la que elige al subir un comprobante."""
     alumna = _mi_alumna(s, actor)
     hoy = ahora_utc().date()
-    return [cobro_publico(c, hoy) for c in q.cobros_de(s, alumna.id)]
+    bank = _datos_bancarios_de(s, actor.coach_id)
+    return [cobro_publico(c, hoy, bank) for c in q.cobros_de(s, alumna.id)]
 
 
 @ruteador.post("/mi/cobros/{ulid}/comprobante", response_model=CobroDeAlumna)
@@ -80,7 +86,7 @@ async def subir_comprobante(
     if not contenido:
         raise HTTPException(422, "El archivo llegó vacío")
     if len(contenido) > imagenes.BYTES_MAXIMOS:
-        raise HTTPException(422, "El comprobante pesa demasiado")
+        raise HTTPException(413, "El comprobante pesa demasiado")
 
     lectura = ocr.leer(contenido)
     extension = (archivo.filename or "comprobante.jpg").rsplit(".", 1)[-1].lower()[:5]
@@ -111,7 +117,7 @@ async def subir_comprobante(
         detalle={"confianza_ocr": str(lectura.confianza)},
     )
 
-    return cobro_publico(cobro, ahora_utc().date())
+    return cobro_publico(cobro, ahora_utc().date(), _datos_bancarios_de(s, actor.coach_id))
 
 
 # ---------------------------------------------------------------------------

@@ -11,7 +11,9 @@
  */
 
 import { RotateCcw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { Aviso } from "@/componentes/primitivas";
 
 import type { Composicion, Energia } from "@/lib/calculadora";
 import { num } from "@/lib/formato";
@@ -22,8 +24,6 @@ interface TablaProyeccionGananciaProps {
   energia: Energia;
   semanas: number;
   onSemanas: (sem: number) => void;
-  ajustePct?: number;
-  onAjustePct?: (pct: number) => void;
 }
 
 const KCAL_POR_KG_GANADO = 8400;
@@ -33,7 +33,6 @@ export function TablaProyeccionGanancia({
   energia,
   semanas,
   onSemanas,
-  onAjustePct,
 }: TablaProyeccionGananciaProps) {
   const { t } = useIdioma();
   const peso = comp.pesoKg;
@@ -47,11 +46,10 @@ export function TablaProyeccionGanancia({
   // Aumento semanal base: H17 = C23 / 8400
   const aumentoSemanalBase = Math.max(0.01, ajusteSemanalKcal / KCAL_POR_KG_GANADO);
 
-  // Estados de entrada para edición interactiva
-  const [inputAumentoSemanal, setInputAumentoSemanal] = useState<string>("");
-  const [inputPctMensual, setInputPctMensual] = useState<string>("");
+  // Único campo capturado de esta tabla: las semanas. El resto son derivados y se muestran
+  // en solo-lectura para que no cambien solos ni pisen lo capturado.
   const [inputSemanas, setInputSemanas] = useState<string>(String(semanas));
-  const [inputTotalKg, setInputTotalKg] = useState<string>("");
+  const enfocadoSemanas = useRef(false);
 
   // Cálculos derivados
   const aumentoSemanal = aumentoSemanalBase;
@@ -65,65 +63,41 @@ export function TablaProyeccionGanancia({
   const grasaTotalDosAUno = Math.max(0, aumentoTotalKg - musculoTotalDosAUno); // H23 = H21 - H22
   const grasaTotalUnoAUno = Math.max(0, aumentoTotalKg - musculoTotalUnoAUno); // I23 = H21 - I22
 
-  // Sincronizar inputs locales cuando cambian los valores base
   useEffect(() => {
-    setInputAumentoSemanal(num(aumentoSemanal, 3));
-  }, [aumentoSemanal]);
-
-  useEffect(() => {
-    setInputPctMensual(`${num(pctMensual, 2)}%`);
-  }, [pctMensual]);
-
-  useEffect(() => {
-    setInputSemanas(String(semanas));
+    if (!enfocadoSemanas.current) setInputSemanas(String(semanas));
   }, [semanas]);
 
-  useEffect(() => {
-    setInputTotalKg(num(aumentoTotalKg, 3));
-  }, [aumentoTotalKg]);
-
-  // Manejo de edición de Semanas
+  // Manejo de edición de Semanas (único campo capturado de esta tabla)
   const aplicarSemanas = (valStr: string) => {
     const val = Math.max(1, Math.min(104, Math.round(Number(valStr.replace(",", ".")) || 1)));
     onSemanas(val);
   };
-
-  // Manejo de edición de Aumento Semanal (ajusta superávit calórico si hay handler)
-  const aplicarAumentoSemanal = (valStr: string) => {
-    const val = Math.abs(parseFloat(valStr.replace(",", ".")));
-    if (isNaN(val) || val <= 0 || !onAjustePct || energia.mantenimientoKcal <= 0) return;
-    const kcalSemanalesReq = val * KCAL_POR_KG_GANADO;
-    const nuevoAjuste = Math.round((kcalSemanalesReq / (energia.mantenimientoKcal * 7)) * 100);
-    onAjustePct(Math.min(50, Math.max(1, nuevoAjuste)));
+  const terminarSemanas = () => {
+    enfocadoSemanas.current = false;
+    aplicarSemanas(inputSemanas);
   };
 
-  // Manejo de edición de % Mensual
-  const aplicarPctMensual = (valStr: string) => {
-    const val = Math.abs(parseFloat(valStr.replace("%", "").replace(",", ".")));
-    if (isNaN(val) || val <= 0 || !onAjustePct || energia.mantenimientoKcal <= 0) return;
-    const kgSemanal = (val / 100 / 4) * peso;
-    const kcalSemanalesReq = kgSemanal * KCAL_POR_KG_GANADO;
-    const nuevoAjuste = Math.round((kcalSemanalesReq / (energia.mantenimientoKcal * 7)) * 100);
-    onAjustePct(Math.min(50, Math.max(1, nuevoAjuste)));
-  };
-
-  // Manejo de edición de Aumento Total Kg
-  const aplicarTotalKg = (valStr: string) => {
-    const val = Math.abs(parseFloat(valStr.replace(",", ".")));
-    if (isNaN(val) || val <= 0 || !onAjustePct || energia.mantenimientoKcal <= 0) return;
-    const kgSemanal = val / semanas;
-    const kcalSemanalesReq = kgSemanal * KCAL_POR_KG_GANADO;
-    const nuevoAjuste = Math.round((kcalSemanalesReq / (energia.mantenimientoKcal * 7)) * 100);
-    onAjustePct(Math.min(50, Math.max(1, nuevoAjuste)));
-  };
-
-  // Restablecer a 20 semanas por defecto
+  // Restablecer el campo capturado (semanas) a 20. No toca el ajuste global: el
+  // superávit se edita en el panel «Ajuste calórico».
   const restablecer = () => {
     onSemanas(20);
-    if (onAjustePct && energia.esDeficit) {
-      onAjustePct(10);
-    }
   };
+
+  // Solo se proyecta aumento cuando el ajuste global es efectivamente superávit
+  // (ajusteSemanalKcal > 0). Si no, es una hipótesis inventada (10 %) y se oculta
+  // la tabla para no confundir.
+  const enSuperavit = energia.ajusteSemanalKcal > 0;
+  if (!enSuperavit) {
+    return (
+      <section className="flex flex-col gap-3">
+        <Aviso tono="info">
+          {t(
+            "Proyección de aumento no disponible: el ajuste actual no es superávit. El aumento solo se proyecta cuando el plan está en superávit.",
+          )}
+        </Aviso>
+      </section>
+    );
+  }
 
   return (
     <section className="flex flex-col gap-3">
@@ -140,9 +114,16 @@ export function TablaProyeccionGanancia({
               <input
                 type="text"
                 value={inputSemanas}
-                onChange={(e) => setInputSemanas(e.target.value)}
-                onBlur={() => aplicarSemanas(inputSemanas)}
-                onKeyDown={(e) => e.key === "Enter" && aplicarSemanas(inputSemanas)}
+                onChange={(e) => {
+                  const s = e.target.value;
+                  setInputSemanas(s);
+                  if (String(s).trim() !== "") aplicarSemanas(s);
+                }}
+                onFocus={() => {
+                  enfocadoSemanas.current = true;
+                }}
+                onBlur={terminarSemanas}
+                onKeyDown={(e) => e.key === "Enter" && terminarSemanas()}
                 className="cifra h-6 w-12 rounded-marco border border-fondo/30 bg-fondo/10 px-1 text-center font-bold text-fondo placeholder:text-fondo/50 focus:border-acento focus:bg-fondo focus:text-tinta focus:outline-none dark:border-tinta/30 dark:bg-tinta/10 dark:text-tinta"
                 title={t("Semanas estimadas de volumen")}
               />
@@ -171,17 +152,9 @@ export function TablaProyeccionGanancia({
                   {t("Aumento de peso semanal según ajuste:")}
                 </th>
                 <td colSpan={2} className="border-r border-linea p-1.5 text-center">
-                  <input
-                    type="text"
-                    value={inputAumentoSemanal}
-                    onChange={(e) => setInputAumentoSemanal(e.target.value)}
-                    onBlur={() => aplicarAumentoSemanal(inputAumentoSemanal)}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" && aplicarAumentoSemanal(inputAumentoSemanal)
-                    }
-                    className="cifra h-9 w-full rounded-marco bg-fondo px-2 text-center text-menor font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
-                    title={t("Aumento de peso semanal en Kg (editable)")}
-                  />
+                  <span className="cifra inline-block h-9 px-2 text-center text-menor font-bold text-tinta">
+                    {num(aumentoSemanal, 3)}
+                  </span>
                 </td>
                 <td className="w-12 border-r border-linea bg-fondo-sutil/40 p-3 text-center font-medium text-tinta-suave">
                   Kg
@@ -219,15 +192,9 @@ export function TablaProyeccionGanancia({
                   {t("Porcentage de aumento mensual:")}
                 </th>
                 <td colSpan={2} className="border-r border-linea p-1.5 text-center">
-                  <input
-                    type="text"
-                    value={inputPctMensual}
-                    onChange={(e) => setInputPctMensual(e.target.value)}
-                    onBlur={() => aplicarPctMensual(inputPctMensual)}
-                    onKeyDown={(e) => e.key === "Enter" && aplicarPctMensual(inputPctMensual)}
-                    className="cifra h-9 w-full rounded-marco bg-fondo px-2 text-center text-menor font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
-                    title={t("Porcentaje de aumento mensual relativo al peso (editable)")}
-                  />
+                  <span className="cifra inline-block h-9 px-2 text-center text-menor font-bold text-tinta">
+                    {num(pctMensual, 2)}%
+                  </span>
                 </td>
                 <td className="border-r border-linea bg-fondo-sutil/40 p-3 text-center font-medium text-tinta-suave">
                   Kg
@@ -247,9 +214,16 @@ export function TablaProyeccionGanancia({
                   <input
                     type="text"
                     value={inputSemanas}
-                    onChange={(e) => setInputSemanas(e.target.value)}
-                    onBlur={() => aplicarSemanas(inputSemanas)}
-                    onKeyDown={(e) => e.key === "Enter" && aplicarSemanas(inputSemanas)}
+                    onChange={(e) => {
+                      const s = e.target.value;
+                      setInputSemanas(s);
+                      if (String(s).trim() !== "") aplicarSemanas(s);
+                    }}
+                    onFocus={() => {
+                      enfocadoSemanas.current = true;
+                    }}
+                    onBlur={terminarSemanas}
+                    onKeyDown={(e) => e.key === "Enter" && terminarSemanas()}
                     className="cifra h-9 w-full rounded-marco bg-fondo px-2 text-center text-cuerpo font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
                     title={t("Número de semanas para la proyección (editable)")}
                   />
@@ -269,15 +243,9 @@ export function TablaProyeccionGanancia({
                   {t("Aumento de peso TOTAL estimado X semanas:")}
                 </th>
                 <td colSpan={2} className="border-r border-linea p-1.5 text-center">
-                  <input
-                    type="text"
-                    value={inputTotalKg}
-                    onChange={(e) => setInputTotalKg(e.target.value)}
-                    onBlur={() => aplicarTotalKg(inputTotalKg)}
-                    onKeyDown={(e) => e.key === "Enter" && aplicarTotalKg(inputTotalKg)}
-                    className="cifra h-9 w-full rounded-marco bg-fondo px-2 text-center text-menor font-bold text-tinta transition-all hover:bg-fondo-sutil focus:border focus:border-acento focus:bg-fondo focus:outline-none"
-                    title={t("Aumento total en Kg proyectado para las semanas indicadas (editable)")}
-                  />
+                  <span className="cifra inline-block h-9 px-2 text-center text-menor font-bold text-tinta">
+                    {num(aumentoTotalKg, 3)}
+                  </span>
                 </td>
                 <td className="border-r border-linea bg-fondo-sutil/40 p-3 text-center font-medium text-tinta-suave">
                   Kg

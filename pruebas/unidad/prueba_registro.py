@@ -11,11 +11,11 @@ import pytest
 
 from app.compartido.errores import ErrorDeDominio
 from app.dominio.registro import (
-    AVISO_ANTES_DE_BORRAR,
-    GRACIA_TRAS_DESCARTAR,
-    INTENTOS_DE_CODIGO,
-    VIDA_DE_SOLICITUD,
-    VIGENCIA_DEL_CODIGO,
+    AVISO_BORRADO,
+    CODIGO_INTENTOS,
+    CODIGO_VIVE,
+    GRACIA_DESCARTE,
+    SOLICITUD_VIVE,
     Estado,
     Paso,
     borra_el,
@@ -69,15 +69,15 @@ class TestRecorrido:
 
 class TestCodigo:
     def test_recien_emitido_sirve(self) -> None:
-        assert codigo_utilizable(AHORA + VIGENCIA_DEL_CODIGO, 0, AHORA)
+        assert codigo_utilizable(AHORA + CODIGO_VIVE, 0, AHORA)
 
     def test_caducado_no_sirve(self) -> None:
         assert not codigo_utilizable(AHORA - timedelta(seconds=1), 0, AHORA)
 
     def test_quemado_a_intentos_no_sirve(self) -> None:
-        vence = AHORA + VIGENCIA_DEL_CODIGO
-        assert not codigo_utilizable(vence, INTENTOS_DE_CODIGO, AHORA)
-        assert codigo_utilizable(vence, INTENTOS_DE_CODIGO - 1, AHORA)
+        vence = AHORA + CODIGO_VIVE
+        assert not codigo_utilizable(vence, CODIGO_INTENTOS, AHORA)
+        assert codigo_utilizable(vence, CODIGO_INTENTOS - 1, AHORA)
 
     def test_exigirlo_falla_con_su_codigo(self) -> None:
         with pytest.raises(ErrorDeDominio):
@@ -89,20 +89,20 @@ class TestVencimiento:
         assert not esta_vencida(Estado.SIN_VERIFICAR, AHORA, AHORA)
 
     def test_a_los_siete_dias_se_borra(self) -> None:
-        creada = AHORA - VIDA_DE_SOLICITUD
+        creada = AHORA - SOLICITUD_VIVE
         assert esta_vencida(Estado.EN_CURSO, creada, AHORA)
 
     def test_la_que_ya_espera_a_la_coach_no_se_borra(self) -> None:
         # Ella hizo lo suyo: borrarla castigaría a la alumna por la demora de la coach.
-        creada = AHORA - VIDA_DE_SOLICITUD * 3
+        creada = AHORA - SOLICITUD_VIVE * 3
         assert not esta_vencida(Estado.ESPERANDO, creada, AHORA)
 
     @pytest.mark.parametrize("estado", [Estado.ACEPTADA, Estado.DESCARTADA])
     def test_una_decidida_tampoco(self, estado: Estado) -> None:
-        assert not esta_vencida(estado, AHORA - VIDA_DE_SOLICITUD * 5, AHORA)
+        assert not esta_vencida(estado, AHORA - SOLICITUD_VIVE * 5, AHORA)
 
     def test_el_plazo_se_cuenta_desde_que_se_creo(self) -> None:
-        assert vence_el(AHORA) == AHORA + VIDA_DE_SOLICITUD
+        assert vence_el(AHORA) == AHORA + SOLICITUD_VIVE
 
 
 class TestDescartada:
@@ -110,11 +110,11 @@ class TestDescartada:
         # Y no desde que se registró: a quien descartan el sexto día no se le borra todo
         # al día siguiente.
         decidida = AHORA - timedelta(days=1)
-        creada = AHORA - VIDA_DE_SOLICITUD * 2
+        creada = AHORA - SOLICITUD_VIVE * 2
         assert not esta_vencida(Estado.DESCARTADA, creada, AHORA, decidida)
 
     def test_a_los_siete_dias_de_descartarla_se_borra(self) -> None:
-        decidida = AHORA - GRACIA_TRAS_DESCARTAR
+        decidida = AHORA - GRACIA_DESCARTE
         assert esta_vencida(Estado.DESCARTADA, AHORA, AHORA, decidida)
 
     def test_la_aceptada_no_se_borra_nunca_sola(self) -> None:
@@ -145,7 +145,7 @@ class TestDecidir:
 
 class TestRecordatorio:
     def test_avisa_dos_dias_antes(self) -> None:
-        creada = AHORA - (VIDA_DE_SOLICITUD - AVISO_ANTES_DE_BORRAR)
+        creada = AHORA - (SOLICITUD_VIVE - AVISO_BORRADO)
         assert toca_recordar(Estado.EN_CURSO, creada, AHORA, ya_enviado=False)
 
     def test_antes_de_eso_no_molesta(self) -> None:
@@ -153,11 +153,11 @@ class TestRecordatorio:
         assert not toca_recordar(Estado.EN_CURSO, creada, AHORA, ya_enviado=False)
 
     def test_no_se_repite(self) -> None:
-        creada = AHORA - VIDA_DE_SOLICITUD
+        creada = AHORA - SOLICITUD_VIVE
         assert not toca_recordar(Estado.EN_CURSO, creada, AHORA, ya_enviado=True)
 
     def test_a_la_que_espera_no_se_le_recuerda_nada(self) -> None:
-        creada = AHORA - VIDA_DE_SOLICITUD
+        creada = AHORA - SOLICITUD_VIVE
         assert not toca_recordar(Estado.ESPERANDO, creada, AHORA, ya_enviado=False)
 
 
